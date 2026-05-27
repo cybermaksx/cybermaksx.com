@@ -1,0 +1,373 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="Offensive security methodology used by Maks Huseynli — a structured engineering workflow for penetration testing and exploit development." />
+  <title>Methodology — Maks Huseynli</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@300;400;500&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:        #0b0f14;
+      --bg-2:      #0f1419;
+      --bg-3:      #141b22;
+      --border:    #1e2730;
+      --border-2:  #253040;
+      --text:      #c8d0da;
+      --text-dim:  #6b7a8d;
+      --text-faint:#3a4552;
+      --accent:    #4d9de0;
+      --mono: 'DM Mono', monospace;
+      --sans: 'DM Sans', sans-serif;
+    }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--sans);
+      font-size: 15px;
+      line-height: 1.7;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    nav {
+      position: fixed;
+      top: 0; left: 0; right: 0;
+      z-index: 100;
+      background: rgba(11,15,20,0.88);
+      backdrop-filter: blur(12px);
+      border-bottom: 1px solid var(--border);
+    }
+
+    .nav-inner {
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 0 28px;
+      height: 56px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .nav-brand { font-family: var(--mono); font-size: 13px; color: var(--accent); text-decoration: none; }
+
+    .nav-links { display: flex; gap: 0; list-style: none; }
+
+    .nav-links a {
+      font-size: 13px;
+      color: var(--text-dim);
+      text-decoration: none;
+      padding: 6px 16px;
+      border-radius: 4px;
+      transition: color 0.2s;
+    }
+
+    .nav-links a:hover { color: var(--text); }
+    .nav-links a.active { color: var(--accent); }
+
+    .nav-toggle {
+      display: none;
+      background: none;
+      border: none;
+      cursor: pointer;
+      padding: 4px;
+    }
+
+    .nav-toggle span {
+      display: block;
+      width: 22px;
+      height: 1.5px;
+      background: var(--text-dim);
+      margin: 5px 0;
+    }
+
+    .page-header {
+      padding: 120px 28px 64px;
+      max-width: 1100px;
+      margin: 0 auto;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .page-label {
+      font-family: var(--mono);
+      font-size: 11px;
+      color: var(--accent);
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+      margin-bottom: 20px;
+    }
+
+    .page-title {
+      font-size: clamp(28px, 4vw, 44px);
+      font-weight: 300;
+      color: #dce5ef;
+      letter-spacing: -0.02em;
+      margin-bottom: 16px;
+    }
+
+    .page-subtitle {
+      font-size: 15px;
+      color: var(--text-dim);
+      max-width: 520px;
+    }
+
+    .content {
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 80px 28px 120px;
+    }
+
+    .phase-list {
+      display: flex;
+      flex-direction: column;
+      gap: 0;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      overflow: hidden;
+    }
+
+    .phase {
+      display: grid;
+      grid-template-columns: 80px 1fr;
+      border-bottom: 1px solid var(--border);
+      transition: background 0.2s;
+    }
+
+    .phase:last-child { border-bottom: none; }
+    .phase:hover { background: var(--bg-2); }
+
+    .phase-num {
+      padding: 40px 24px;
+      display: flex;
+      align-items: flex-start;
+      justify-content: center;
+      border-right: 1px solid var(--border);
+    }
+
+    .phase-num span {
+      font-family: var(--mono);
+      font-size: 11px;
+      color: var(--text-faint);
+      letter-spacing: 0.08em;
+      margin-top: 4px;
+    }
+
+    .phase-body {
+      padding: 40px 40px;
+    }
+
+    .phase-name {
+      font-size: 17px;
+      font-weight: 500;
+      color: #dce5ef;
+      margin-bottom: 12px;
+      letter-spacing: -0.01em;
+    }
+
+    .phase-desc {
+      font-size: 14px;
+      color: var(--text-dim);
+      line-height: 1.75;
+      max-width: 640px;
+      margin-bottom: 20px;
+    }
+
+    .phase-tasks {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    .task-tag {
+      font-family: var(--mono);
+      font-size: 10px;
+      padding: 3px 9px;
+      background: var(--bg-3);
+      border: 1px solid var(--border-2);
+      border-radius: 3px;
+      color: var(--text-dim);
+      letter-spacing: 0.04em;
+    }
+
+    footer {
+      border-top: 1px solid var(--border);
+      padding: 32px 28px;
+    }
+
+    .footer-inner {
+      max-width: 1100px;
+      margin: 0 auto;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .footer-copy { font-family: var(--mono); font-size: 11px; color: var(--text-faint); }
+
+    .footer-links { display: flex; gap: 24px; }
+
+    .footer-links a {
+      font-family: var(--mono);
+      font-size: 11px;
+      color: var(--text-faint);
+      text-decoration: none;
+      transition: color 0.2s;
+    }
+
+    .footer-links a:hover { color: var(--text-dim); }
+
+    @media (max-width: 640px) {
+      .phase { grid-template-columns: 1fr; }
+      .phase-num { padding: 24px 28px 0; border-right: none; border-bottom: none; justify-content: flex-start; }
+      .phase-body { padding: 16px 28px 36px; }
+      .footer-inner { flex-direction: column; gap: 16px; text-align: center; }
+      .nav-links { display: none; position: absolute; top: 56px; left: 0; right: 0;
+        flex-direction: column; background: var(--bg-2); border-bottom: 1px solid var(--border); padding: 12px 0; }
+      .nav-links.open { display: flex; }
+      .nav-toggle { display: block; }
+    }
+  </style>
+</head>
+<body>
+
+  <nav>
+    <div class="nav-inner">
+      <a class="nav-brand" href="index.html">CyberMaks</a>
+      <ul class="nav-links" id="navLinks">
+        <li><a href="index.html#case-studies">Case Studies</a></li>
+        <li><a href="methodology.html" class="active">Methodology</a></li>
+        <li><a href="about.html">About</a></li>
+        <li><a href="contact.html">Contact</a></li>
+      </ul>
+      <button class="nav-toggle" id="navToggle" aria-label="Toggle menu">
+        <span></span><span></span><span></span>
+      </button>
+    </div>
+  </nav>
+
+  <header class="page-header">
+    <p class="page-label">// methodology</p>
+    <h1 class="page-title">Engineering Workflow</h1>
+    <p class="page-subtitle">A repeatable, structured approach to offensive security engagements — from initial reconnaissance through post-exploitation analysis.</p>
+  </header>
+
+  <main class="content">
+    <div class="phase-list">
+
+      <div class="phase">
+        <div class="phase-num"><span>01</span></div>
+        <div class="phase-body">
+          <h2 class="phase-name">Surface Mapping</h2>
+          <p class="phase-desc">Define the attack surface before touching anything. Document all exposed services, subdomains, technologies, and entry points. Build a complete picture before forming hypotheses. Unexamined scope is risk.</p>
+          <div class="phase-tasks">
+            <span class="task-tag">DNS enumeration</span>
+            <span class="task-tag">Port scanning</span>
+            <span class="task-tag">Service fingerprinting</span>
+            <span class="task-tag">OSINT</span>
+            <span class="task-tag">Tech stack ID</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="phase">
+        <div class="phase-num"><span>02</span></div>
+        <div class="phase-body">
+          <h2 class="phase-name">Structured Enumeration</h2>
+          <p class="phase-desc">Go deeper on each identified service. Enumerate version data, misconfigurations, and exposed functionality. Directory and parameter fuzzing, API endpoint discovery, authentication mechanism analysis. No guessing — systematic coverage.</p>
+          <div class="phase-tasks">
+            <span class="task-tag">Directory fuzzing</span>
+            <span class="task-tag">Parameter discovery</span>
+            <span class="task-tag">API endpoint mapping</span>
+            <span class="task-tag">Auth flow analysis</span>
+            <span class="task-tag">Source review</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="phase">
+        <div class="phase-num"><span>03</span></div>
+        <div class="phase-body">
+          <h2 class="phase-name">Vulnerability Validation</h2>
+          <p class="phase-desc">Filter signal from noise. For each identified potential vulnerability, validate exploitability in isolation before building attack chains. Avoid false positive paths early — they waste time in later phases.</p>
+          <div class="phase-tasks">
+            <span class="task-tag">PoC testing</span>
+            <span class="task-tag">Version verification</span>
+            <span class="task-tag">Exploit condition checks</span>
+            <span class="task-tag">Controlled payloads</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="phase">
+        <div class="phase-num"><span>04</span></div>
+        <div class="phase-body">
+          <h2 class="phase-name">Exploit Adaptation</h2>
+          <p class="phase-desc">Adapt public exploits or develop custom payloads for the specific target environment. Understand what the exploit does at the code level. Modify for the environment — WAF bypass, encoding, timing adjustments, chaining with other findings.</p>
+          <div class="phase-tasks">
+            <span class="task-tag">Payload crafting</span>
+            <span class="task-tag">Exploit modification</span>
+            <span class="task-tag">WAF evasion</span>
+            <span class="task-tag">Encoding chains</span>
+            <span class="task-tag">Chained attack paths</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="phase">
+        <div class="phase-num"><span>05</span></div>
+        <div class="phase-body">
+          <h2 class="phase-name">Privilege Escalation Logic</h2>
+          <p class="phase-desc">Once initial access is established, enumerate the local environment for escalation paths. SUID binaries, writable cron jobs, sudo misconfigurations, kernel version gaps, credential reuse. Every path is documented before attempting.</p>
+          <div class="phase-tasks">
+            <span class="task-tag">SUID enumeration</span>
+            <span class="task-tag">Sudo analysis</span>
+            <span class="task-tag">Cron inspection</span>
+            <span class="task-tag">Credential hunting</span>
+            <span class="task-tag">Kernel exploits</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="phase">
+        <div class="phase-num"><span>06</span></div>
+        <div class="phase-body">
+          <h2 class="phase-name">Post Exploitation Analysis</h2>
+          <p class="phase-desc">After achieving objective, document what was possible from the compromised position. Lateral movement opportunities, sensitive data accessible, persistence mechanisms available. The writeup starts here — every finding gets root-caused to a specific misconfiguration or gap.</p>
+          <div class="phase-tasks">
+            <span class="task-tag">Lateral movement</span>
+            <span class="task-tag">Data exposure assessment</span>
+            <span class="task-tag">Persistence options</span>
+            <span class="task-tag">Root cause analysis</span>
+            <span class="task-tag">Writeup documentation</span>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </main>
+
+  <footer>
+    <div class="footer-inner">
+      <span class="footer-copy">© 2024 Maks Huseynli</span>
+      <div class="footer-links">
+        <a href="index.html">Home</a>
+        <a href="about.html">About</a>
+        <a href="contact.html">Contact</a>
+      </div>
+    </div>
+  </footer>
+
+  <script>
+    const toggle = document.getElementById('navToggle');
+    const links = document.getElementById('navLinks');
+    toggle.addEventListener('click', () => links.classList.toggle('open'));
+  </script>
+
+</body>
+</html>

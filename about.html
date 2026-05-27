@@ -1,0 +1,287 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="About Maks Huseynli — Offensive Security Practitioner focused on web application exploitation and penetration testing." />
+  <title>About — Maks Huseynli</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@300;400;500&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:        #0b0f14;
+      --bg-2:      #0f1419;
+      --bg-3:      #141b22;
+      --border:    #1e2730;
+      --border-2:  #253040;
+      --text:      #c8d0da;
+      --text-dim:  #6b7a8d;
+      --text-faint:#3a4552;
+      --accent:    #4d9de0;
+      --mono: 'DM Mono', monospace;
+      --sans: 'DM Sans', sans-serif;
+    }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--sans);
+      font-size: 15px;
+      line-height: 1.7;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    nav {
+      position: fixed;
+      top: 0; left: 0; right: 0;
+      z-index: 100;
+      background: rgba(11,15,20,0.88);
+      backdrop-filter: blur(12px);
+      border-bottom: 1px solid var(--border);
+    }
+
+    .nav-inner {
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 0 28px;
+      height: 56px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .nav-brand { font-family: var(--mono); font-size: 13px; color: var(--accent); text-decoration: none; }
+    .nav-links { display: flex; gap: 0; list-style: none; }
+    .nav-links a { font-size: 13px; color: var(--text-dim); text-decoration: none; padding: 6px 16px; border-radius: 4px; transition: color 0.2s; }
+    .nav-links a:hover { color: var(--text); }
+    .nav-links a.active { color: var(--accent); }
+
+    .nav-toggle { display: none; background: none; border: none; cursor: pointer; padding: 4px; }
+    .nav-toggle span { display: block; width: 22px; height: 1.5px; background: var(--text-dim); margin: 5px 0; }
+
+    .page-header {
+      padding: 120px 28px 64px;
+      max-width: 1100px;
+      margin: 0 auto;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .page-label { font-family: var(--mono); font-size: 11px; color: var(--accent); letter-spacing: 0.15em; text-transform: uppercase; margin-bottom: 20px; }
+
+    .page-title { font-size: clamp(28px, 4vw, 44px); font-weight: 300; color: #dce5ef; letter-spacing: -0.02em; }
+
+    .content {
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 80px 28px 120px;
+      display: grid;
+      grid-template-columns: 1fr 320px;
+      gap: 80px;
+      align-items: start;
+    }
+
+    .about-body {}
+
+    .about-body p {
+      font-size: 15px;
+      color: var(--text-dim);
+      line-height: 1.85;
+      margin-bottom: 20px;
+    }
+
+    .about-body p:last-child { margin-bottom: 0; }
+
+    .about-body p strong {
+      color: var(--text);
+      font-weight: 500;
+    }
+
+    .aside {}
+
+    .aside-card {
+      background: var(--bg-2);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      overflow: hidden;
+      margin-bottom: 1px;
+    }
+
+    .aside-card:first-child { border-radius: 8px 8px 0 0; }
+    .aside-card:last-child  { border-radius: 0 0 8px 8px; }
+
+    .aside-section-title {
+      font-family: var(--mono);
+      font-size: 10px;
+      color: var(--text-faint);
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      padding: 20px 24px 12px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .aside-list {
+      list-style: none;
+      padding: 12px 0;
+    }
+
+    .aside-list li {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 8px 24px;
+    }
+
+    .aside-list li span:first-child {
+      font-size: 13px;
+      color: var(--text-dim);
+    }
+
+    .aside-list li span:last-child {
+      font-family: var(--mono);
+      font-size: 10px;
+      color: var(--text-faint);
+    }
+
+    .status-dot {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-family: var(--mono);
+      font-size: 10px;
+      color: var(--text-faint);
+    }
+
+    .status-dot::before {
+      content: '';
+      display: block;
+      width: 6px; height: 6px;
+      border-radius: 50%;
+      background: #34c759;
+      box-shadow: 0 0 6px rgba(52,199,89,0.5);
+    }
+
+    footer {
+      border-top: 1px solid var(--border);
+      padding: 32px 28px;
+    }
+
+    .footer-inner {
+      max-width: 1100px;
+      margin: 0 auto;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .footer-copy { font-family: var(--mono); font-size: 11px; color: var(--text-faint); }
+    .footer-links { display: flex; gap: 24px; }
+    .footer-links a { font-family: var(--mono); font-size: 11px; color: var(--text-faint); text-decoration: none; transition: color 0.2s; }
+    .footer-links a:hover { color: var(--text-dim); }
+
+    @media (max-width: 800px) {
+      .content { grid-template-columns: 1fr; gap: 48px; }
+    }
+
+    @media (max-width: 640px) {
+      .footer-inner { flex-direction: column; gap: 16px; text-align: center; }
+      .nav-links { display: none; position: absolute; top: 56px; left: 0; right: 0;
+        flex-direction: column; background: var(--bg-2); border-bottom: 1px solid var(--border); padding: 12px 0; }
+      .nav-links.open { display: flex; }
+      .nav-toggle { display: block; }
+    }
+  </style>
+</head>
+<body>
+
+  <nav>
+    <div class="nav-inner">
+      <a class="nav-brand" href="index.html">CyberMaks</a>
+      <ul class="nav-links" id="navLinks">
+        <li><a href="index.html#case-studies">Case Studies</a></li>
+        <li><a href="methodology.html">Methodology</a></li>
+        <li><a href="about.html" class="active">About</a></li>
+        <li><a href="contact.html">Contact</a></li>
+      </ul>
+      <button class="nav-toggle" id="navToggle" aria-label="Toggle menu">
+        <span></span><span></span><span></span>
+      </button>
+    </div>
+  </nav>
+
+  <header class="page-header">
+    <p class="page-label">// about</p>
+    <h1 class="page-title">Maks Huseynli</h1>
+  </header>
+
+  <main class="content">
+    <div class="about-body">
+      <p>
+        I work in offensive security with a focus on <strong>web application exploitation</strong> and structured penetration testing methodology. My work centers on understanding how systems fail — not just locating vulnerabilities, but tracing them back to the design decisions that made them possible.
+      </p>
+      <p>
+        Most of my current work involves CTF environments and lab-based research, with a deliberate focus on building methodology over collecting flags. Each writeup I publish is meant to document not just the exploit path, but the reasoning process — how the attack surface was scoped, what was enumerated, and why specific vectors were prioritized.
+      </p>
+      <p>
+        I'm progressing toward the <strong>OSCP certification</strong>, which aligns with my focus on structured, manual exploitation techniques over tool dependency. The lab environment forces disciplined enumeration and creative problem-solving under constraint — both of which are the actual skills that matter in the field.
+      </p>
+      <p>
+        My longer-term goal is to work in red team operations or offensive consulting, where the objective is to think and operate as an adversary against well-defended targets. I'm less interested in automated scanning outputs and more interested in <strong>understanding the systems deeply enough to find what automated tools miss</strong>.
+      </p>
+      <p>
+        This site is a working record of that development — not a polished marketing artifact. The writeups reflect real analysis at a junior level, with the expectation that the quality and complexity of the work improves over time.
+      </p>
+    </div>
+
+    <aside class="aside">
+      <div class="aside-card">
+        <div class="aside-section-title">Focus Areas</div>
+        <ul class="aside-list">
+          <li><span>Web Application Security</span><span>Primary</span></li>
+          <li><span>Network Penetration Testing</span><span>Active</span></li>
+          <li><span>Exploit Development</span><span>Learning</span></li>
+          <li><span>Privilege Escalation</span><span>Active</span></li>
+        </ul>
+      </div>
+
+      <div class="aside-card">
+  <div class="aside-section-title">Certifications</div>
+  <ul class="aside-list">
+    <li><span>eJPT</span><span class="status-dot">Active</span></li>
+    <li><span>OSCP</span><span class="status-dot">In Progress</span></li>
+  </ul>
+</div>
+
+      <div class="aside-card">
+        <div class="aside-section-title">Platforms</div>
+        <ul class="aside-list">
+          <li><span>Hack The Box</span><span>Active</span></li>
+          <li><span>TryHackMe</span><span>Active</span></li>
+        </ul>
+      </div>
+    </aside>
+  </main>
+
+  <footer>
+    <div class="footer-inner">
+      <span class="footer-copy">© 2024 Maks Huseynli</span>
+      <div class="footer-links">
+        <a href="index.html">Home</a>
+        <a href="methodology.html">Methodology</a>
+        <a href="contact.html">Contact</a>
+      </div>
+    </div>
+  </footer>
+
+  <script>
+    const toggle = document.getElementById('navToggle');
+    const links = document.getElementById('navLinks');
+    toggle.addEventListener('click', () => links.classList.toggle('open'));
+  </script>
+
+</body>
+</html>

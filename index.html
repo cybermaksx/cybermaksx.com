@@ -1,0 +1,658 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="Maks Huseynli — Offensive Security Practitioner. Structured exploit analysis, CTF writeups, and penetration testing methodology." />
+  <meta name="keywords" content="offensive security, CTF, penetration testing, exploit development, OSCP, red team" />
+  <meta name="author" content="Maks Huseynli" />
+  <title>Maks Huseynli — Offensive Security</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@300;400;500&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:        #0b0f14;
+      --bg-2:      #0f1419;
+      --bg-3:      #141b22;
+      --border:    #1e2730;
+      --border-2:  #253040;
+      --text:      #c8d0da;
+      --text-dim:  #6b7a8d;
+      --text-faint:#3a4552;
+      --accent:    #4d9de0;
+      --accent-dim:#2d6fa8;
+      --accent-glow: rgba(77,157,224,0.08);
+      --mono: 'DM Mono', monospace;
+      --sans: 'DM Sans', sans-serif;
+    }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--sans);
+      font-size: 15px;
+      line-height: 1.7;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    /* ── NAV ── */
+    nav {
+      position: fixed;
+      top: 0; left: 0; right: 0;
+      z-index: 100;
+      background: rgba(11,15,20,0.85);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border-bottom: 1px solid var(--border);
+    }
+
+    .nav-inner {
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 0 28px;
+      height: 56px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .nav-brand {
+      font-family: var(--mono);
+      font-size: 13px;
+      color: var(--accent);
+      letter-spacing: 0.02em;
+      text-decoration: none;
+    }
+
+    .nav-links {
+      display: flex;
+      gap: 0;
+      list-style: none;
+    }
+
+    .nav-links a {
+      font-size: 13px;
+      color: var(--text-dim);
+      text-decoration: none;
+      padding: 6px 16px;
+      border-radius: 4px;
+      transition: color 0.2s;
+      letter-spacing: 0.01em;
+    }
+
+    .nav-links a:hover { color: var(--text); }
+    .nav-links a.active { color: var(--accent); }
+
+    .nav-toggle {
+      display: none;
+      background: none;
+      border: none;
+      cursor: pointer;
+      padding: 4px;
+    }
+
+    .nav-toggle span {
+      display: block;
+      width: 22px;
+      height: 1.5px;
+      background: var(--text-dim);
+      margin: 5px 0;
+      transition: all 0.3s;
+    }
+
+    /* ── HERO ── */
+    .hero {
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      border-bottom: 1px solid var(--border);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .hero::before {
+      content: '';
+      position: absolute;
+      top: -200px; right: -200px;
+      width: 600px; height: 600px;
+      background: radial-gradient(circle, rgba(77,157,224,0.04) 0%, transparent 70%);
+      pointer-events: none;
+    }
+
+    .hero-inner {
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 120px 28px 80px;
+      width: 100%;
+    }
+
+    .hero-label {
+      font-family: var(--mono);
+      font-size: 11px;
+      color: var(--accent);
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+      margin-bottom: 28px;
+    }
+
+    .hero h1 {
+      font-size: clamp(36px, 6vw, 68px);
+      font-weight: 300;
+      line-height: 1.1;
+      letter-spacing: -0.02em;
+      color: #dce5ef;
+      margin-bottom: 16px;
+    }
+
+    .hero h1 strong {
+      font-weight: 600;
+      color: #edf2f7;
+    }
+
+    .hero-title {
+      font-family: var(--mono);
+      font-size: 13px;
+      color: var(--text-dim);
+      margin-bottom: 32px;
+    }
+
+    .hero-tagline {
+      font-size: 17px;
+      color: var(--text-dim);
+      font-weight: 300;
+      max-width: 500px;
+      line-height: 1.65;
+      margin-bottom: 56px;
+      border-left: 1px solid var(--border-2);
+      padding-left: 20px;
+    }
+
+    .hero-cta {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      font-family: var(--mono);
+      font-size: 12px;
+      color: var(--text-dim);
+      text-decoration: none;
+      letter-spacing: 0.05em;
+      transition: color 0.2s;
+    }
+
+    .hero-cta:hover { color: var(--accent); }
+
+    .hero-cta::after {
+      content: '↓';
+      display: inline-block;
+      transition: transform 0.3s;
+    }
+
+    .hero-cta:hover::after { transform: translateY(3px); }
+
+    .hero-stats {
+      display: flex;
+      gap: 48px;
+      margin-top: 80px;
+      padding-top: 40px;
+      border-top: 1px solid var(--border);
+    }
+
+    .stat-item {}
+
+    .stat-num {
+      font-family: var(--mono);
+      font-size: 24px;
+      color: var(--accent);
+      font-weight: 500;
+    }
+
+    .stat-label {
+      font-size: 11px;
+      color: var(--text-faint);
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      margin-top: 2px;
+    }
+
+    /* ── SECTION ── */
+    .section {
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 96px 28px;
+    }
+
+    .section-header {
+      display: flex;
+      align-items: baseline;
+      gap: 16px;
+      margin-bottom: 56px;
+    }
+
+    .section-label {
+      font-family: var(--mono);
+      font-size: 10px;
+      color: var(--text-faint);
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+    }
+
+    .section-title {
+      font-size: 22px;
+      font-weight: 500;
+      color: #dce5ef;
+      letter-spacing: -0.01em;
+    }
+
+    /* ── SEARCH ── */
+    .search-wrap {
+      margin-bottom: 48px;
+    }
+
+    .search-input {
+      width: 100%;
+      max-width: 380px;
+      padding: 10px 16px;
+      background: var(--bg-3);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      color: var(--text);
+      font-family: var(--mono);
+      font-size: 12px;
+      letter-spacing: 0.02em;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+
+    .search-input::placeholder { color: var(--text-faint); }
+
+    .search-input:focus {
+      border-color: var(--accent-dim);
+    }
+
+    /* ── CARDS ── */
+    .cards-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+      gap: 1px;
+      background: var(--border);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      overflow: hidden;
+    }
+
+    .card {
+      background: var(--bg-2);
+      padding: 32px;
+      position: relative;
+      transition: background 0.2s;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .card:hover { background: var(--bg-3); }
+
+    .card.hidden { display: none; }
+
+    .card-badges {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 20px;
+    }
+
+    .badge {
+      font-family: var(--mono);
+      font-size: 10px;
+      padding: 3px 8px;
+      border-radius: 3px;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+    }
+
+    .badge-cat {
+      background: rgba(77,157,224,0.1);
+      color: var(--accent);
+      border: 1px solid rgba(77,157,224,0.2);
+    }
+
+    .badge-easy   { background: rgba(52,199,89,0.08);  color: #34c759; border: 1px solid rgba(52,199,89,0.2); }
+    .badge-medium { background: rgba(255,159,10,0.08); color: #ff9f0a; border: 1px solid rgba(255,159,10,0.2); }
+    .badge-hard   { background: rgba(255,69,58,0.08);  color: #ff453a; border: 1px solid rgba(255,69,58,0.2); }
+
+    .card h3 {
+      font-size: 16px;
+      font-weight: 500;
+      color: #dce5ef;
+      margin-bottom: 10px;
+      letter-spacing: -0.01em;
+    }
+
+    .card p {
+      font-size: 13px;
+      color: var(--text-dim);
+      line-height: 1.6;
+      flex: 1;
+      margin-bottom: 28px;
+    }
+
+    .card-link {
+      font-family: var(--mono);
+      font-size: 11px;
+      color: var(--accent);
+      text-decoration: none;
+      letter-spacing: 0.04em;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      transition: gap 0.2s;
+    }
+
+    .card-link:hover { gap: 10px; }
+
+    .card-divider {
+      width: 24px;
+      height: 1px;
+      background: var(--border-2);
+      margin-bottom: 20px;
+    }
+
+    /* ── NO RESULTS ── */
+    .no-results {
+      display: none;
+      padding: 60px 28px;
+      text-align: center;
+      font-family: var(--mono);
+      font-size: 12px;
+      color: var(--text-faint);
+      letter-spacing: 0.05em;
+    }
+
+    /* ── FOOTER ── */
+    footer {
+      border-top: 1px solid var(--border);
+      padding: 32px 28px;
+    }
+
+    .footer-inner {
+      max-width: 1100px;
+      margin: 0 auto;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .footer-copy {
+      font-family: var(--mono);
+      font-size: 11px;
+      color: var(--text-faint);
+    }
+
+    .footer-links {
+      display: flex;
+      gap: 24px;
+    }
+
+    .footer-links a {
+      font-family: var(--mono);
+      font-size: 11px;
+      color: var(--text-faint);
+      text-decoration: none;
+      transition: color 0.2s;
+    }
+
+    .footer-links a:hover { color: var(--text-dim); }
+
+    /* ── RESPONSIVE ── */
+    @media (max-width: 640px) {
+      .hero-stats { flex-wrap: wrap; gap: 28px; }
+      .footer-inner { flex-direction: column; gap: 16px; text-align: center; }
+      .nav-links { display: none; position: absolute; top: 56px; left: 0; right: 0;
+        flex-direction: column; background: var(--bg-2); border-bottom: 1px solid var(--border);
+        padding: 12px 0; }
+      .nav-links.open { display: flex; }
+      .nav-toggle { display: block; }
+      .cards-grid { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- NAV -->
+  <nav>
+    <div class="nav-inner">
+      <a class="nav-brand" href="index.html">CyberMaks</a>
+      <ul class="nav-links" id="navLinks">
+        <li><a href="#case-studies" class="active">Case Studies</a></li>
+        <li><a href="methodology.html">Methodology</a></li>
+        <li><a href="about.html">About</a></li>
+        <li><a href="contact.html">Contact</a></li>
+      </ul>
+      <button class="nav-toggle" id="navToggle" aria-label="Toggle menu">
+        <span></span><span></span><span></span>
+      </button>
+    </div>
+  </nav>
+
+  <!-- HERO -->
+  <section class="hero">
+    <div class="hero-inner">
+      <p class="hero-label">// offensive security</p>
+      <h1><strong>Maks Huseynli</strong></h1>
+      <p class="hero-title">Offensive Security Practitioner</p>
+      <p class="hero-tagline">
+        Structured offensive analysis and exploit breakdowns.<br>
+        Documenting the methodology behind the compromise.
+      </p>
+      <a class="hero-cta" href="#case-studies">View case studies</a>
+
+      <div class="hero-stats">
+        <div class="stat-item">
+          <div class="stat-num">08</div>
+          <div class="stat-label">Writeups</div>
+        </div>
+        <div class="stat-item">
+          <div class="stat-num">Web</div>
+          <div class="stat-label">Primary Focus</div>
+        </div>
+        <div class="stat-item">
+          <div class="stat-num">OSCP</div>
+          <div class="stat-label">In Progress</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- CASE STUDIES -->
+  <main>
+    <div class="section" id="case-studies">
+      <div class="section-header">
+        <span class="section-label">01</span>
+        <h2 class="section-title">Case Studies</h2>
+      </div>
+
+      <div class="search-wrap">
+        <input
+          type="search"
+          class="search-input"
+          id="searchInput"
+          placeholder="Filter by keyword..."
+          aria-label="Filter case studies"
+          autocomplete="off"
+        />
+      </div>
+
+      <div class="cards-grid" id="cardsGrid">
+
+        <article class="card" data-search="coldstart tryhackme web linux easy ftp ssrf hostname bypass wildcard cron injection privilege escalation">
+          <div class="card-badges">
+            <span class="badge badge-cat">Web</span>
+            <span class="badge badge-cat">Linux</span>
+            <span class="badge badge-easy">Easy</span>
+          </div>
+          <h3>Coldstart — TryHackMe</h3>
+          <div class="card-divider"></div>
+          <p>Anonymous FTP leaks source code. SSRF bypasses hostname allowlist to read internal admin notes. Wildcard injection in cron job escalates to root.</p>
+          <a class="card-link" href="writeups/coldstart.html">Read writeup →</a>
+        </article>
+
+        <article class="card" data-search="silent monitor tryhackme web linux medium sqli auth bypass command injection newline waf bypass keepass kdbx pykeepass">
+          <div class="card-badges">
+            <span class="badge badge-cat">Web</span>
+            <span class="badge badge-cat">Linux</span>
+            <span class="badge badge-medium">Medium</span>
+          </div>
+          <h3>Silent Monitor — TryHackMe</h3>
+          <div class="card-divider"></div>
+          <p>SQLi auth bypass in both login fields. Command injection with newline WAF bypass for RCE. KeePass KDBX v4 database cracked with pykeepass to recover credentials.</p>
+          <a class="card-link" href="writeups/silent-monitor.html">Read writeup →</a>
+        </article>
+
+        <article class="card" data-search="interceptor tryhackme web linux medium bak source disclosure mass assignment otp bypass command injection">
+          <div class="card-badges">
+            <span class="badge badge-cat">Web</span>
+            <span class="badge badge-cat">Linux</span>
+            <span class="badge badge-medium">Medium</span>
+          </div>
+          <h3>Interceptor — TryHackMe</h3>
+          <div class="card-divider"></div>
+          <p>.bak source disclosure leaks admin credentials. OTP bypassed via mass-assignment. Client-side-only filter leaves feed importer open to backtick command injection.</p>
+          <a class="card-link" href="writeups/interceptor.html">Read writeup →</a>
+        </article>
+
+        <article class="card" data-search="recruit portal tryhackme web linux easy ssrf sqli log analysis">
+          <div class="card-badges">
+            <span class="badge badge-cat">Web</span>
+            <span class="badge badge-cat">Linux</span>
+            <span class="badge badge-easy">Medium</span>
+          </div>
+          <h3>Recruit Portal — TryHackMe</h3>
+          <div class="card-divider"></div>
+          <p>Exposed mail log leaks internal email hinting at config.php. SSRF via file:// reads credentials. Authenticated dashboard has raw SQLi — dumped with sqlmap for full admin access.</p>
+          <a class="card-link" href="writeups/recruit.html">Read writeup →</a>
+        </article>
+
+        <article class="card" data-search="logging hack the box htb active directory windows hard shadow credentials esc17 wsus dll hijack">
+          <div class="card-badges">
+            <span class="badge badge-cat">Active Directory</span>
+            <span class="badge badge-cat">Windows</span>
+            <span class="badge badge-hard">Hard</span>
+          </div>
+          <h3>Logging — Hack The Box</h3>
+          <div class="card-divider"></div>
+          <p>Shadow Credentials against an MSA, DLL hijack via scheduled task, ESC17 ADCS abuse and WSUS MitM for SYSTEM on a Windows Server 2019 DC.</p>
+          <a class="card-link" href="writeups/logging.html">Read writeup →</a>
+        </article>
+
+        <article class="card" data-search="devarea hack the box htb web linux medium ssrf lfi cve jar hoverfly bash binary">
+          <div class="card-badges">
+            <span class="badge badge-cat">Web</span>
+            <span class="badge badge-cat">Linux</span>
+            <span class="badge badge-medium">Medium</span>
+          </div>
+          <h3>DevArea — Hack The Box</h3>
+          <div class="card-divider"></div>
+          <p>JAR analysis, CVE-2022-46364 SSRF→LFI for credential extraction, Hoverfly command injection RCE, and writable bash binary replacement for root.</p>
+          <a class="card-link" href="writeups/devarea.html">Read writeup →</a>
+        </article>
+
+        <article class="card" data-search="conversor hack the box htb web medium season 9">
+          <div class="card-badges">
+            <span class="badge badge-cat">Web</span>
+            <span class="badge badge-medium">Medium</span>
+          </div>
+          <h3>Conversor — Hack The Box</h3>
+          <div class="card-divider"></div>
+          <p>Input validation analysis on a conversion utility. Exploitation via crafted payloads to achieve unintended code paths and flag extraction.</p>
+          <a class="card-link" href="writeups/conversor.html">Read writeup →</a>
+        </article>
+
+        <article class="card" data-search="bookstore tryhackme web api rest fuzzing medium">
+          <div class="card-badges">
+            <span class="badge badge-cat">Web</span>
+            <span class="badge badge-medium">Medium</span>
+          </div>
+          <h3>Bookstore — TryHackMe</h3>
+          <div class="card-divider"></div>
+          <p>REST API enumeration through fuzzing, authentication bypass, and local file inclusion chain leading to remote code execution.</p>
+          <a class="card-link" href="writeups/bookstore.html">Read writeup →</a>
+        </article>
+
+
+      </div>
+
+      <p class="no-results" id="noResults" role="status">No results found for that query.</p>
+
+      <!-- EXPLOIT ANALYSIS -->
+      <div class="section-header" style="margin-top: 72px;">
+        <span class="section-label">02</span>
+        <h2 class="section-title">Exploit Analysis</h2>
+      </div>
+
+      <div class="cards-grid">
+        <article class="card" data-search="exploit analysis cve-2025-6018 cve-2025-6019 exploit chain vulnerability research">
+          <div class="card-badges">
+            <span class="badge badge-cat">Exploit Analysis</span>
+            <span class="badge badge-hard">Advanced</span>
+          </div>
+          <h3>Exploit-Chain-CVE-2025-6018-6019</h3>
+          <div class="card-divider"></div>
+          <p>In-depth analysis of a chained exploit path across two CVEs. Vulnerability interaction, root cause breakdown, and weaponization logic.</p>
+          <a class="card-link" href="writeups/cve-2025-6018-6019.html">Read analysis →</a>
+        </article>
+      </div>
+
+    </div>
+  </main>
+
+  <!-- FOOTER -->
+  <footer>
+    <div class="footer-inner">
+      <span class="footer-copy">© 2024 Maks Huseynli</span>
+      <div class="footer-links">
+        <a href="about.html">About</a>
+        <a href="methodology.html">Methodology</a>
+        <a href="contact.html">Contact</a>
+      </div>
+    </div>
+  </footer>
+
+  <script>
+    // Mobile nav
+    const toggle = document.getElementById('navToggle');
+    const navLinks = document.getElementById('navLinks');
+    toggle.addEventListener('click', () => navLinks.classList.toggle('open'));
+
+    // Search
+    const search = document.getElementById('searchInput');
+    const cards  = document.querySelectorAll('.card');
+    const noRes  = document.getElementById('noResults');
+    const grid   = document.getElementById('cardsGrid');
+
+    search.addEventListener('input', () => {
+      const q = search.value.toLowerCase().trim();
+      let visible = 0;
+      cards.forEach(c => {
+        const text = c.dataset.search + ' ' + c.querySelector('h3').textContent + ' ' + c.querySelector('p').textContent;
+        const show = !q || text.toLowerCase().includes(q);
+        c.classList.toggle('hidden', !show);
+        if (show) visible++;
+      });
+      noRes.style.display = visible === 0 && q ? 'block' : 'none';
+      grid.style.display  = visible === 0 && q ? 'none'  : '';
+    });
+
+    // Smooth scroll for anchor links
+    document.querySelectorAll('a[href^="#"]').forEach(a => {
+      a.addEventListener('click', e => {
+        e.preventDefault();
+        const el = document.querySelector(a.getAttribute('href'));
+        if (el) el.scrollIntoView({ behavior: 'smooth' });
+      });
+    });
+  </script>
+</body>
+</html>

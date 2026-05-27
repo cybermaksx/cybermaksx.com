@@ -1,0 +1,11 @@
+server {
+    listen 80;
+    server_name 148.135.207.178;  # или домен если есть
+
+    root /var/www/cybermaks;
+    index index.html;
+
+    location / {
+        try_files $uri $uri/ =404;
+    }
+}
