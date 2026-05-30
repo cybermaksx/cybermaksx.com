@@ -407,12 +407,6 @@ print(f<span class="cs">"{msg}.{b64url(sig)}"</span>)</code></pre>
 
     <p>With the admin JWT, <code>/api/files.php?name=</code> becomes our filesystem browser. First thing we read: <code>config.php</code>.</p>
 
-    <div class="shot">
-      <div class="sh"><span class="sl">browser / curl</span><span class="ss">/api/files.php — config.php contents via admin JWT</span></div>
-      <img src="domino3.png" alt="API file endpoint response showing config.php contents with all secrets exposed" loading="lazy" />
-      <div class="sc">The entire config. DB credentials, JWT secret, session signing key — all in one request.</div>
-    </div>
-
     <pre><code><div class="ph"><span class="pl">config.php — extracted</span><div class="pd"><span style="background:#ff5f57"></span><span style="background:#ffbd2e"></span><span style="background:#28ca41"></span></div></div>
 DB_USER:    <span class="cg">app_user</span>
 DB_PASS:    <span class="cy">$PASS</span>
