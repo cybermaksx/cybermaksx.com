@@ -1,0 +1,733 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Active Machine — Maks Huseynli</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@300;400;500&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:        #0b0f14;
+      --bg-2:      #0f1419;
+      --bg-3:      #141b22;
+      --border:    #1e2730;
+      --border-2:  #253040;
+      --text:      #c8d0da;
+      --text-dim:  #6b7a8d;
+      --text-faint:#3a4552;
+      --accent:    #4d9de0;
+      --accent-dim:#2d6fa8;
+      --accent-glow: rgba(77,157,224,0.08);
+      --red:       #e05c4d;
+      --red-dim:   rgba(224,92,77,0.12);
+      --green:     #4de08a;
+      --green-dim: rgba(77,224,138,0.08);
+      --mono: 'DM Mono', monospace;
+      --sans: 'DM Sans', sans-serif;
+    }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--sans);
+      font-size: 15px;
+      line-height: 1.7;
+      -webkit-font-smoothing: antialiased;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* ── NAV ── */
+    nav {
+      position: fixed;
+      top: 0; left: 0; right: 0;
+      z-index: 100;
+      background: rgba(11,15,20,0.85);
+      backdrop-filter: blur(12px);
+      border-bottom: 1px solid var(--border);
+    }
+
+    .nav-inner {
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 0 28px;
+      height: 56px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .nav-brand {
+      font-family: var(--mono);
+      font-size: 13px;
+      color: var(--accent);
+      letter-spacing: 0.02em;
+      text-decoration: none;
+    }
+
+    .nav-links {
+      display: flex;
+      gap: 0;
+      list-style: none;
+    }
+
+    .nav-links a {
+      font-size: 13px;
+      color: var(--text-dim);
+      text-decoration: none;
+      padding: 6px 16px;
+      border-radius: 4px;
+      transition: color 0.2s;
+      letter-spacing: 0.01em;
+    }
+
+    .nav-links a:hover { color: var(--text); }
+    .nav-links a.active { color: var(--accent); }
+
+    /* ── MAIN CONTENT ── */
+    .page {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 80px 28px 60px;
+      position: relative;
+      overflow: hidden;
+    }
+
+    /* Ambient background glow */
+    .page::before {
+      content: '';
+      position: absolute;
+      top: -100px; right: -150px;
+      width: 700px; height: 700px;
+      background: radial-gradient(circle, rgba(224,92,77,0.04) 0%, transparent 65%);
+      pointer-events: none;
+    }
+    .page::after {
+      content: '';
+      position: absolute;
+      bottom: -100px; left: -100px;
+      width: 500px; height: 500px;
+      background: radial-gradient(circle, rgba(77,157,224,0.04) 0%, transparent 65%);
+      pointer-events: none;
+    }
+
+    .container {
+      max-width: 860px;
+      width: 100%;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 64px;
+      align-items: center;
+      position: relative;
+      z-index: 1;
+    }
+
+    /* ── LEFT: TEXT ── */
+    .left-col {}
+
+    .status-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      font-family: var(--mono);
+      font-size: 10px;
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+      color: var(--red);
+      border: 1px solid rgba(224,92,77,0.3);
+      background: var(--red-dim);
+      border-radius: 3px;
+      padding: 5px 12px;
+      margin-bottom: 28px;
+    }
+
+    .pulse {
+      width: 6px; height: 6px;
+      background: var(--red);
+      border-radius: 50%;
+      animation: pulse 1.8s ease-in-out infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.4; transform: scale(0.7); }
+    }
+
+    .machine-name {
+      font-family: var(--mono);
+      font-size: clamp(28px, 5vw, 48px);
+      font-weight: 500;
+      color: #dce5ef;
+      letter-spacing: -0.02em;
+      line-height: 1.1;
+      margin-bottom: 8px;
+    }
+
+    .machine-name .redacted {
+      color: var(--red);
+    }
+
+    .platform-tag {
+      font-family: var(--mono);
+      font-size: 12px;
+      color: var(--text-dim);
+      margin-bottom: 32px;
+    }
+
+    .platform-tag span {
+      color: var(--accent);
+    }
+
+    .divider {
+      width: 40px;
+      height: 1px;
+      background: var(--border-2);
+      margin-bottom: 28px;
+    }
+
+    .main-text {
+      font-size: 15px;
+      color: var(--text-dim);
+      line-height: 1.75;
+      margin-bottom: 20px;
+    }
+
+    .main-text strong {
+      color: var(--text);
+      font-weight: 500;
+    }
+
+    /* Terminal quote block */
+    .terminal-block {
+      background: var(--bg-2);
+      border: 1px solid var(--border);
+      border-left: 2px solid var(--accent);
+      border-radius: 4px;
+      padding: 16px 20px;
+      margin: 28px 0;
+      font-family: var(--mono);
+      font-size: 12px;
+      color: var(--text-dim);
+      line-height: 1.8;
+    }
+
+    .terminal-block .prompt {
+      color: var(--green);
+    }
+
+    .terminal-block .comment {
+      color: var(--text-faint);
+    }
+
+    .terminal-block .highlight {
+      color: var(--accent);
+    }
+
+    /* Hacker jokes section */
+    .jokes-wrap {
+      margin-top: 32px;
+    }
+
+    .joke-label {
+      font-family: var(--mono);
+      font-size: 10px;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--text-faint);
+      margin-bottom: 14px;
+    }
+
+    .joke-rotator {
+      font-size: 14px;
+      color: var(--text-dim);
+      font-style: italic;
+      min-height: 44px;
+      border-left: 1px solid var(--border-2);
+      padding-left: 16px;
+      transition: opacity 0.4s;
+    }
+
+    .joke-rotator.fade { opacity: 0; }
+
+    /* Back link */
+    .back-link {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      font-family: var(--mono);
+      font-size: 12px;
+      color: var(--text-faint);
+      text-decoration: none;
+      margin-top: 40px;
+      letter-spacing: 0.04em;
+      transition: color 0.2s;
+    }
+    .back-link:hover { color: var(--accent); }
+    .back-link::before { content: '←'; }
+
+    /* ── RIGHT: DARLENE ── */
+    .right-col {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 20px;
+    }
+
+    .darlene-frame {
+      position: relative;
+      width: 280px;
+    }
+
+    /* The actual SVG character */
+    .darlene-wrap {
+      position: relative;
+      width: 280px;
+      height: 320px;
+    }
+
+    /* Floating hacker notes around Darlene */
+    .float-note {
+      position: absolute;
+      font-family: var(--mono);
+      font-size: 10px;
+      color: var(--accent);
+      background: rgba(77,157,224,0.07);
+      border: 1px solid rgba(77,157,224,0.2);
+      border-radius: 3px;
+      padding: 4px 8px;
+      white-space: nowrap;
+      animation: float 3s ease-in-out infinite;
+    }
+
+    .float-note:nth-child(2) { top: 10px; right: -60px; animation-delay: 0.5s; }
+    .float-note:nth-child(3) { bottom: 60px; left: -55px; animation-delay: 1.2s; animation-duration: 3.5s; }
+    .float-note:nth-child(4) { top: 80px; left: -65px; animation-delay: 0.9s; animation-duration: 2.8s; color: var(--green); border-color: rgba(77,224,138,0.2); background: rgba(77,224,138,0.05); }
+
+    @keyframes float {
+      0%, 100% { transform: translateY(0px); }
+      50% { transform: translateY(-6px); }
+    }
+
+    /* Darlene speech bubble */
+    .speech-bubble {
+      background: var(--bg-2);
+      border: 1px solid var(--border-2);
+      border-radius: 8px 8px 8px 2px;
+      padding: 14px 18px;
+      font-size: 13px;
+      color: var(--text);
+      line-height: 1.6;
+      max-width: 280px;
+      position: relative;
+    }
+
+    .speech-bubble::before {
+      content: '';
+      position: absolute;
+      bottom: -8px; left: 20px;
+      width: 0; height: 0;
+      border-left: 8px solid transparent;
+      border-right: 0px solid transparent;
+      border-top: 8px solid var(--border-2);
+    }
+
+    .speech-bubble::after {
+      content: '';
+      position: absolute;
+      bottom: -7px; left: 21px;
+      width: 0; height: 0;
+      border-left: 7px solid transparent;
+      border-right: 0px solid transparent;
+      border-top: 7px solid var(--bg-2);
+    }
+
+    .speech-bubble em {
+      color: var(--accent);
+      font-style: normal;
+    }
+
+    /* Darlene credit */
+    .darlene-credit {
+      font-family: var(--mono);
+      font-size: 10px;
+      color: var(--text-faint);
+      letter-spacing: 0.06em;
+      text-align: center;
+    }
+
+    /* ── FOOTER ── */
+    footer {
+      border-top: 1px solid var(--border);
+      padding: 20px 28px;
+    }
+
+    .footer-inner {
+      max-width: 1100px;
+      margin: 0 auto;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .footer-copy {
+      font-family: var(--mono);
+      font-size: 11px;
+      color: var(--text-faint);
+    }
+
+    .footer-links {
+      display: flex;
+      gap: 24px;
+    }
+
+    .footer-links a {
+      font-size: 12px;
+      color: var(--text-faint);
+      text-decoration: none;
+      transition: color 0.2s;
+    }
+
+    .footer-links a:hover { color: var(--text-dim); }
+
+    /* Responsive */
+    @media (max-width: 720px) {
+      .container {
+        grid-template-columns: 1fr;
+        gap: 48px;
+      }
+      .right-col { order: -1; }
+      .float-note:nth-child(3) { display: none; }
+      .float-note:nth-child(4) { display: none; }
+    }
+
+    /* Scanline overlay for atmosphere */
+    .scanlines {
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      z-index: 0;
+      background: repeating-linear-gradient(
+        to bottom,
+        transparent 0px,
+        transparent 3px,
+        rgba(0,0,0,0.03) 3px,
+        rgba(0,0,0,0.03) 4px
+      );
+    }
+
+    /* Countdown */
+    .countdown-wrap {
+      margin-top: 24px;
+      display: flex;
+      gap: 16px;
+    }
+
+    .cd-box {
+      text-align: center;
+    }
+
+    .cd-num {
+      font-family: var(--mono);
+      font-size: 22px;
+      font-weight: 500;
+      color: var(--text);
+      display: block;
+      line-height: 1;
+      margin-bottom: 4px;
+    }
+
+    .cd-label {
+      font-family: var(--mono);
+      font-size: 9px;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--text-faint);
+    }
+
+    .cd-sep {
+      font-family: var(--mono);
+      font-size: 22px;
+      color: var(--text-faint);
+      align-self: flex-start;
+      margin-top: 2px;
+    }
+
+    .cd-note {
+      font-family: var(--mono);
+      font-size: 10px;
+      color: var(--text-faint);
+      margin-top: 8px;
+      letter-spacing: 0.05em;
+    }
+  </style>
+</head>
+<body>
+
+<div class="scanlines"></div>
+
+<!-- NAV -->
+<nav>
+  <div class="nav-inner">
+    <a href="index.html" class="nav-brand">maks@huseynli:~$</a>
+    <ul class="nav-links">
+      <li><a href="index.html#case-studies">Writeups</a></li>
+      <li><a href="about.html">About</a></li>
+      <li><a href="contact.html">Contact</a></li>
+    </ul>
+  </div>
+</nav>
+
+<!-- MAIN -->
+<main class="page">
+  <div class="container">
+
+    <!-- LEFT -->
+    <div class="left-col">
+      <div class="status-badge">
+        <div class="pulse"></div>
+        Machine Active
+      </div>
+
+      <div class="machine-name">
+        <span class="redacted">████████</span>.htb
+      </div>
+      <div class="platform-tag">
+        platform: <span>Hack The Box</span> · status: <span style="color:var(--red)">ACTIVE</span>
+      </div>
+
+      <div class="divider"></div>
+
+      <p class="main-text">
+        This machine is <strong>still live on HackTheBox</strong>. Publishing a writeup while it's active would spoil the fun for everyone — and honestly, that's just bad opsec.
+      </p>
+
+      <div class="terminal-block">
+        <div><span class="prompt">$</span> cat README.md</div>
+        <div><span class="comment"># why no writeup yet?</span></div>
+        <div>&nbsp;</div>
+        <div><span class="highlight">Rule 1:</span> Don't spoil active machines.</div>
+        <div><span class="highlight">Rule 2:</span> Don't be that guy.</div>
+        <div><span class="highlight">Rule 3:</span> Refer to rules 1 and 2.</div>
+        <div>&nbsp;</div>
+        <div><span class="comment"># check back after retirement →</span></div>
+        <div><span class="prompt">$</span> <span style="animation: blink 1s step-end infinite; display:inline-block">█</span></div>
+      </div>
+
+      <style>
+        @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0} }
+      </style>
+
+      <p class="main-text" style="margin-top: 0;">
+        Come back after retirement. The writeup will drop within <strong>24h</strong> of the machine going offline — detailed, reproducible, no steps skipped.
+      </p>
+
+      <!-- Jokes rotator -->
+      <div class="jokes-wrap">
+        <div class="joke-label">// hacker wisdom while you wait</div>
+        <div class="joke-rotator" id="jokeBox">Loading cringe...</div>
+      </div>
+
+      <a class="back-link" href="index.html">Back to writeups</a>
+    </div>
+
+    <!-- RIGHT: DARLENE -->
+    <div class="right-col">
+
+      <div class="darlene-wrap">
+        <!-- Floating notes -->
+        <div class="float-note" style="top:10px;right:-55px;">nmap -sV</div>
+        <div class="float-note" style="bottom:70px;left:-60px;">chmod 777 👀</div>
+        <div class="float-note" style="top:85px;left:-70px;">sudo -l</div>
+
+        <!-- Darlene SVG — cute pixel/flat art style -->
+        <svg viewBox="0 0 280 320" xmlns="http://www.w3.org/2000/svg" width="280" height="320">
+          <!-- Background glow -->
+          <defs>
+            <radialGradient id="glow" cx="50%" cy="50%" r="50%">
+              <stop offset="0%" stop-color="#4d9de0" stop-opacity="0.08"/>
+              <stop offset="100%" stop-color="#4d9de0" stop-opacity="0"/>
+            </radialGradient>
+            <radialGradient id="faceGrad" cx="50%" cy="35%" r="55%">
+              <stop offset="0%" stop-color="#f5c9a0"/>
+              <stop offset="100%" stop-color="#e8a870"/>
+            </radialGradient>
+            <filter id="softShadow">
+              <feDropShadow dx="0" dy="4" stdDeviation="6" flood-color="#000" flood-opacity="0.3"/>
+            </filter>
+            <filter id="glow2">
+              <feGaussianBlur stdDeviation="3" result="blur"/>
+              <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+            </filter>
+          </defs>
+
+          <!-- Ambient glow circle -->
+          <ellipse cx="140" cy="200" rx="100" ry="110" fill="url(#glow)"/>
+
+          <!-- Body / hoodie (dark) -->
+          <g filter="url(#softShadow)">
+            <!-- Hoodie body -->
+            <path d="M 75 195 Q 70 250 68 300 L 212 300 Q 210 250 205 195 Q 185 180 140 180 Q 95 180 75 195 Z" fill="#1a2230"/>
+            <!-- Hoodie center zipper line -->
+            <line x1="140" y1="185" x2="140" y2="300" stroke="#253040" stroke-width="1.5"/>
+            <!-- Hoodie front pocket -->
+            <path d="M 110 245 Q 140 255 170 245 L 172 280 Q 140 290 108 280 Z" fill="#151d28"/>
+            <!-- Left arm -->
+            <path d="M 75 195 Q 50 210 44 260 Q 42 275 55 278 Q 68 280 72 265 L 78 230 Z" fill="#1a2230"/>
+            <!-- Right arm -->
+            <path d="M 205 195 Q 230 210 236 260 Q 238 275 225 278 Q 212 280 208 265 L 202 230 Z" fill="#1a2230"/>
+            <!-- Left hand -->
+            <ellipse cx="52" cy="278" rx="14" ry="10" fill="#e8a870"/>
+            <!-- Right hand (holding laptop) -->
+            <ellipse cx="228" cy="278" rx="14" ry="10" fill="#e8a870"/>
+          </g>
+
+          <!-- Laptop -->
+          <g transform="translate(88, 268)">
+            <!-- Screen -->
+            <rect x="0" y="-30" width="104" height="65" rx="4" fill="#0d1520" stroke="#253040" stroke-width="1.5"/>
+            <!-- Screen glow -->
+            <rect x="4" y="-26" width="96" height="57" rx="2" fill="#0a1828"/>
+            <!-- Terminal text on screen -->
+            <text x="8" y="-10" font-family="monospace" font-size="6" fill="#4d9de0">$ sudo -i</text>
+            <text x="8" y="-2" font-family="monospace" font-size="6" fill="#4de08a">root@htb:~#</text>
+            <text x="8" y="6" font-family="monospace" font-size="6" fill="#4de08a">cat root.txt</text>
+            <text x="8" y="14" font-family="monospace" font-size="6" fill="#e05c4d">███████████████</text>
+            <text x="8" y="22" font-family="monospace" font-size="6" fill="#4d9de0">█<animate attributeName="opacity" values="1;0;1" dur="1s" repeatCount="indefinite"/></text>
+            <!-- Keyboard base -->
+            <rect x="-5" y="35" width="114" height="8" rx="2" fill="#141b22" stroke="#1e2730" stroke-width="1"/>
+          </g>
+
+          <!-- Neck -->
+          <rect x="126" y="162" width="28" height="24" rx="6" fill="#e8a870"/>
+
+          <!-- Head -->
+          <ellipse cx="140" cy="130" rx="52" ry="56" fill="url(#faceGrad)" filter="url(#softShadow)"/>
+
+          <!-- Hair — dark, messy/cute style -->
+          <!-- Top hair mass -->
+          <ellipse cx="140" cy="82" rx="54" ry="22" fill="#1a1008"/>
+          <!-- Hair sides -->
+          <path d="M 88 110 Q 76 95 80 75 Q 88 60 100 68 L 95 100 Z" fill="#1a1008"/>
+          <path d="M 192 110 Q 204 95 200 75 Q 192 60 180 68 L 185 100 Z" fill="#1a1008"/>
+          <!-- Hair strands / messy bits -->
+          <path d="M 110 68 Q 108 55 116 52 Q 124 50 120 65" fill="#1a1008"/>
+          <path d="M 140 62 Q 138 48 146 46 Q 154 46 150 62" fill="#1a1008"/>
+          <path d="M 162 67 Q 165 53 172 55 Q 178 58 170 68" fill="#1a1008"/>
+          <!-- Side hair strands falling over face slightly -->
+          <path d="M 90 108 Q 85 125 88 145 Q 86 155 91 160" stroke="#1a1008" stroke-width="7" fill="none" stroke-linecap="round"/>
+          <path d="M 190 108 Q 195 125 192 145 Q 194 155 189 160" stroke="#1a1008" stroke-width="7" fill="none" stroke-linecap="round"/>
+
+          <!-- Ears -->
+          <ellipse cx="89" cy="130" rx="9" ry="12" fill="#e8a870"/>
+          <ellipse cx="191" cy="130" rx="9" ry="12" fill="#e8a870"/>
+
+          <!-- Eyes — expressive, slightly sly -->
+          <!-- Left eye -->
+          <ellipse cx="118" cy="125" rx="10" ry="9" fill="white"/>
+          <ellipse cx="119" cy="126" rx="6" ry="6" fill="#2a1a08"/>
+          <ellipse cx="121" cy="124" rx="2.5" ry="2.5" fill="white"/>
+          <!-- Left eyebrow — raised slightly (smug) -->
+          <path d="M 107 112 Q 118 107 130 111" stroke="#1a1008" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+
+          <!-- Right eye -->
+          <ellipse cx="162" cy="125" rx="10" ry="9" fill="white"/>
+          <ellipse cx="163" cy="126" rx="6" ry="6" fill="#2a1a08"/>
+          <ellipse cx="165" cy="124" rx="2.5" ry="2.5" fill="white"/>
+          <!-- Right eyebrow — one brow raised higher = hacker smirk -->
+          <path d="M 150 110 Q 161 104 173 109" stroke="#1a1008" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+
+          <!-- Nose -->
+          <path d="M 138 138 Q 140 145 143 138" stroke="#c8855a" stroke-width="1.5" fill="none" stroke-linecap="round"/>
+
+          <!-- Mouth — half smirk -->
+          <path d="M 128 152 Q 137 159 152 153" stroke="#c8695a" stroke-width="2" fill="none" stroke-linecap="round"/>
+          <!-- slight dimple on right -->
+          <circle cx="153" cy="153" r="1.5" fill="#c8695a"/>
+
+          <!-- Cheek blush -->
+          <ellipse cx="106" cy="142" rx="10" ry="6" fill="#f0a090" opacity="0.35"/>
+          <ellipse cx="174" cy="142" rx="10" ry="6" fill="#f0a090" opacity="0.35"/>
+
+          <!-- Headphones / earphones hint -->
+          <path d="M 89 118 Q 78 80 140 70 Q 202 80 191 118" stroke="#253040" stroke-width="4" fill="none"/>
+          <circle cx="89" cy="120" r="8" fill="#1e2730" stroke="#253040" stroke-width="1.5"/>
+          <circle cx="191" cy="120" r="8" fill="#1e2730" stroke="#253040" stroke-width="1.5"/>
+
+          <!-- Hoodie hood behind head -->
+          <path d="M 82 165 Q 78 148 85 130 L 88 135 Q 82 148 86 165Z" fill="#141d28" opacity="0.6"/>
+          <path d="M 198 165 Q 202 148 195 130 L 192 135 Q 198 148 194 165Z" fill="#141d28" opacity="0.6"/>
+
+          <!-- Little star/sparkle detail -->
+          <text x="96" y="100" font-size="10" fill="#4d9de0" opacity="0.7">✦</text>
+          <text x="174" y="97" font-size="8" fill="#4de08a" opacity="0.6">✦</text>
+        </svg>
+      </div>
+
+      <!-- Speech bubble above darlene label -->
+      <div class="speech-bubble">
+        "writeup's encrypted. key drops on <em>retirement day</em>. deal with it 😈"
+      </div>
+
+      <div class="darlene-credit">// darlene alderson · mr. robot</div>
+
+    </div>
+
+  </div>
+</main>
+
+<!-- FOOTER -->
+<footer>
+  <div class="footer-inner">
+    <span class="footer-copy">© 2024 Maks Huseynli</span>
+    <div class="footer-links">
+      <a href="about.html">About</a>
+      <a href="methodology.html">Methodology</a>
+      <a href="contact.html">Contact</a>
+    </div>
+  </div>
+</footer>
+
+<script>
+  const jokes = [
+    "There are only 10 types of people: those who understand binary and those who don't.",
+    "Why do hackers prefer dark mode? Because light attracts bugs.",
+    "I'm not hacking the machine. I'm just sending it unsolicited configuration suggestions.",
+    "sudo make me a sandwich. — okay. — wait, it actually worked.",
+    "My threat model includes my own past commits.",
+    "It's not a bug, it's an undocumented attack surface.",
+    "rm -rf / — no wait, that's my to-do list for Monday.",
+    "CVE? More like C-Very-Embarrassing for the vendor.",
+    "chmod 777 is just aggressive trust-building.",
+    "The machine is active. My patience is not.",
+    "Patience is a virtue. Writeups are a spoiler. Come back later.",
+    "I found the flag. I just can't tell you where it lives. Yet.",
+    "Ethical hacking means asking nicely before you root it.",
+  ];
+
+  const box = document.getElementById('jokeBox');
+  let idx = Math.floor(Math.random() * jokes.length);
+
+  function rotate() {
+    box.classList.add('fade');
+    setTimeout(() => {
+      idx = (idx + 1) % jokes.length;
+      box.textContent = jokes[idx];
+      box.classList.remove('fade');
+    }, 420);
+  }
+
+  box.textContent = jokes[idx];
+  setInterval(rotate, 5000);
+</script>
+
+</body>
+</html>
