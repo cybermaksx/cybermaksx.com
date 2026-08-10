@@ -1,0 +1,467 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Brr — TryHackMe Writeup — Maks Huseynli</title>
+  <meta name="description" content="Brr TryHackMe writeup — ScadaBR default credentials expose a Modbus PLC datasource, then a hand-built MBAP header over a raw Python socket reads the PLC's holding registers directly." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=DM+Mono:ital,wght@0,300;0,400;0,500;1,300&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:         #0b0f14;
+      --bg-2:       #0f1419;
+      --bg-3:       #141b22;
+      --bg-code:    #0d1117;
+      --border:     #1e2730;
+      --border-2:   #253040;
+      --text:       #c8d0da;
+      --text-dim:   #6b7a8d;
+      --text-faint: #3a4552;
+      --accent:     #4d9de0;
+      --accent-dim: #2d6fa8;
+      --green:      #34c759;
+      --yellow:     #ff9f0a;
+      --red:        #ff453a;
+      --mono: 'DM Mono', monospace;
+      --sans: 'DM Sans', sans-serif;
+    }
+    html { scroll-behavior: smooth; }
+    body { background: var(--bg); color: var(--text); font-family: var(--sans); font-size: 15px; line-height: 1.75; -webkit-font-smoothing: antialiased; }
+
+    nav { position: fixed; top: 0; left: 0; right: 0; z-index: 100; background: rgba(11,15,20,0.88); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); border-bottom: 1px solid var(--border); }
+    .nav-inner { max-width: 1100px; margin: 0 auto; padding: 0 28px; height: 56px; display: flex; align-items: center; justify-content: space-between; }
+    .nav-brand { font-family: var(--mono); font-size: 13px; color: var(--accent); text-decoration: none; letter-spacing: 0.02em; }
+    .nav-links { display: flex; list-style: none; }
+    .nav-links a { font-size: 13px; color: var(--text-dim); text-decoration: none; padding: 6px 16px; border-radius: 4px; transition: color 0.2s; }
+    .nav-links a:hover { color: var(--text); }
+    .nav-links a.active { color: var(--accent); }
+
+    .hero { padding: 96px 28px 56px; max-width: 1100px; margin: 0 auto; border-bottom: 1px solid var(--border); }
+    .hero-meta { display: flex; align-items: center; gap: 10px; margin-bottom: 28px; flex-wrap: wrap; }
+    .badge { font-family: var(--mono); font-size: 10px; padding: 3px 9px; border-radius: 3px; letter-spacing: 0.07em; text-transform: uppercase; }
+    .badge-p { background: rgba(52,199,89,0.08);  color: var(--green);  border: 1px solid rgba(52,199,89,0.2); }
+    .badge-c { background: rgba(77,157,224,0.08); color: var(--accent); border: 1px solid rgba(77,157,224,0.2); }
+    .badge-d { background: rgba(255,159,10,0.08); color: var(--yellow); border: 1px solid rgba(255,159,10,0.2); }
+    .badge-h { background: rgba(255,69,58,0.08);  color: var(--red);    border: 1px solid rgba(255,69,58,0.2); }
+    .badge-e { background: rgba(52,199,89,0.08);  color: var(--green);  border: 1px solid rgba(52,199,89,0.2); }
+    .hero h1 { font-size: clamp(28px, 5vw, 52px); font-weight: 300; line-height: 1.1; letter-spacing: -0.025em; color: #dce5ef; margin-bottom: 18px; }
+    .hero h1 strong { font-weight: 600; color: #edf2f7; }
+    .hero-desc { font-size: 15px; color: var(--text-dim); font-weight: 300; max-width: 640px; line-height: 1.75; margin-bottom: 36px; border-left: 1px solid var(--border-2); padding-left: 20px; }
+    .hero-info { display: flex; gap: 40px; flex-wrap: wrap; }
+    .info-item { display: flex; flex-direction: column; gap: 4px; }
+    .info-label { font-family: var(--mono); font-size: 10px; color: var(--text-faint); letter-spacing: 0.12em; text-transform: uppercase; }
+    .info-value { font-family: var(--mono); font-size: 12px; color: var(--text-dim); }
+    .info-value a { color: var(--accent); text-decoration: none; }
+    .info-value a:hover { text-decoration: underline; }
+
+    .body-wrap { display: grid; grid-template-columns: 1fr 196px; gap: 64px; max-width: 1100px; margin: 0 auto; padding: 64px 28px 120px; align-items: start; }
+
+    .toc { position: sticky; top: 76px; }
+    .toc-label { font-family: var(--mono); font-size: 10px; color: var(--text-faint); letter-spacing: 0.12em; text-transform: uppercase; margin-bottom: 14px; }
+    .toc ul { list-style: none; display: flex; flex-direction: column; gap: 1px; }
+    .toc ul a { display: block; font-size: 11px; color: var(--text-dim); text-decoration: none; padding: 5px 8px; border-radius: 3px; border-left: 1px solid transparent; transition: color 0.15s, border-color 0.15s; }
+    .toc ul a:hover { color: var(--accent); border-left-color: var(--accent-dim); }
+
+    .section { margin-bottom: 64px; }
+    .s-num { font-family: var(--mono); font-size: 10px; color: var(--text-faint); letter-spacing: 0.12em; text-transform: uppercase; margin-bottom: 6px; }
+    .section h2 { font-size: 19px; font-weight: 600; color: #dce5ef; letter-spacing: -0.018em; margin-bottom: 18px; padding-bottom: 12px; border-bottom: 1px solid var(--border); }
+    .section h3 { font-size: 14px; font-weight: 500; color: #b0c0d0; letter-spacing: -0.01em; margin: 26px 0 10px; }
+    .section p { font-size: 14px; color: var(--text-dim); line-height: 1.8; margin-bottom: 12px; }
+    .section p strong { color: var(--text); font-weight: 500; }
+    .section code { font-family: var(--mono); font-size: 12px; color: #a8bccd; background: rgba(255,255,255,0.04); border: 1px solid var(--border); padding: 1px 5px; border-radius: 3px; }
+
+    pre { background: var(--bg-code); border: 1px solid var(--border); border-radius: 6px; overflow: hidden; margin: 16px 0; }
+    .ph { display: flex; align-items: center; justify-content: space-between; padding: 8px 14px; background: rgba(255,255,255,0.02); border-bottom: 1px solid var(--border); }
+    .pl { font-family: var(--mono); font-size: 10px; color: var(--text-faint); letter-spacing: 0.1em; text-transform: uppercase; }
+    .pd { display: flex; gap: 5px; }
+    .pd span { width: 8px; height: 8px; border-radius: 50%; display: block; }
+    pre code { display: block; padding: 18px; font-family: var(--mono); font-size: 12px; line-height: 1.72; color: #a0b8cc; overflow-x: auto; white-space: pre; background: none; border: none; }
+    .ck { color: #4a5a6a; font-style: italic; }
+    .ca { color: var(--accent); }
+    .cg { color: var(--green); }
+    .cr { color: var(--red); }
+    .cs { color: #ce9178; }
+    .cy { color: var(--yellow); }
+    .cp { color: #c8a0e0; }
+
+    .callout { padding: 14px 18px; border-radius: 5px; margin: 18px 0; border-left: 2px solid; font-size: 13px; line-height: 1.7; }
+    .blue   { background: rgba(77,157,224,0.05);  border-color: var(--accent); color: #88aacc; }
+    .yellow { background: rgba(255,159,10,0.05);  border-color: var(--yellow); color: #aa8855; }
+    .red    { background: rgba(255,69,58,0.05);   border-color: var(--red);    color: #aa6666; }
+    .green  { background: rgba(52,199,89,0.05);   border-color: var(--green);  color: #66aa77; }
+    .callout strong { color: inherit; font-weight: 600; }
+    .callout code { background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.06); padding: 1px 5px; border-radius: 3px; font-family: var(--mono); font-size: 11.5px; }
+
+    .ports { display: flex; gap: 1px; background: var(--border); border: 1px solid var(--border); border-radius: 6px; overflow: hidden; margin: 16px 0; }
+    .port { flex: 1; background: var(--bg-2); padding: 18px 14px; text-align: center; }
+    .port-num { font-family: var(--mono); font-size: 17px; color: var(--accent); font-weight: 500; }
+    .port-svc { font-family: var(--mono); font-size: 11px; color: var(--text-dim); margin-top: 4px; }
+    .port-note { font-size: 10px; color: var(--text-faint); margin-top: 3px; }
+
+    .shot { border: 1px solid var(--border); border-radius: 6px; overflow: hidden; margin: 18px 0; }
+    .sh { display: flex; align-items: center; justify-content: space-between; padding: 8px 14px; background: rgba(255,255,255,0.02); border-bottom: 1px solid var(--border); }
+    .sl { font-family: var(--mono); font-size: 10px; color: var(--text-faint); letter-spacing: 0.1em; text-transform: uppercase; }
+    .ss { font-family: var(--mono); font-size: 10px; color: var(--accent); }
+    .shot img { display: block; width: 100%; height: auto; background: var(--bg-3); }
+    .sc { padding: 9px 14px; font-size: 11px; color: var(--text-faint); font-style: italic; border-top: 1px solid var(--border); background: var(--bg-2); }
+
+    .steps { border: 1px solid var(--border); border-radius: 6px; overflow: hidden; margin: 18px 0; }
+    .step { display: grid; grid-template-columns: 52px 1fr; border-bottom: 1px solid var(--border); }
+    .step:last-child { border-bottom: none; }
+    .sn { display: flex; align-items: center; justify-content: center; background: var(--bg-2); border-right: 1px solid var(--border); font-family: var(--mono); font-size: 10px; color: var(--text-faint); padding: 14px 0; }
+    .sb { padding: 14px 18px; font-size: 13px; color: var(--text-dim); background: var(--bg); line-height: 1.7; }
+    .sb strong { color: var(--text); font-weight: 500; }
+
+    .chain { background: var(--bg-code); border: 1px solid var(--border); border-radius: 6px; padding: 24px 28px; margin: 18px 0; }
+    .chain-row { display: flex; align-items: flex-start; gap: 14px; margin-bottom: 10px; }
+    .chain-row:last-child { margin-bottom: 0; }
+    .chain-arrow { font-family: var(--mono); font-size: 11px; color: var(--text-faint); padding-top: 2px; flex-shrink: 0; }
+    .chain-bug { font-family: var(--mono); font-size: 12px; color: var(--accent); flex-shrink: 0; min-width: 220px; }
+    .chain-gives { font-size: 12px; color: var(--text-dim); }
+
+    /* data tables — memory model / function codes */
+    .tbl { width: 100%; border-collapse: collapse; margin: 16px 0; border: 1px solid var(--border); border-radius: 6px; overflow: hidden; }
+    .tbl thead tr { background: var(--bg-2); }
+    .tbl th { font-family: var(--mono); font-size: 10px; text-transform: uppercase; letter-spacing: 0.1em; color: var(--text-faint); text-align: left; padding: 10px 16px; font-weight: 400; border-bottom: 1px solid var(--border); }
+    .tbl td { padding: 10px 16px; font-family: var(--mono); font-size: 12px; color: var(--text-dim); border-bottom: 1px solid var(--border); background: var(--bg); }
+    .tbl tbody tr:last-child td { border-bottom: none; }
+    .tbl td:first-child { color: var(--accent); }
+    .tbl td em { color: var(--text-faint); font-style: normal; font-family: var(--sans); font-size: 12px; }
+
+    /* MBAP packet diagram */
+    .pkt { border: 1px solid var(--border); border-radius: 6px; overflow: hidden; margin: 18px 0; }
+    .pkt-head { display: flex; align-items: center; justify-content: space-between; padding: 8px 14px; background: rgba(255,255,255,0.02); border-bottom: 1px solid var(--border); }
+    .pkt-row { display: flex; background: var(--bg-code); }
+    .pkt-cell { padding: 14px 6px; text-align: center; border-right: 1px solid var(--border); display: flex; flex-direction: column; gap: 5px; justify-content: center; }
+    .pkt-cell:last-child { border-right: none; }
+    .pkt-cell.h { background: rgba(77,157,224,0.06); }
+    .pkt-cell.d { background: rgba(52,199,89,0.06); }
+    .pkt-name { font-family: var(--mono); font-size: 11px; color: var(--text); }
+    .pkt-size { font-family: var(--mono); font-size: 9px; color: var(--text-faint); letter-spacing: 0.08em; text-transform: uppercase; }
+    .pkt-legend { display: flex; gap: 22px; flex-wrap: wrap; padding: 11px 14px; background: var(--bg-2); border-top: 1px solid var(--border); }
+    .pkt-legend span { font-family: var(--mono); font-size: 10.5px; color: var(--text-faint); display: flex; align-items: center; gap: 7px; }
+    .pkt-dot { width: 9px; height: 9px; border-radius: 2px; display: inline-block; flex-shrink: 0; }
+    .pkt-dot.h { background: var(--accent); }
+    .pkt-dot.d { background: var(--green); }
+
+    footer { border-top: 1px solid var(--border); padding: 28px; }
+    .footer-inner { max-width: 1100px; margin: 0 auto; display: flex; justify-content: space-between; align-items: center; }
+    .footer-copy { font-family: var(--mono); font-size: 11px; color: var(--text-faint); }
+    .footer-links { display: flex; gap: 24px; }
+    .footer-links a { font-family: var(--mono); font-size: 11px; color: var(--text-faint); text-decoration: none; transition: color 0.2s; }
+    .footer-links a:hover { color: var(--text-dim); }
+
+    @media (max-width: 860px) { .body-wrap { grid-template-columns: 1fr; } .toc { display: none; } }
+    @media (max-width: 580px) { .hero, .body-wrap { padding-left: 20px; padding-right: 20px; } .ports { flex-direction: column; } .pkt-cell { padding: 10px 3px; } .pkt-name { font-size: 9px; } .pkt-size { font-size: 8px; } .footer-inner { flex-direction: column; gap: 12px; } }
+  </style>
+</head>
+<body>
+
+<nav>
+  <div class="nav-inner">
+    <a class="nav-brand" href="../index.html">CyberMaks</a>
+    <ul class="nav-links">
+      <li><a href="../index.html">Home</a></li>
+      <li><a href="../methodology.html">Methodology</a></li>
+      <li><a href="../about.html">About</a></li>
+      <li><a href="../index.html#case-studies" class="active">Writeups</a></li>
+    </ul>
+  </div>
+</nav>
+
+<header class="hero">
+  <div class="hero-meta">
+    <span class="badge badge-p">TryHackMe</span>
+    <span class="badge badge-c">ICS / OT</span>
+    <span class="badge badge-c">SCADA</span>
+    <span class="badge badge-c">Modbus</span>
+    <span class="badge badge-e">Easy</span>
+  </div>
+  <h1><strong>Brr</strong></h1>
+  <p class="hero-desc">
+    A SCADA dashboard with untouched vendor credentials tells you exactly where its PLC lives, and the protocol on the other end — Modbus, designed in 1979 for a factory floor nobody could reach — never asks who you are. No exploit, no privesc chain: twelve hand-packed bytes over a raw socket and the controller reads its own memory out loud.
+  </p>
+  <div class="hero-info">
+    <div class="info-item"><span class="info-label">Platform</span><span class="info-value">TryHackMe</span></div>
+    <div class="info-item"><span class="info-label">Difficulty</span><span class="info-value">Easy</span></div>
+    <div class="info-item"><span class="info-label">Category</span><span class="info-value">ICS / OT / Protocol</span></div>
+    <div class="info-item"><span class="info-label">Room</span><span class="info-value"><a href="https://tryhackme.com/room/brr" target="_blank" rel="noopener">tryhackme.com/room/brr</a></span></div>
+  </div>
+</header>
+
+<div class="body-wrap">
+<main>
+
+  <!-- ── 01 RECON ── -->
+  <section class="section" id="recon">
+    <div class="s-num">01</div>
+    <h2>Network Reconnaissance</h2>
+    <p>Fast scan first, just to see what's answering before committing to a full sweep.</p>
+    <pre><code><div class="ph"><span class="pl">shell</span><div class="pd"><span style="background:#ff5f57"></span><span style="background:#ffbd2e"></span><span style="background:#28ca41"></span></div></div>
+sudo nmap -sS -sV -sC 10.48.151.107 -F -T4</code></pre>
+    <div class="ports">
+      <div class="port"><div class="port-num">22</div><div class="port-svc">SSH</div><div class="port-note">OpenSSH 9.6p1 Ubuntu</div></div>
+      <div class="port"><div class="port-num">80</div><div class="port-svc">WebSockify</div><div class="port-note">Python 3.12.3</div></div>
+      <div class="port"><div class="port-num">8080</div><div class="port-svc">Tomcat</div><div class="port-note">title: "ScadaBR CTF"</div></div>
+    </div>
+    <p>A page title that says <strong>ScadaBR CTF</strong> isn't being coy about the theme. ScadaBR is an open-source SCADA/HMI suite — the dashboard a plant operator stares at all day to watch tank levels and valve states. Whenever one of these turns up, the interesting target usually isn't the dashboard. It's whatever industrial protocol the dashboard is talking to behind the scenes.</p>
+    <p>WebSockify on port 80 is a hint in the same direction: it's a WebSocket-to-TCP bridge, most commonly used to put a VNC session in a browser. Something graphical is running on this host that they want reachable — worth noting, though it turns out not to be needed.</p>
+  </section>
+
+  <!-- ── 02 SCADABR ── -->
+  <section class="section" id="scadabr">
+    <div class="s-num">02</div>
+    <h2>ScadaBR — Default Credentials, and a Datasource Named "secret"</h2>
+    <p>ScadaBR ships with a well-documented default login, and this deployment never changed it. <code>admin:admin</code> lands straight on the operator console.</p>
+    <div class="callout green"><strong>Always try vendor defaults on ICS software before anything else.</strong> These systems get deployed by control engineers, not security teams, they live on networks assumed to be isolated, and they get patched on a decade-long cycle if at all. Default credentials on SCADA products are not a CTF convenience — they're a real and persistent finding.</div>
+
+    <div class="shot">
+      <div class="sh"><span class="sl">ScadaBR — /ScadaBR/data_sources.shtm</span><span class="ss">200 OK</span></div>
+      <img src="modbus.png" alt="ScadaBR data sources page showing a Modbus IP datasource named secret pointing at plc:5020" loading="lazy" />
+      <div class="sc">One datasource: name "secret", type <strong>Modbus IP</strong>, connection <strong>plc:5020</strong>. Beneath it a single point named "test" — binary, slave id 1, offset 0/0.</div>
+    </div>
+
+    <p>Somebody's sense of humour named the datasource "secret" and then parked it behind <code>admin:admin</code>. The name is a joke; the connection string is the actual finding. Two fields matter here:</p>
+    <div class="steps">
+      <div class="step"><div class="sn">01</div><div class="sb"><strong>Type: Modbus IP.</strong> ScadaBR isn't storing this data itself — it's a client, polling something else and drawing widgets from whatever comes back.</div></div>
+      <div class="step"><div class="sn">02</div><div class="sb"><strong>Connection: plc:5020.</strong> The real data lives one hop further down, on a host the box resolves as <code>plc</code>, listening on port 5020. ScadaBR is a middleman we don't actually need.</div></div>
+      <div class="step"><div class="sn">03</div><div class="sb"><strong>Slave id 1, offset 0/0.</strong> Free reconnaissance on the PLC's addressing — unit ID 1, and whatever's interesting starts at register address 0. Both values go straight into the request later.</div></div>
+    </div>
+    <p>The point type shown is <em>Binary</em> at offset 0, which in ScadaBR terms means a coil or discrete input — a single bit. That's the decoy. Nothing says the PLC only holds what the HMI was configured to display, and the register table sitting next to it is a much larger surface.</p>
+  </section>
+
+  <!-- ── 03 PORT 5020 ── -->
+  <section class="section" id="port">
+    <div class="s-num">03</div>
+    <h2>The Port nmap Couldn't Name</h2>
+    <p>Full sweep now, all 65535 ports, no <code>-F</code> shortcuts.</p>
+    <pre><code><div class="ph"><span class="pl">shell</span><div class="pd"><span style="background:#ff5f57"></span><span style="background:#ffbd2e"></span><span style="background:#28ca41"></span></div></div>
+sudo nmap -p- 10.48.151.107</code></pre>
+    <pre><code><div class="ph"><span class="pl">output — nmap -p-</span><div class="pd"><span style="background:#ff5f57"></span><span style="background:#ffbd2e"></span><span style="background:#28ca41"></span></div></div>
+PORT     STATE SERVICE      VERSION
+22/tcp   open  ssh          OpenSSH 9.6p1 Ubuntu
+80/tcp   open  http         WebSockify Python/3.12.3
+<span class="cg">5020/tcp open  zenginkyo-1?</span>   <span class="ck"># ← nmap's best guess, and it's wrong</span>
+5901/tcp open  vnc          VNC (protocol 3.8)
+| vnc-info:
+|   Security types: VeNCrypt (19), VNC Authentication (2)</code></pre>
+    <p>There it is — <strong>5020</strong>, exactly the port ScadaBR's datasource pointed at. nmap labels it <code>zenginkyo-1?</code>, which is just a lookup in <code>nmap-services</code> saying "historically some Japanese banking protocol registered this number." The trailing question mark means no service probe matched. That's expected and worth internalising:</p>
+    <div class="callout yellow"><strong>nmap's fingerprint database is built for IT protocols.</strong> Modbus, DNP3, BACnet, S7comm and friends routinely come back unlabeled or misidentified, because their probes look nothing like the HTTP/TLS/SSH banner exchanges nmap is tuned for. An "unknown service" on an odd port next to a SCADA frontend deserves manual investigation, not a shrug.</div>
+    <p>We don't need nmap to name it anyway — the ScadaBR config already told us: Modbus. VNC on 5901 is sitting there too (that's what WebSockify on 80 is bridging), but the PLC gives up everything on its own, so the desktop never comes into play.</p>
+  </section>
+
+  <!-- ── 04 PROTOCOL ── -->
+  <section class="section" id="modbus">
+    <div class="s-num">04</div>
+    <h2>How Modbus Actually Works</h2>
+    <p>Modbus is old. Older than most of the engineers still deploying it. Modicon designed it in 1979 so its programmable logic controllers could exchange readings over a serial line, and the industry never replaced it — it just kept bolting new transports underneath the same message format. "Modbus TCP" is that identical 1979 conversation wrapped in a TCP socket instead of RS-485 wiring, which is precisely what's listening on 5020.</p>
+    <p>The design brief back then was "let two industrial devices on an isolated factory floor talk to each other." Authentication was not part of that brief, and it still isn't. There is no login, no token, no session — nothing beyond the TCP handshake itself. Whoever can route a packet to the controller can read its memory, and with the write function codes, change it.</p>
+    <div class="callout red"><strong>This is the whole point of the box.</strong> Anyone who can reach port 5020 has exactly the access ScadaBR has after authenticating. The login screen on 8080 was decorative — it protected the dashboard, never the controller.</div>
+
+    <h3>One controller, four tables of memory</h3>
+    <p>A Modbus device exposes its entire state as four flat memory tables. That's the complete data model — no schema, no field names, no types beyond "bit" and "16-bit word":</p>
+    <table class="tbl">
+      <thead><tr><th>Table</th><th>Width</th><th>Access</th><th>Typically holds</th></tr></thead>
+      <tbody>
+        <tr><td>Coils</td><td>1 bit</td><td>read / write</td><td><em>relay and valve states — on/off outputs</em></td></tr>
+        <tr><td>Discrete Inputs</td><td>1 bit</td><td>read-only</td><td><em>limit switches, sensor trip flags</em></td></tr>
+        <tr><td>Input Registers</td><td>16 bit</td><td>read-only</td><td><em>measured values — temperature, pressure</em></td></tr>
+        <tr><td>Holding Registers</td><td>16 bit</td><td>read / write</td><td><em>setpoints, configuration, general scratch memory</em></td></tr>
+      </tbody>
+    </table>
+    <p>Holding registers are the interesting one: read <em>and</em> write, 16 bits wide, and completely generic. In a real plant a holding register might be a target temperature or a pump speed. The protocol attaches no meaning to the contents — it's sixteen bits, and interpretation is entirely a convention between whoever wrote the PLC program and whoever reads it. Which means nothing stops a challenge author from parking one ASCII character per register and letting the controller hand it out to anyone who asks.</p>
+
+    <h3>Function codes: the verbs</h3>
+    <p>Every request opens with a single byte naming the operation. The whole vocabulary is small enough to memorise:</p>
+    <table class="tbl">
+      <thead><tr><th>Code</th><th>Operation</th><th>Target table</th></tr></thead>
+      <tbody>
+        <tr><td>0x01</td><td>Read Coils</td><td><em>coils</em></td></tr>
+        <tr><td>0x02</td><td>Read Discrete Inputs</td><td><em>discrete inputs</em></td></tr>
+        <tr><td>0x03</td><td>Read Holding Registers</td><td><em>holding registers</em></td></tr>
+        <tr><td>0x04</td><td>Read Input Registers</td><td><em>input registers</em></td></tr>
+        <tr><td>0x05 / 0x06</td><td>Write Single Coil / Register</td><td><em>coils / holding registers</em></td></tr>
+        <tr><td>0x0F / 0x10</td><td>Write Multiple Coils / Registers</td><td><em>coils / holding registers</em></td></tr>
+      </tbody>
+    </table>
+    <p><code>0x03</code> is what we want — read holding registers, the read/write 16-bit table. Note how casually the write codes sit in that same list. On a live plant, <code>0x06</code> against the right address is the difference between a pump running and a pump not running.</p>
+
+    <h3>The envelope: MBAP header</h3>
+    <p>Serial Modbus used a CRC checksum so a receiver could tell where one message ended and the next began. TCP already guarantees ordered, error-checked delivery, so when Modbus was adapted for IP networks the CRC was dropped and replaced with the <strong>MBAP header</strong> — Modbus Application Protocol header. Its entire job is bookkeeping: which request is this, which protocol, how long is the message, which device should answer. Everything after the header is the <strong>PDU</strong> — the Protocol Data Unit, the actual command, structurally unchanged since the RS-485 days.</p>
+
+    <div class="pkt">
+      <div class="pkt-head"><span class="pl">Modbus TCP request — read holding registers</span><span class="ss">12 bytes total</span></div>
+      <div class="pkt-row">
+        <div class="pkt-cell h" style="flex:2"><span class="pkt-name">Transaction ID</span><span class="pkt-size">2 bytes</span></div>
+        <div class="pkt-cell h" style="flex:2"><span class="pkt-name">Protocol ID</span><span class="pkt-size">2 bytes</span></div>
+        <div class="pkt-cell h" style="flex:2"><span class="pkt-name">Length</span><span class="pkt-size">2 bytes</span></div>
+        <div class="pkt-cell h" style="flex:1.3"><span class="pkt-name">Unit ID</span><span class="pkt-size">1 byte</span></div>
+        <div class="pkt-cell d" style="flex:1.3"><span class="pkt-name">Function</span><span class="pkt-size">1 byte</span></div>
+        <div class="pkt-cell d" style="flex:2"><span class="pkt-name">Start Addr</span><span class="pkt-size">2 bytes</span></div>
+        <div class="pkt-cell d" style="flex:2"><span class="pkt-name">Quantity</span><span class="pkt-size">2 bytes</span></div>
+      </div>
+      <div class="pkt-legend">
+        <span><i class="pkt-dot h"></i>MBAP header — 7 bytes of routing, invisible to the PLC's logic</span>
+        <span><i class="pkt-dot d"></i>PDU — 5 bytes, the command itself</span>
+      </div>
+    </div>
+
+    <div class="steps">
+      <div class="step"><div class="sn">TxID</div><div class="sb"><strong>Transaction ID</strong> — a number you choose, echoed back verbatim in the reply. Fire several requests down one socket and this is how you match each answer to its question. Nothing validates it; any value works.</div></div>
+      <div class="step"><div class="sn">Proto</div><div class="sb"><strong>Protocol ID</strong> — always <code>0</code>. It exists because someone in the nineties imagined other protocols riding this same header. They never arrived. The field is a permanent zero.</div></div>
+      <div class="step"><div class="sn">Len</div><div class="sb"><strong>Length</strong> — byte count of everything <em>after</em> this field: the Unit ID plus the entire PDU. Not the length of the whole message. Getting this wrong is the single most common hand-rolled-Modbus bug.</div></div>
+      <div class="step"><div class="sn">UID</div><div class="sb"><strong>Unit ID</strong> — a leftover from serial days, when one TCP gateway bridged to many physical devices sharing a bus. ScadaBR already told us this PLC answers as slave id <code>1</code>.</div></div>
+    </div>
+
+    <p>Fill that layout in with real values — read 60 holding registers starting at address 0, unit 1 — and here are the exact twelve bytes that leave the socket:</p>
+    <pre><code><div class="ph"><span class="pl">wire format — hex</span><div class="pd"><span style="background:#ff5f57"></span><span style="background:#ffbd2e"></span><span style="background:#28ca41"></span></div></div>
+<span class="ca">00 01</span>  <span class="ca">00 00</span>  <span class="ca">00 06</span>  <span class="ca">01</span>   <span class="cg">03</span>   <span class="cg">00 00</span>  <span class="cg">00 3c</span>
+<span class="ck">└TxID─┘  └Proto┘  └─Len─┘  UID  FC   └Start┘  └─Qty─┘
+└──────── MBAP header, 7 bytes ────┘  └─── PDU, 5 bytes ───┘</span>
+
+<span class="ck"># 00 06 → six bytes follow the Length field (1 unit id + 5 pdu)
+# 00 3c → 60 in hex: sixty registers, sixty possible characters</span></code></pre>
+  </section>
+
+  <!-- ── 05 THE SCRIPT ── -->
+  <section class="section" id="script">
+    <div class="s-num">05</div>
+    <h2>Skipping the Middleman — Talking to the PLC Directly</h2>
+    <p>ScadaBR would happily poll this datasource and render it as a widget, but there's no reason to fight a Java web app's UI when the protocol underneath has zero access control. A TCP socket and <code>struct</code> is the entire toolchain. No pymodbus, no library — packing the bytes by hand is the part actually worth understanding.</p>
+
+    <pre><code><div class="ph"><span class="pl">python — mod.py</span><div class="pd"><span style="background:#ff5f57"></span><span style="background:#ffbd2e"></span><span style="background:#28ca41"></span></div></div>
+<span class="ca">import</span> socket, struct
+
+TARGET_IP   = <span class="cs">"10.48.151.107"</span>
+TARGET_PORT = <span class="cy">5020</span>          <span class="ck"># non-standard — Modbus normally lives on 502</span>
+
+<span class="ck"># PDU: 0x03 = Read Holding Registers, start at address 0, read 60 registers</span>
+pdu = struct.<span class="cp">pack</span>(<span class="cs">"&gt;BHH"</span>, <span class="cy">0x03</span>, <span class="cy">0</span>, <span class="cy">60</span>)
+
+<span class="ck"># MBAP: Transaction ID=1, Protocol ID=0, Length=len(pdu)+1, Unit ID=1</span>
+mbap = struct.<span class="cp">pack</span>(<span class="cs">"&gt;HHHB"</span>, <span class="cy">1</span>, <span class="cy">0</span>, <span class="cp">len</span>(pdu) + <span class="cy">1</span>, <span class="cy">1</span>)
+
+s = socket.<span class="cp">socket</span>()
+s.<span class="cp">connect</span>((TARGET_IP, TARGET_PORT))
+s.<span class="cp">sendall</span>(mbap + pdu)
+
+resp = s.<span class="cp">recv</span>(<span class="cy">4096</span>)
+
+<span class="ck"># Response = [MBAP: 7 bytes][function code: 1][byte count: 1][register data...]</span>
+byte_count = resp[<span class="cy">8</span>]
+regs = struct.<span class="cp">unpack</span>(<span class="cs">"&gt;"</span> + <span class="cs">"H"</span> * (byte_count // <span class="cy">2</span>), resp[<span class="cy">9</span>:<span class="cy">9</span> + byte_count])
+
+<span class="ck"># Each register holds one ASCII character code — keep only printable ones</span>
+<span class="cp">print</span>(<span class="cs">""</span>.<span class="cp">join</span>(<span class="cp">chr</span>(r) <span class="ca">for</span> r <span class="ca">in</span> regs <span class="ca">if</span> <span class="cy">32</span> &lt;= r &lt; <span class="cy">127</span>))
+
+s.<span class="cp">close</span>()</code></pre>
+
+    <p>Nothing exotic — it's the same twelve bytes from the diagram, typed into <code>struct.pack</code> instead of drawn as boxes. A few details are worth slowing down on, because they're where hand-rolled protocol code usually breaks.</p>
+
+    <h3>Why every format string starts with <code>&gt;</code></h3>
+    <p>The leading <code>&gt;</code> forces <strong>big-endian</strong> byte order — most significant byte first. Modbus mandates this regardless of what CPU sits on either end, the same way TCP/IP does (it's literally called "network byte order"). Drop the <code>&gt;</code> and <code>struct</code> falls back to the host's native order, which on any x86 machine is little-endian. The value <code>60</code> would go out as <code>3c 00</code> instead of <code>00 3c</code> — that's 15360 to the PLC, and it would either error out or try to hand back thirty kilobytes of registers.</p>
+
+    <h3>Packing the PDU — <code>"&gt;BHH"</code></h3>
+    <p>Three values, back to back: <code>B</code> is one unsigned byte for the function code, and each <code>H</code> is an unsigned short — two bytes — for the starting address and the register count. One byte plus two plus two is five, exactly the PDU width in the diagram. The address is <code>0</code> because ScadaBR's own point was configured at offset 0, and 60 is simply a generous read window — plenty of room for a short string, cheap enough that there's no reason to be precise.</p>
+
+    <h3>Packing the header — <code>"&gt;HHHB"</code></h3>
+    <p>Three shorts and a byte: transaction ID, protocol ID, length, unit ID. The field that trips people up is <code>len(pdu) + 1</code>. Length is <em>not</em> the size of the message — it's the number of bytes that follow the Length field itself, which is the Unit ID (1 byte) plus the PDU (5 bytes). That's 6, matching the <code>00 06</code> in the hex dump. Writing <code>len(pdu)</code> or <code>len(mbap + pdu)</code> here are both extremely easy mistakes, and the PLC's response to either is usually silence rather than a helpful error.</p>
+
+    <h3>Taking the response apart</h3>
+    <p>The reply mirrors the request's shape. Seven bytes of MBAP first (same four fields, transaction ID echoed back). Then at <strong>offset 7</strong>, the function code — an echo confirming which command this answers, and the field where an error would show up: on failure the PLC sets the high bit, so <code>0x03</code> comes back as <code>0x83</code> followed by an exception code. At <strong>offset 8</strong>, a byte count — how many data bytes follow. From <strong>offset 9</strong> onward, the register values themselves.</p>
+    <p>That's why the slice is <code>resp[9:9 + byte_count]</code>, and why the format string is built dynamically: <code>byte_count // 2</code> converts "bytes of payload" into "number of 16-bit registers", since each register is two bytes wide. Sixty registers means <code>byte_count</code> comes back as 120, giving <code>"&gt;" + "H" * 60</code> — a format string with sixty <code>H</code>s in it, generated rather than typed.</p>
+
+    <h3>Turning registers into text</h3>
+    <p><code>chr(r)</code> treats each 16-bit register as a character code. Sixty registers were requested but the stored string is short, so most come back as <code>0</code> — untouched PLC memory. The <code>if 32 &lt;= r &lt; 127</code> filter is doing real work: 32 is the space character, 126 is <code>~</code>, and that range is exactly printable ASCII. Without it you'd be printing a wall of null bytes and control characters with the actual content buried somewhere inside.</p>
+    <div class="callout blue"><strong>Worth knowing for other boxes:</strong> that filter is also a crude search. If you don't know where data is stored, sweep a wide address range with <code>0x03</code>, then <code>0x04</code> for input registers, and let the printable-ASCII filter tell you which offsets hold text instead of sensor values. Registers full of zeros or wildly varying numbers are real process data; a contiguous run inside 32–126 is somebody's string.</div>
+  </section>
+
+  <!-- ── 06 RESULT ── -->
+  <section class="section" id="result">
+    <div class="s-num">06</div>
+    <h2>Result</h2>
+    <pre><code><div class="ph"><span class="pl">shell</span><div class="pd"><span style="background:#ff5f57"></span><span style="background:#ffbd2e"></span><span style="background:#28ca41"></span></div></div>
+python3 mod.py
+<span class="cg">THM{[redacted]}</span></code></pre>
+    <div class="callout yellow"><strong>Flag redacted.</strong> TryHackMe's terms prohibit publishing room answers, so the value stays out of this writeup. The script above reproduces it in a couple of seconds against a live instance — that's the part that's actually worth having.</div>
+    <p>No exploit, no fuzzing, no privilege escalation. Twelve bytes sent to an unauthenticated protocol port, and the controller reads its own memory out loud. The ScadaBR login and the datasource cheekily named "secret" were the only things standing between an anonymous TCP connection and the PLC's register table, and neither of them was ever actually in the way.</p>
+  </section>
+
+  <!-- ── 07 CHAIN ── -->
+  <section class="section" id="chain">
+    <div class="s-num">07</div>
+    <h2>Chain Summary &amp; Takeaways</h2>
+    <div class="chain">
+      <div class="chain-row">
+        <span class="chain-arrow">01</span>
+        <span class="chain-bug">nmap -F</span>
+        <span class="chain-gives">ScadaBR HMI exposed on 8080 — ICS environment confirmed</span>
+      </div>
+      <div class="chain-row">
+        <span class="chain-arrow">02</span>
+        <span class="chain-bug">default creds admin:admin</span>
+        <span class="chain-gives">operator console access, datasource config readable</span>
+      </div>
+      <div class="chain-row">
+        <span class="chain-arrow">03</span>
+        <span class="chain-bug">datasource: Modbus IP @ plc:5020</span>
+        <span class="chain-gives">backend protocol, host and unit id handed over</span>
+      </div>
+      <div class="chain-row">
+        <span class="chain-arrow">04</span>
+        <span class="chain-bug">nmap -p-</span>
+        <span class="chain-gives">5020 reachable directly — the PLC isn't segmented off</span>
+      </div>
+      <div class="chain-row">
+        <span class="chain-arrow">05</span>
+        <span class="chain-bug">Modbus has no auth layer</span>
+        <span class="chain-gives">HMI login becomes irrelevant — talk to the controller instead</span>
+      </div>
+      <div class="chain-row">
+        <span class="chain-arrow">06</span>
+        <span class="chain-bug">FC 0x03 over raw socket</span>
+        <span class="chain-gives">holding registers decode as ASCII → contents recovered</span>
+      </div>
+    </div>
+    <div class="steps">
+      <div class="step"><div class="sn">T1</div><div class="sb"><strong>In OT, network reachability <em>is</em> the access control.</strong> Modbus TCP has no authentication of any kind. If a packet can route to port 502 (or 5020, or wherever it's been moved), it can read controller memory and — with the write function codes — change it. Nothing else is checking.</div></div>
+      <div class="step"><div class="sn">T2</div><div class="sb"><strong>A SCADA frontend is a convenience layer, not a security boundary.</strong> The moment its configuration leaks the backend address and protocol, the frontend's own login stops mattering. Read HMI configs for what they hand you: hostnames, ports, protocols, slave ids, register offsets.</div></div>
+      <div class="step"><div class="sn">T3</div><div class="sb"><strong>Don't trust nmap to name industrial services.</strong> <code>zenginkyo-1?</code> is a port-number lookup, not a fingerprint. OT protocols come back unlabeled constantly. An unknown port next to a SCADA product is a lead, not noise.</div></div>
+      <div class="step"><div class="sn">T4</div><div class="sb"><strong>Hand-packing a protocol beats reaching for a library when you're learning it.</strong> Twelve bytes of <code>struct.pack</code> teaches you the header layout, byte order, and length semantics in a way <code>pymodbus.read_holding_registers()</code> never will — and when something misbehaves, you can read the wire.</div></div>
+      <div class="step"><div class="sn">T5</div><div class="sb"><strong>This gap is why the Purdue Model exists.</strong> Field-level protocols were designed for physically isolated networks and were never built to defend themselves. The real-world control is segmentation between IT and OT zones — because the protocol layer offers exactly nothing.</div></div>
+    </div>
+  </section>
+
+</main>
+
+<aside class="toc">
+  <div class="toc-label">Contents</div>
+  <ul>
+    <li><a href="#recon">01 — Recon</a></li>
+    <li><a href="#scadabr">02 — ScadaBR Defaults</a></li>
+    <li><a href="#port">03 — Port 5020</a></li>
+    <li><a href="#modbus">04 — Modbus Explained</a></li>
+    <li><a href="#script">05 — Raw Socket Client</a></li>
+    <li><a href="#result">06 — Result</a></li>
+    <li><a href="#chain">07 — Chain Summary</a></li>
+  </ul>
+</aside>
+</div>
+
+<footer>
+  <div class="footer-inner">
+    <span class="footer-copy">© 2025 Maks Huseynli</span>
+    <div class="footer-links">
+      <a href="../index.html">Home</a>
+      <a href="../methodology.html">Methodology</a>
+      <a href="../about.html">About</a>
+    </div>
+  </div>
+</footer>
+
+</body>
+</html>
