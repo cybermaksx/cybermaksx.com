@@ -487,6 +487,18 @@
 
       <div class="cards-grid" id="cardsGrid">
 
+        <article class="card" data-search="umbrella tryhackme docker registry api v2 anonymous image layers manifest config blob env leak credentials mysql root md5 john rockyou eval rce node express reverse shell credential reuse ssh container escape cap_mknod mknod proc pid root debugfs block device medium">
+          <div class="card-badges">
+            <span class="badge badge-cat">Docker</span>
+            <span class="badge badge-cat">Container Escape</span>
+            <span class="badge badge-medium">Medium</span>
+          </div>
+          <h3>Umbrella — TryHackMe</h3>
+          <div class="card-divider"></div>
+          <p>An anonymous Docker Registry hands over the app image; the DB password isn't in the code but in the config blob's <code>ENV</code>. MySQL dump → unsalted MD5 → login → <code>eval()</code> RCE as root in the container. Then <code>CAP_MKNOD</code> + <code>/proc/PID/root</code> + <code>debugfs</code> reads the host's raw disk from outside the cgroup.</p>
+          <a class="card-link" href="writeups/umbrella.html">Read writeup →</a>
+        </article>
+
         <article class="card" data-search="brr tryhackme ics ot scada modbus scadabr default credentials admin plc holding registers raw socket python struct mbap header protocol easy">
           <div class="card-badges">
             <span class="badge badge-cat">ICS / OT</span>

