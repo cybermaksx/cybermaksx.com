@@ -451,7 +451,7 @@
 
       <div class="hero-stats">
         <div class="stat-item">
-          <div class="stat-num">14</div>
+          <div class="stat-num">15</div>
           <div class="stat-label">Writeups</div>
         </div>
         <div class="stat-item">
@@ -486,6 +486,18 @@
       </div>
 
       <div class="cards-grid" id="cardsGrid">
+
+        <article class="card" data-search="robots tryhackme web xss ssrf docker pivot medium robots.txt stored xss httponly session hijack phpinfo same-origin xhr php reverse shell chisel busybox network pivot mariadb mysql double md5 crack sudo curl config file -K authorized_keys apache2 loadmodule gtfobins suid privilege escalation asimov">
+          <div class="card-badges">
+            <span class="badge badge-cat">Web</span>
+            <span class="badge badge-cat">XSS / SSRF</span>
+            <span class="badge badge-medium">Medium</span>
+          </div>
+          <h3>Robots — TryHackMe</h3>
+          <div class="card-divider"></div>
+          <p>A <code>robots.txt</code> leaks a hidden path where a registration form advertises <code>md5(username+ddmm)</code> — a brute-force rabbit hole. The real hint, "an admin monitors new users," is stored XSS: a same-origin XHR steals the admin's <code>HttpOnly</code> session out of a phpinfo body. SSRF → PHP reverse shell, a <code>chisel</code> pivot to the internal MariaDB, then sudo <code>curl -K</code> and sudo <code>apache2</code> module-loading to root.</p>
+          <a class="card-link" href="writeups/robots.html">Read writeup →</a>
+        </article>
 
         <article class="card" data-search="umbrella tryhackme docker registry api v2 anonymous image layers manifest config blob env leak credentials mysql root md5 john rockyou eval rce node express reverse shell credential reuse ssh container escape cap_mknod mknod proc pid root debugfs block device medium">
           <div class="card-badges">

