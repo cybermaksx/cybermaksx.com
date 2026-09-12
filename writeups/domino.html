@@ -265,7 +265,7 @@ sudo nmap -sS -sV -sC 10.49.131.163 -F -T3</code></pre>
 
     <div class="shot">
       <div class="sh"><span class="sl">browser</span><span class="ss">10.49.131.163 — login page</span></div>
-      <img src="domino1.png" alt="NexusCorp Employee Portal login page" loading="lazy" />
+      <img src="../assets/img/domino/01.png" alt="NexusCorp Employee Portal login page" loading="lazy" />
       <div class="sc">NexusCorp Employee Portal. Clean login form. Definitely nothing sensitive in the JS files.</div>
     </div>
 
@@ -337,7 +337,7 @@ print(decrypted.decode(<span class="cs">'utf-8'</span>))</code></pre>
 
     <div class="shot">
       <div class="sh"><span class="sl">browser</span><span class="ss">/team.php — staff directory</span></div>
-      <img src="domino2.png" alt="NexusCorp Our Team page listing Laura Hayes (Chief Information Officer), Robert Wilson (DevOps Engineer), and other staff with emails" loading="lazy" />
+      <img src="../assets/img/domino/02.png" alt="NexusCorp Our Team page listing Laura Hayes (Chief Information Officer), Robert Wilson (DevOps Engineer), and other staff with emails" loading="lazy" />
       <div class="sc">The team page. Laura Hayes — Chief Information Officer. Robert Wilson — DevOps Engineer. Plus emails in <code>firstname.lastname@nexus.corp</code> format.</div>
     </div>
 
@@ -475,7 +475,7 @@ print(f<span class="cs">"{b64}.{sig}"</span>)</code></pre>
 
     <div class="shot">
       <div class="sh"><span class="sl">browser</span><span class="ss">/dashboard.php — Welcome, laura.hayes</span></div>
-      <img src="domino4.png" alt="NexusCorp dashboard showing Welcome laura.hayes with Role: admin, plus File Viewer card describing /api/files.php?name= endpoint and JWT authentication via /api/auth/token.php" loading="lazy" />
+      <img src="../assets/img/domino/04.png" alt="NexusCorp dashboard showing Welcome laura.hayes with Role: admin, plus File Viewer card describing /api/files.php?name= endpoint and JWT authentication via /api/auth/token.php" loading="lazy" />
       <div class="sc">Welcome back, Laura. Role: admin. The forged session cookie is accepted as a valid admin session — the server has no way to tell the difference.</div>
     </div>
 

@@ -174,7 +174,7 @@ sudo nmap -sS -sV -sC -F -T4 <span class="ca">&lt;TARGET_IP&gt;</span>
     <h2>Port 80 — Web Enumeration</h2>
     <div class="shot">
       <div class="sh"><span class="sl">browser</span><span class="ss">port 80 — landing page</span></div>
-      <img src="support.png" alt="Support Operations Panel login page — Employee Authentication form" loading="lazy" />
+      <img src="../assets/img/support/01.png" alt="Support Operations Panel login page — Employee Authentication form" loading="lazy" />
       <div class="sc">The front door: "Employee Authentication." Note the helpful hint — "Contact IT Operations @ help@support.thm." They just handed us a valid username. Thanks, IT.</div>
     </div>
     <p>The landing page is a login form for an internal "Support Operations Panel." Before throwing credentials at it, I mapped the directory structure with <code>dirsearch</code> and then confirmed with <code>ffuf</code> + a <code>.php</code> extension list.</p>
@@ -241,7 +241,7 @@ legba http \
     <h2>Foothold — Helpdesk Dashboard</h2>
     <div class="shot">
       <div class="sh"><span class="sl">browser</span><span class="ss">authenticated — helpdesk dashboard</span></div>
-      <img src="support2.png" alt="Support Dashboard logged in as Helpdesk User with a theme selector" loading="lazy" />
+      <img src="../assets/img/support/02.png" alt="Support Dashboard logged in as Helpdesk User with a theme selector" loading="lazy" />
       <div class="sc">"Welcome, Helpdesk User." A ticket box and a <em>Select Theme</em> dropdown. That theme switcher is the most dangerous-looking innocent feature on the box — hold that thought.</div>
     </div>
     <p>Logged in, the dashboard is sparse: a ticket panel and a cosmetic theme selector in the footer. Re-probing <code>api.php</code> with our shiny session still slaps us down — this time with a different message:</p>
@@ -327,7 +327,7 @@ Content-Type: application/json
 }</code></pre>
     <div class="shot">
       <div class="sh"><span class="sl">browser</span><span class="ss">internal user API — /user/1</span></div>
-      <img src="support3.png" alt="Internal User API returning specialadmin@support.thm with admin true and 2FA false" loading="lazy" />
+      <img src="../assets/img/support/03.png" alt="Internal User API returning specialadmin@support.thm with admin true and 2FA false" loading="lazy" />
       <div class="sc">The Internal User API spilling <code>/user/1</code>: <code>specialadmin@support.thm</code>, <code>admin: true</code>, and — crucially — <code>2FA: false</code>. An admin account with no second factor is just a password away.</div>
     </div>
     <div class="callout blue"><strong>Two for one:</strong> IDOR hands us the admin's email <em>and</em> the fact that 2FA is disabled. The API strips the password, but it left the door wide enough to know exactly whom to target next.</div>

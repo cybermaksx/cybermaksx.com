@@ -128,7 +128,7 @@
       <li><a href="../index.html">Home</a></li>
       <li><a href="../methodology.html">Methodology</a></li>
       <li><a href="../about.html">About</a></li>
-      <li><a href="../index.html#writeups" class="active">Writeups</a></li>
+      <li><a href="../index.html#case-studies" class="active">Writeups</a></li>
     </ul>
   </div>
 </nav>
@@ -162,7 +162,7 @@ nmap -sS -sV -p- -T5 &lt;TARGET_IP&gt;
 <span class="ck"># -sS stealth SYN  -sV versions  -p- all ports  -T5 fast (CTF)</span></code></pre>
     <div class="shot">
       <div class="sh"><span class="sl">terminal</span><span class="ss">nmap results</span></div>
-      <img src="book1.png" alt="Nmap scan showing ports 22, 80, 5000" loading="lazy" />
+      <img src="../assets/img/bookstore/01.png" alt="Nmap scan showing ports 22, 80, 5000" loading="lazy" />
       <div class="sc">Three open ports. Port 5000 on a non-standard service is the first thing worth investigating.</div>
     </div>
     <div class="ports">
@@ -178,7 +178,7 @@ nmap -sS -sV -p- -T5 &lt;TARGET_IP&gt;
     <h2>Port 80 — Web Enumeration</h2>
     <div class="shot">
       <div class="sh"><span class="sl">browser</span><span class="ss">port 80 — landing page</span></div>
-      <img src="book2.png" alt="Login page on port 80" loading="lazy" />
+      <img src="../assets/img/bookstore/02.png" alt="Login page on port 80" loading="lazy" />
       <div class="sc">Login page. Common credentials and basic SQLi returned nothing — not the vector here.</div>
     </div>
     <p>Login form was a dead end. Moved straight to directory enumeration to surface anything not linked from the main page.</p>
@@ -195,7 +195,7 @@ ffuf -w /usr/share/wordlists/dirb/common.txt \
     <h2>Source Code Analysis — Info Disclosure</h2>
     <div class="shot">
       <div class="sh"><span class="sl">browser / devtools</span><span class="ss">/assets/js/api.js</span></div>
-      <img src="book3.png" alt="api.js with developer comments disclosing LFI in v1 API" loading="lazy" />
+      <img src="../assets/img/bookstore/03.png" alt="api.js with developer comments disclosing LFI in v1 API" loading="lazy" />
       <div class="sc">Developer comments left in a production JS file. Full API structure and an explicit note about an LFI in v1.</div>
     </div>
     <p><code>/assets/js/api.js</code> had developer comments that should never ship to production. They detailed the full API path structure and called out a known vulnerability by name.</p>
@@ -208,7 +208,7 @@ ffuf -w /usr/share/wordlists/dirb/common.txt \
     <h2>Port 5000 — API Confirmation</h2>
     <div class="shot">
       <div class="sh"><span class="sl">browser</span><span class="ss">port 5000 — v2 API response</span></div>
-      <img src="book4.png" alt="Port 5000 API returning JSON for /api/v2/resources/books/random4" loading="lazy" />
+      <img src="../assets/img/bookstore/04.png" alt="Port 5000 API returning JSON for /api/v2/resources/books/random4" loading="lazy" />
       <div class="sc">v2 endpoint returns valid JSON. Confirms the path structure from api.js is accurate — v1 very likely still present.</div>
     </div>
     <pre><code><div class="ph"><span class="pl">http</span><div class="pd"><span style="background:#ff5f57"></span><span style="background:#ffbd2e"></span><span style="background:#28ca41"></span></div></div>
@@ -221,7 +221,7 @@ GET http://TARGET_IP:5000/api/v2/resources/books/random4
     <h2>API Documentation Discovery</h2>
     <div class="shot">
       <div class="sh"><span class="sl">terminal</span><span class="ss">ffuf on port 5000</span></div>
-      <img src="book5.png" alt="ffuf on port 5000 finding API docs endpoint" loading="lazy" />
+      <img src="../assets/img/bookstore/05.png" alt="ffuf on port 5000 finding API docs endpoint" loading="lazy" />
       <div class="sc">ffuf surfaces accessible API documentation on port 5000 — complete endpoint list with parameter names.</div>
     </div>
     <pre><code><div class="ph"><span class="pl">shell</span><div class="pd"><span style="background:#ff5f57"></span><span style="background:#ffbd2e"></span><span style="background:#28ca41"></span></div></div>
@@ -236,7 +236,7 @@ ffuf -w /usr/share/wordlists/dirb/common.txt \
     <h2>Dead End → Parameter Fuzzing</h2>
     <div class="shot">
       <div class="sh"><span class="sl">terminal</span><span class="ss">testing all documented endpoints</span></div>
-      <img src="book6.png" alt="All v2 API endpoints tested — all clean" loading="lazy" />
+      <img src="../assets/img/bookstore/06.png" alt="All v2 API endpoints tested — all clean" loading="lazy" />
       <div class="sc">Every documented endpoint tested — LFI, SQLi, command injection all clean. v2 is properly sanitized. Time to pivot.</div>
     </div>
     <p>All documented endpoints returned clean responses. The key realization: the bug might be in an <strong>undocumented parameter</strong> — not an undocumented endpoint. Shift strategy.</p>
@@ -254,7 +254,7 @@ wfuzz -c \
     <h2>The Breakthrough — Hidden Parameter</h2>
     <div class="shot">
       <div class="sh"><span class="sl">terminal</span><span class="ss">wfuzz — 'show' parameter hit</span></div>
-      <img src="book7.png" alt="wfuzz discovering undocumented 'show' parameter in v1 API" loading="lazy" />
+      <img src="../assets/img/bookstore/07.png" alt="wfuzz discovering undocumented 'show' parameter in v1 API" loading="lazy" />
       <div class="sc">wfuzz hits on 'show' — undocumented, zero filtering. LFI confirmed in v1 endpoint.</div>
     </div>
     <div class="callout red"><strong>Root cause:</strong> v1 API was never deprecated. Remained live with a hidden <code>show</code> parameter that accepts arbitrary file paths with zero sanitization — not in the docs, not in the JS comments, only found by fuzzing.</div>
@@ -265,7 +265,7 @@ wfuzz -c \
     <h2>LFI Exploitation</h2>
     <div class="shot">
       <div class="sh"><span class="sl">browser</span><span class="ss">/etc/passwd via show parameter</span></div>
-      <img src="book8.png" alt="LFI confirmed — /etc/passwd contents returned" loading="lazy" />
+      <img src="../assets/img/bookstore/08.png" alt="LFI confirmed — /etc/passwd contents returned" loading="lazy" />
       <div class="sc">Full /etc/passwd returned. Arbitrary file read confirmed. Direct path, no encoding needed.</div>
     </div>
     <pre><code><div class="ph"><span class="pl">http</span><div class="pd"><span style="background:#ff5f57"></span><span style="background:#ffbd2e"></span><span style="background:#28ca41"></span></div></div>
@@ -280,7 +280,7 @@ GET http://TARGET_IP:5000/api/v1/resources/books?show=/etc/passwd
     <h2>Credential Discovery via .bash_history</h2>
     <div class="shot">
       <div class="sh"><span class="sl">browser</span><span class="ss">.bash_history via LFI</span></div>
-      <img src="book9.png" alt=".bash_history exposed via LFI — Werkzeug debug PIN in plaintext" loading="lazy" />
+      <img src="../assets/img/bookstore/09.png" alt=".bash_history exposed via LFI — Werkzeug debug PIN in plaintext" loading="lazy" />
       <div class="sc">.bash_history contains the Werkzeug debug PIN — stored in plaintext from when the dev ran the app with --debug.</div>
     </div>
     <pre><code><div class="ph"><span class="pl">http</span><div class="pd"><span style="background:#ff5f57"></span><span style="background:#ffbd2e"></span><span style="background:#28ca41"></span></div></div>
@@ -295,7 +295,7 @@ GET http://TARGET_IP:5000/api/v1/resources/books?show=.bash_history
     <h2>RCE via Werkzeug Debug Console</h2>
     <div class="shot">
       <div class="sh"><span class="sl">browser</span><span class="ss">debug console — authenticated</span></div>
-      <img src="book10.png" alt="Werkzeug interactive debugger unlocked with PIN" loading="lazy" />
+      <img src="../assets/img/bookstore/10.png" alt="Werkzeug interactive debugger unlocked with PIN" loading="lazy" />
       <div class="sc">PIN accepted. Interactive Python shell running as the web app user — full code execution from the browser.</div>
     </div>
     <div class="callout yellow"><strong>Impact:</strong> Werkzeug interactive debugger = Python REPL on the server. Full stdlib access, subprocess, socket — anything Python can do, we can do from this browser tab.</div>
@@ -306,7 +306,7 @@ GET http://TARGET_IP:5000/api/v1/resources/books?show=.bash_history
     <h2>Reverse Shell</h2>
     <div class="shot">
       <div class="sh"><span class="sl">terminal + browser</span><span class="ss">python reverse shell → caught</span></div>
-      <img src="book11.png" alt="Python reverse shell executed in debug console, caught on nc listener" loading="lazy" />
+      <img src="../assets/img/bookstore/11.png" alt="Python reverse shell executed in debug console, caught on nc listener" loading="lazy" />
       <div class="sc">Payload executed in the console, shell caught on nc listener. Interactive access established.</div>
     </div>
     <pre><code><div class="ph"><span class="pl">python — werkzeug console</span><div class="pd"><span style="background:#ff5f57"></span><span style="background:#ffbd2e"></span><span style="background:#28ca41"></span></div></div>
@@ -324,7 +324,7 @@ nc -lvnp 7777</code></pre>
     <h2>User Flag</h2>
     <div class="shot">
       <div class="sh"><span class="sl">terminal</span><span class="ss">shell connected + user.txt</span></div>
-      <img src="book12.png" alt="Shell received, cat user.txt returns flag" loading="lazy" />
+      <img src="../assets/img/bookstore/12.png" alt="Shell received, cat user.txt returns flag" loading="lazy" />
       <div class="sc">Connection received. user.txt captured. Initial compromise complete.</div>
     </div>
     <pre><code><div class="ph"><span class="pl">shell</span><div class="pd"><span style="background:#ff5f57"></span><span style="background:#ffbd2e"></span><span style="background:#28ca41"></span></div></div>
@@ -337,7 +337,7 @@ cat user.txt
     <h2>Privesc — Binary Discovery</h2>
     <div class="shot">
       <div class="sh"><span class="sl">terminal</span><span class="ss">try-harder in home directory</span></div>
-      <img src="book13.png" alt="try-harder SUID binary in home dir, prompts for magic number" loading="lazy" />
+      <img src="../assets/img/bookstore/13.png" alt="try-harder SUID binary in home dir, prompts for magic number" loading="lazy" />
       <div class="sc">Custom SUID binary 'try-harder' in the home dir — prompts for a magic number. Needs reversing.</div>
     </div>
     <p>Post-exploitation enumeration surfaces a custom binary: <code>try-harder</code>. On execution it prompts: <em>"What's The Magic Number?!"</em>. Likely calls <code>setuid(0)</code> and spawns a shell on correct input — reverse engineering required.</p>
@@ -348,7 +348,7 @@ cat user.txt
     <h2>Binary Reverse Engineering</h2>
     <div class="shot">
       <div class="sh"><span class="sl">ghidra</span><span class="ss">decompiled try-harder</span></div>
-      <img src="book14.png" alt="Decompiled try-harder showing XOR check: input ^ 0x1116 ^ 0x5db3 == 0x5dcd21f4" loading="lazy" />
+      <img src="../assets/img/bookstore/14.png" alt="Decompiled try-harder showing XOR check: input ^ 0x1116 ^ 0x5db3 == 0x5dcd21f4" loading="lazy" />
       <div class="sc">Decompiled logic: input XOR 0x1116 XOR 0x5db3 must equal 0x5dcd21f4. XOR is self-inverse — trivially reversible.</div>
     </div>
     <pre><code><div class="ph"><span class="pl">shell — transfer binary</span><div class="pd"><span style="background:#ff5f57"></span><span style="background:#ffbd2e"></span><span style="background:#28ca41"></span></div></div>
@@ -384,7 +384,7 @@ print(hex(magic))  <span class="ck"># verify</span>
     <h2>Root</h2>
     <div class="shot">
       <div class="sh"><span class="sl">terminal</span><span class="ss">try-harder → root shell</span></div>
-      <img src="book15.png" alt="try-harder accepts 1573743953, spawns root shell, whoami → root" loading="lazy" />
+      <img src="../assets/img/bookstore/15.png" alt="try-harder accepts 1573743953, spawns root shell, whoami → root" loading="lazy" />
       <div class="sc">Magic number accepted. /bin/bash -p via setuid. whoami → root. Both flags captured.</div>
     </div>
     <pre><code><div class="ph"><span class="pl">shell</span><div class="pd"><span style="background:#ff5f57"></span><span style="background:#ffbd2e"></span><span style="background:#28ca41"></span></div></div>

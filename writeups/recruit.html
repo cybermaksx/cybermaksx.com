@@ -130,7 +130,7 @@
       <li><a href="../index.html">Home</a></li>
       <li><a href="../methodology.html">Methodology</a></li>
       <li><a href="../about.html">About</a></li>
-      <li><a href="../index.html#writeups" class="active">Writeups</a></li>
+      <li><a href="../index.html#case-studies" class="active">Writeups</a></li>
     </ul>
   </div>
 </nav>
@@ -265,7 +265,7 @@ gobuster vhost -u http://recruit.thm \
 
     <div class="shot">
       <div class="sh"><span class="sl">browser</span><span class="ss">/mail/mail.log</span></div>
-      <img src="recruit3.png" alt="mail.log exposed at /mail/mail.log showing internal HR email with credentials location hint" loading="lazy" />
+      <img src="../assets/img/recruit/03.png" alt="mail.log exposed at /mail/mail.log showing internal HR email with credentials location hint" loading="lazy" />
       <div class="sc">Internal email from HR to IT Support visible in the Postfix log. The message body contains two critical pieces of intelligence.</div>
     </div>
 
@@ -289,7 +289,7 @@ gobuster vhost -u http://recruit.thm \
     <h3>API documentation</h3>
     <div class="shot">
       <div class="sh"><span class="sl">browser</span><span class="ss">api.php — endpoint documentation</span></div>
-      <img src="recruit2.png" alt="Recruit API FAQ page showing /file.php?cv=URL endpoint for fetching candidate CVs" loading="lazy" />
+      <img src="../assets/img/recruit/02.png" alt="Recruit API FAQ page showing /file.php?cv=URL endpoint for fetching candidate CVs" loading="lazy" />
       <div class="sc">The API documentation openly documents the /file.php?cv=&lt;URL&gt; endpoint. Crucially, it doesn't mention any protocol restrictions.</div>
     </div>
 
@@ -303,7 +303,7 @@ curl -s <span class="cs">"http://recruit.thm/file.php?cv=file:///var/www/html/co
 
     <div class="shot">
       <div class="sh"><span class="sl">browser</span><span class="ss">config.php contents via SSRF</span></div>
-      <img src="recruit1.png" alt="config.php raw PHP source exposed via SSRF showing HR_PASSWORD = $PASS" loading="lazy" />
+      <img src="../assets/img/recruit/01.png" alt="config.php raw PHP source exposed via SSRF showing HR_PASSWORD = $PASS" loading="lazy" />
       <div class="sc">config.php source returned in full. HR_PASSWORD = '$PASS' — exactly where the log email said it would be.</div>
     </div>
 
@@ -328,7 +328,7 @@ $HR_PASSWORD = <span class="cs">'$PASS'</span>;</code></pre>
 
     <div class="shot">
       <div class="sh"><span class="sl">burp suite</span><span class="ss">dashboard.php?search=' — SQL error</span></div>
-      <img src="recruit4.png" alt="Burp Suite showing GET request with search=' and SQL error response: You have an error in your SQL syntax near '%'" loading="lazy" />
+      <img src="../assets/img/recruit/04.png" alt="Burp Suite showing GET request with search=' and SQL error response: You have an error in your SQL syntax near '%'" loading="lazy" />
       <div class="sc">Single quote breaks the query. MySQL error returned verbatim — error-based injection confirmed. The HR flag is also visible on this page.</div>
     </div>
 
@@ -366,7 +366,7 @@ sqlmap -u <span class="cs">"http://recruit.thm/dashboard.php?search=test"</span>
 
     <div class="shot">
       <div class="sh"><span class="sl">terminal</span><span class="ss">sqlmap — dump output</span></div>
-      <img src="recruit5.png" alt="sqlmap output showing boolean-based blind, error-based, time-based blind and UNION query injection types confirmed, then dumping admin:admin@001admin from recruit_db.users" loading="lazy" />
+      <img src="../assets/img/recruit/05.png" alt="sqlmap output showing boolean-based blind, error-based, time-based blind and UNION query injection types confirmed, then dumping admin:admin@001admin from recruit_db.users" loading="lazy" />
       <div class="sc">sqlmap identifies four injection types and dumps the users table. One entry: admin / $PASS.</div>
     </div>
 
@@ -384,7 +384,7 @@ sqlmap -u <span class="cs">"http://recruit.thm/dashboard.php?search=test"</span>
 
     <div class="shot">
       <div class="sh"><span class="sl">browser</span><span class="ss">admin dashboard — admin flag</span></div>
-      <img src="recruit6.png" alt="Recruit admin dashboard showing ADMIN Flag: THM{FLAG} and full candidate applications table" loading="lazy" />
+      <img src="../assets/img/recruit/06.png" alt="Recruit admin dashboard showing ADMIN Flag: THM{FLAG} and full candidate applications table" loading="lazy" />
       <div class="sc">Admin dashboard. THM{FLAG} — full compromise confirmed. The candidate table shows the full application data.</div>
     </div>
 

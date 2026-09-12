@@ -137,7 +137,7 @@
       <li><a href="../index.html">Home</a></li>
       <li><a href="../methodology.html">Methodology</a></li>
       <li><a href="../about.html">About</a></li>
-      <li><a href="../index.html#writeups" class="active">Writeups</a></li>
+      <li><a href="../index.html#case-studies" class="active">Writeups</a></li>
     </ul>
   </div>
 </nav>
@@ -231,12 +231,12 @@ username=<span class="cs">"tomcat"</span> password=<span class="cs">"OPx52k53D8.
     <h3>The GUI rejection</h3>
     <div class="shot">
       <div class="sh"><span class="sl">browser</span><span class="ss">manager GUI — login dialog</span></div>
-      <img src="backtrack-tomcatlogin.png" alt="Tomcat manager login dialog at backtrack.thm:8080" loading="lazy" />
+      <img src="../assets/img/backtrack/tomcat-login.png" alt="Tomcat manager login dialog at backtrack.thm:8080" loading="lazy" />
       <div class="sc">The browser prompts basic auth for /manager/html. These same credentials will be refused by the GUI.</div>
     </div>
     <div class="shot">
       <div class="sh"><span class="sl">browser</span><span class="ss">403 Access Denied — /manager/html</span></div>
-      <img src="backtrack-tomcatdenied.png" alt="403 Access Denied from Tomcat manager HTML endpoint" loading="lazy" />
+      <img src="../assets/img/backtrack/tomcat-denied.png" alt="403 Access Denied from Tomcat manager HTML endpoint" loading="lazy" />
       <div class="sc">403 from the HTML manager even with the correct credentials. The GUI and text API are gated differently.</div>
     </div>
     <p>Here's the thing that bit me: the web GUI at <code>/manager/html</code> returned <strong>403 Access Denied</strong> even with valid credentials. I burned time here thinking the password was wrong. Turns out the HTML manager is often restricted to <code>localhost</code> in Tomcat's valve configuration (<code>RemoteAddrValve</code>), while the <strong>text API</strong> endpoint has different — sometimes weaker — access controls. The fix: always test <code>/manager/text/</code> directly with <code>curl -u</code> before assuming creds are bad.</p>
@@ -341,7 +341,7 @@ ss -tlnp | grep 9999   <span class="ck"># → 127.0.0.1:9999 LISTEN</span>
 curl http://127.0.0.1:9999/   <span class="ck"># → Orville's Gallery HTML</span></code></pre>
     <div class="shot">
       <div class="sh"><span class="sl">browser — via ssh tunnel</span><span class="ss">127.0.0.1:9999/login.php</span></div>
-      <img src="backtrack.png" alt="Orville's Gallery login page accessed via SSH tunnel at 127.0.0.1:9999" loading="lazy" />
+      <img src="../assets/img/backtrack/01.png" alt="Orville's Gallery login page accessed via SSH tunnel at 127.0.0.1:9999" loading="lazy" />
       <div class="sc">Gallery login page visible through the tunnel. Registration is disabled — those credentials from from_orville.txt are the only way in.</div>
     </div>
     <p>Log in with orville's credentials from the note. Registration being explicitly disabled is the reason those credentials mattered — there's no self-signup path.</p>
@@ -355,7 +355,7 @@ curl http://127.0.0.1:9999/   <span class="ck"># → Orville's Gallery HTML</spa
     <h3>Recon</h3>
     <div class="shot">
       <div class="sh"><span class="sl">browser</span><span class="ss">gallery dashboard — upload form</span></div>
-      <img src="backtrack2.png" alt="Gallery dashboard at 127.0.0.1:9999/dashboard.php with upload form and devtools storage panel open" loading="lazy" />
+      <img src="../assets/img/backtrack/02.png" alt="Gallery dashboard at 127.0.0.1:9999/dashboard.php with upload form and devtools storage panel open" loading="lazy" />
       <div class="sc">Dashboard with file upload claiming to accept only images. DevTools shows the session cookies — note the PHPSESSID needed for the Burp request.</div>
     </div>
     <p>The dashboard has an image upload that filters on extension. The gallery HTML itself gives away the intended bypass — uploaded files get referenced as <code>uploads/shell.png.php</code>, meaning the app stores the filename <em>verbatim</em> and Apache still executes anything whose last extension is <code>.php</code>.</p>
@@ -417,7 +417,7 @@ chmod +x /tmp/pspy64
 /tmp/pspy64</code></pre>
     <div class="shot">
       <div class="sh"><span class="sl">terminal — pspy64</span><span class="ss">root process activity</span></div>
-      <img src="backtrack-pspy.png" alt="pspy64 output showing UID=0 process running su - orville followed by zip command" loading="lazy" />
+      <img src="../assets/img/backtrack/pspy.png" alt="pspy64 output showing UID=0 process running su - orville followed by zip command" loading="lazy" />
       <div class="sc">pspy catches it: root (UID=0) runs <code>su - orville</code>, then a zip of the web root executes as orville. Root periodically becomes orville to take the snapshot.</div>
     </div>
     <h3>Why <code>su -</code> is the opening</h3>

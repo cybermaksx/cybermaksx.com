@@ -130,7 +130,7 @@
       <li><a href="../index.html">Home</a></li>
       <li><a href="../methodology.html">Methodology</a></li>
       <li><a href="../about.html">About</a></li>
-      <li><a href="../index.html#writeups" class="active">Writeups</a></li>
+      <li><a href="../index.html#case-studies" class="active">Writeups</a></li>
     </ul>
   </div>
 </nav>
@@ -163,7 +163,7 @@
 nmap -sS -sV -p- &lt;TARGET_IP&gt;</code></pre>
     <div class="shot">
       <div class="sh"><span class="sl">terminal</span><span class="ss">nmap results</span></div>
-      <img src="step1.png" alt="Nmap scan showing ports 22 and 80 open" loading="lazy" />
+      <img src="../assets/img/conversor/01.png" alt="Nmap scan showing ports 22 and 80 open" loading="lazy" />
       <div class="sc">Two open ports — SSH on 22, HTTP on 80. Web application is the only attack surface.</div>
     </div>
     <div class="ports">
@@ -179,12 +179,12 @@ nmap -sS -sV -p- &lt;TARGET_IP&gt;</code></pre>
     <p>After registering an account, the application reveals its core feature: an XML/XSLT transformation service that converts uploaded XML and XSLT files into formatted output.</p>
     <div class="shot">
       <div class="sh"><span class="sl">browser</span><span class="ss">converter interface</span></div>
-      <img src="step1.2.png" alt="XML/XSLT converter web application interface" loading="lazy" />
+      <img src="../assets/img/conversor/01b.png" alt="XML/XSLT converter web application interface" loading="lazy" />
       <div class="sc">The converter accepts XML and XSLT file uploads. XSLT processing without proper sanitization is a known RCE vector.</div>
     </div>
     <div class="shot">
       <div class="sh"><span class="sl">browser</span><span class="ss">source code download</span></div>
-      <img src="step2.png" alt="Application source code available for download — Flask Python app" loading="lazy" />
+      <img src="../assets/img/conversor/02.png" alt="Application source code available for download — Flask Python app" loading="lazy" />
       <div class="sc">Source code is publicly downloadable. Flask app. This dramatically speeds up identifying attack vectors.</div>
     </div>
     <div class="callout yellow"><strong>Key finding:</strong> Source code access means we can read the exact processing logic before crafting any payload. Always download if it's available.</div>
@@ -195,7 +195,7 @@ nmap -sS -sV -p- &lt;TARGET_IP&gt;</code></pre>
     <h2>Source Code Review</h2>
     <div class="shot">
       <div class="sh"><span class="sl">editor</span><span class="ss">cron job + user context</span></div>
-      <img src="step3.png" alt="Source showing www-data context and cron job executing all .py files in current directory" loading="lazy" />
+      <img src="../assets/img/conversor/03.png" alt="Source showing www-data context and cron job executing all .py files in current directory" loading="lazy" />
       <div class="sc">Two critical findings in the source: app runs as www-data, and a cron job automatically executes all .py files in the working directory.</div>
     </div>
     <p>Reading the Flask source reveals the full picture:</p>
@@ -221,14 +221,14 @@ nmap -sS -sV -p- &lt;TARGET_IP&gt;</code></pre>
 &lt;/root&gt;</code></pre>
     <div class="shot">
       <div class="sh"><span class="sl">browser</span><span class="ss">step 1 — xml upload</span></div>
-      <img src="step4.png" alt="Uploading legitimate XML file to pass input validation" loading="lazy" />
+      <img src="../assets/img/conversor/04.png" alt="Uploading legitimate XML file to pass input validation" loading="lazy" />
       <div class="sc">Clean XML passes server-side validation. Now the XSLT payload does the actual work.</div>
     </div>
 
     <h3>Step 2 — Malicious XSLT (writes Python reverse shell)</h3>
     <div class="shot">
       <div class="sh"><span class="sl">editor</span><span class="ss">step 2 — xslt payload</span></div>
-      <img src="step5.png" alt="Malicious XSLT file that writes a Python reverse shell to the working directory" loading="lazy" />
+      <img src="../assets/img/conversor/05.png" alt="Malicious XSLT file that writes a Python reverse shell to the working directory" loading="lazy" />
       <div class="sc">XSLT uses the processor's file write capability to drop a Python reverse shell in the working directory where the cron job will pick it up.</div>
     </div>
 
@@ -254,7 +254,7 @@ cat /etc/passwd
     <h3>Database discovery</h3>
     <div class="shot">
       <div class="sh"><span class="sl">terminal</span><span class="ss">sqlite database found</span></div>
-      <img src="step6.png" alt="find command locating SQLite database, sqlite3 query showing user credential hash" loading="lazy" />
+      <img src="../assets/img/conversor/06.png" alt="find command locating SQLite database, sqlite3 query showing user credential hash" loading="lazy" />
       <div class="sc">SQLite database found on the filesystem. Users table contains a password hash for fismathack.</div>
     </div>
     <pre><code><div class="ph"><span class="pl">shell</span><div class="pd"><span style="background:#ff5f57"></span><span style="background:#ffbd2e"></span><span style="background:#28ca41"></span></div></div>
@@ -270,12 +270,12 @@ sqlite&gt; SELECT * FROM users;
     <h2>Hash Cracking → SSH Access</h2>
     <div class="shot">
       <div class="sh"><span class="sl">crackstation.net</span><span class="ss">hash cracked</span></div>
-      <img src="step7.png" alt="Crackstation successfully cracking the password hash for fismathack" loading="lazy" />
+      <img src="../assets/img/conversor/07.png" alt="Crackstation successfully cracking the password hash for fismathack" loading="lazy" />
       <div class="sc">Hash cracked via Crackstation. Password in plaintext — classic weak credential storage.</div>
     </div>
     <div class="shot">
       <div class="sh"><span class="sl">terminal</span><span class="ss">ssh login + user.txt</span></div>
-      <img src="step8.png" alt="SSH login as fismathack with cracked password, cat user.txt shows flag" loading="lazy" />
+      <img src="../assets/img/conversor/08.png" alt="SSH login as fismathack with cracked password, cat user.txt shows flag" loading="lazy" />
       <div class="sc">Cracked password works on SSH directly. user.txt captured.</div>
     </div>
     <pre><code><div class="ph"><span class="pl">shell</span><div class="pd"><span style="background:#ff5f57"></span><span style="background:#ffbd2e"></span><span style="background:#28ca41"></span></div></div>
@@ -292,7 +292,7 @@ cat user.txt
     <h2>Sudo Enumeration</h2>
     <div class="shot">
       <div class="sh"><span class="sl">terminal</span><span class="ss">sudo -l</span></div>
-      <img src="step9.png" alt="sudo -l showing fismathack can run /usr/sbin/needrestart as root NOPASSWD" loading="lazy" />
+      <img src="../assets/img/conversor/09.png" alt="sudo -l showing fismathack can run /usr/sbin/needrestart as root NOPASSWD" loading="lazy" />
       <div class="sc">fismathack can run needrestart as root with NOPASSWD. needrestart accepts a custom config file via -c — this is the escalation path.</div>
     </div>
     <pre><code><div class="ph"><span class="pl">shell</span><div class="pd"><span style="background:#ff5f57"></span><span style="background:#ffbd2e"></span><span style="background:#28ca41"></span></div></div>
@@ -319,7 +319,7 @@ sudo /usr/sbin/needrestart -c /tmp/con.conf</code></pre>
 
     <div class="shot">
       <div class="sh"><span class="sl">terminal</span><span class="ss">needrestart → root shell</span></div>
-      <img src="step10.png" alt="sudo needrestart -c /tmp/con.conf spawning root shell, id confirms uid=0" loading="lazy" />
+      <img src="../assets/img/conversor/10.png" alt="sudo needrestart -c /tmp/con.conf spawning root shell, id confirms uid=0" loading="lazy" />
       <div class="sc">needrestart parses the config as root, exec directive fires, root shell obtained. id confirms uid=0(root).</div>
     </div>
 
