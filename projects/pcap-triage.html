@@ -1,0 +1,506 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>PCAP-Triage — Network &amp; OT Forensics Tool — Maks Huseynli</title>
+  <meta name="description" content="PCAP-Triage — a Python tool for offline analysis of .pcap/.pcapng captures, from generic traffic statistics to Modbus/TCP-aware detection: unauthorized masters and writers, function-code sweeps, and dangerous diagnostic commands." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@300;400;500&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:         #0b0f14;
+      --bg-2:       #0f1419;
+      --bg-3:       #141b22;
+      --bg-code:    #0d1117;
+      --border:     #1e2730;
+      --border-2:   #253040;
+      --text:       #c8d0da;
+      --text-dim:   #6b7a8d;
+      --text-faint: #3a4552;
+      --accent:     #4d9de0;
+      --accent-dim: #2d6fa8;
+      --green:      #34c759;
+      --yellow:     #ff9f0a;
+      --red:        #ff453a;
+      --mono: 'DM Mono', monospace;
+      --sans: 'DM Sans', sans-serif;
+    }
+    html { scroll-behavior: smooth; }
+    body { background: var(--bg); color: var(--text); font-family: var(--sans); font-size: 15px; line-height: 1.75; -webkit-font-smoothing: antialiased; }
+
+    nav { position: fixed; top: 0; left: 0; right: 0; z-index: 100; background: rgba(11,15,20,0.88); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); border-bottom: 1px solid var(--border); }
+    .nav-inner { max-width: 1100px; margin: 0 auto; padding: 0 28px; height: 56px; display: flex; align-items: center; justify-content: space-between; }
+    .nav-brand { font-family: var(--mono); font-size: 13px; color: var(--accent); text-decoration: none; letter-spacing: 0.02em; }
+    .nav-links { display: flex; list-style: none; }
+    .nav-links a { font-size: 13px; color: var(--text-dim); text-decoration: none; padding: 6px 16px; border-radius: 4px; transition: color 0.2s; }
+    .nav-links a:hover { color: var(--text); }
+    .nav-links a.active { color: var(--accent); }
+
+    .hero { padding: 96px 28px 56px; max-width: 1100px; margin: 0 auto; border-bottom: 1px solid var(--border); }
+    .hero-meta { display: flex; align-items: center; gap: 10px; margin-bottom: 28px; flex-wrap: wrap; }
+    .badge { font-family: var(--mono); font-size: 10px; padding: 3px 9px; border-radius: 3px; letter-spacing: 0.07em; text-transform: uppercase; }
+    .badge-p { background: rgba(52,199,89,0.08);  color: var(--green);  border: 1px solid rgba(52,199,89,0.2); }
+    .badge-c { background: rgba(77,157,224,0.08); color: var(--accent); border: 1px solid rgba(77,157,224,0.2); }
+    .badge-s { background: rgba(255,159,10,0.08); color: var(--yellow); border: 1px solid rgba(255,159,10,0.2); }
+    .hero h1 { font-size: clamp(28px, 5vw, 52px); font-weight: 300; line-height: 1.1; letter-spacing: -0.025em; color: #dce5ef; margin-bottom: 18px; }
+    .hero h1 strong { font-weight: 600; color: #edf2f7; }
+    .hero-desc { font-size: 15px; color: var(--text-dim); font-weight: 300; max-width: 640px; line-height: 1.75; margin-bottom: 36px; border-left: 1px solid var(--border-2); padding-left: 20px; }
+    .hero-info { display: flex; gap: 40px; flex-wrap: wrap; }
+    .info-item { display: flex; flex-direction: column; gap: 4px; }
+    .info-label { font-family: var(--mono); font-size: 10px; color: var(--text-faint); letter-spacing: 0.12em; text-transform: uppercase; }
+    .info-value { font-family: var(--mono); font-size: 12px; color: var(--text-dim); }
+    .info-value a { color: var(--accent); text-decoration: none; }
+    .info-value a:hover { text-decoration: underline; }
+
+    .body-wrap { display: grid; grid-template-columns: 1fr 196px; gap: 64px; max-width: 1100px; margin: 0 auto; padding: 64px 28px 120px; align-items: start; }
+
+    .toc { position: sticky; top: 76px; }
+    .toc-label { font-family: var(--mono); font-size: 10px; color: var(--text-faint); letter-spacing: 0.12em; text-transform: uppercase; margin-bottom: 14px; }
+    .toc ul { list-style: none; display: flex; flex-direction: column; gap: 1px; }
+    .toc ul a { display: block; font-size: 11px; color: var(--text-dim); text-decoration: none; padding: 5px 8px; border-radius: 3px; border-left: 1px solid transparent; transition: color 0.15s, border-color 0.15s; }
+    .toc ul a:hover { color: var(--accent); border-left-color: var(--accent-dim); }
+
+    .section { margin-bottom: 64px; }
+    .s-num { font-family: var(--mono); font-size: 10px; color: var(--text-faint); letter-spacing: 0.12em; text-transform: uppercase; margin-bottom: 6px; }
+    .section h2 { font-size: 19px; font-weight: 600; color: #dce5ef; letter-spacing: -0.018em; margin-bottom: 18px; padding-bottom: 12px; border-bottom: 1px solid var(--border); }
+    .section h3 { font-size: 14px; font-weight: 500; color: #b0c0d0; letter-spacing: -0.01em; margin: 26px 0 10px; }
+    .section p { font-size: 14px; color: var(--text-dim); line-height: 1.8; margin-bottom: 12px; }
+    .section p strong { color: var(--text); font-weight: 500; }
+    .section code { font-family: var(--mono); font-size: 12px; color: #a8bccd; background: rgba(255,255,255,0.04); border: 1px solid var(--border); padding: 1px 5px; border-radius: 3px; }
+    .section ul, .section ol { color: var(--text-dim); font-size: 14px; line-height: 1.8; padding-left: 22px; margin: 10px 0 14px; }
+    .section ul li, .section ol li { margin-bottom: 6px; }
+
+    pre { background: var(--bg-code); border: 1px solid var(--border); border-radius: 6px; overflow: hidden; margin: 16px 0; }
+    .ph { display: flex; align-items: center; justify-content: space-between; padding: 8px 14px; background: rgba(255,255,255,0.02); border-bottom: 1px solid var(--border); }
+    .pl { font-family: var(--mono); font-size: 10px; color: var(--text-faint); letter-spacing: 0.1em; text-transform: uppercase; }
+    .pd { display: flex; gap: 5px; }
+    .pd span { width: 8px; height: 8px; border-radius: 50%; display: block; }
+    pre code { display: block; padding: 18px; font-family: var(--mono); font-size: 12px; line-height: 1.72; color: #a0b8cc; overflow-x: auto; white-space: pre; background: none; border: none; }
+    .ca { color: var(--accent); }
+    .cg { color: var(--green); }
+    .cr { color: var(--red); }
+    .cy { color: var(--yellow); }
+    .cf { color: var(--text-faint); }
+
+    .callout { padding: 14px 18px; border-radius: 5px; margin: 18px 0; border-left: 2px solid; font-size: 13px; line-height: 1.7; }
+    .blue   { background: rgba(77,157,224,0.05);  border-color: var(--accent); color: #88aacc; }
+    .yellow { background: rgba(255,159,10,0.05);  border-color: var(--yellow); color: #aa8855; }
+    .callout strong { color: inherit; font-weight: 600; }
+    .callout code { background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.06); padding: 1px 5px; border-radius: 3px; font-family: var(--mono); font-size: 11.5px; }
+
+    .tbl { width: 100%; border-collapse: collapse; margin: 16px 0; border: 1px solid var(--border); border-radius: 6px; overflow: hidden; }
+    .tbl thead tr { background: var(--bg-2); }
+    .tbl th { font-family: var(--mono); font-size: 10px; text-transform: uppercase; letter-spacing: 0.1em; color: var(--text-faint); text-align: left; padding: 10px 16px; font-weight: 400; border-bottom: 1px solid var(--border); }
+    .tbl td { padding: 10px 16px; font-family: var(--mono); font-size: 12px; color: var(--text-dim); border-bottom: 1px solid var(--border); background: var(--bg); vertical-align: top; }
+    .tbl tbody tr:last-child td { border-bottom: none; }
+    .tbl td:first-child { color: var(--accent); }
+    .tbl td.sev-h { color: var(--red); }
+    .tbl td.sev-m { color: var(--yellow); }
+    .tbl td em { color: var(--text); font-style: normal; font-family: var(--sans); font-size: 12.5px; }
+
+    .stat-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1px; background: var(--border); border: 1px solid var(--border); border-radius: 6px; overflow: hidden; margin: 16px 0 22px; }
+    .stat-cell { background: var(--bg-2); padding: 16px 14px; }
+    .stat-k { font-family: var(--mono); font-size: 10px; color: var(--text-faint); letter-spacing: 0.1em; text-transform: uppercase; }
+    .stat-v { font-family: var(--mono); font-size: 17px; color: var(--accent); margin-top: 4px; font-weight: 500; }
+
+    footer { border-top: 1px solid var(--border); padding: 28px; }
+    .footer-inner { max-width: 1100px; margin: 0 auto; display: flex; justify-content: space-between; align-items: center; }
+    .footer-copy { font-family: var(--mono); font-size: 11px; color: var(--text-faint); }
+    .footer-links { display: flex; gap: 24px; }
+    .footer-links a { font-family: var(--mono); font-size: 11px; color: var(--text-faint); text-decoration: none; transition: color 0.2s; }
+    .footer-links a:hover { color: var(--text-dim); }
+
+    @media (max-width: 860px) { .body-wrap { grid-template-columns: 1fr; } .toc { display: none; } .stat-row { grid-template-columns: repeat(2, 1fr); } }
+    @media (max-width: 580px) { .hero, .body-wrap { padding-left: 20px; padding-right: 20px; } .footer-inner { flex-direction: column; gap: 12px; } }
+  </style>
+</head>
+<body>
+
+<nav>
+  <div class="nav-inner">
+    <a class="nav-brand" href="../index.html">CyberMaks</a>
+    <ul class="nav-links">
+      <li><a href="../index.html">Home</a></li>
+      <li><a href="../methodology.html">Methodology</a></li>
+      <li><a href="../about.html">About</a></li>
+      <li><a href="../index.html#tools" class="active">Tools</a></li>
+    </ul>
+  </div>
+</nav>
+
+<header class="hero">
+  <div class="hero-meta">
+    <span class="badge badge-p">Tool</span>
+    <span class="badge badge-c">Network Forensics</span>
+    <span class="badge badge-c">ICS / OT</span>
+    <span class="badge badge-c">Modbus/TCP</span>
+    <span class="badge badge-s">v1.0</span>
+  </div>
+  <h1><strong>PCAP-Triage</strong></h1>
+  <p class="hero-desc">
+    A Python tool for offline analysis of <code>.pcap</code> / <code>.pcapng</code> captures. Generic traffic statistics and five scan detectors, then its own MBAP parser and four Modbus/TCP detectors — a function-code sweep and dangerous commands with no configuration at all, plus unauthorized masters and writers against an allowlist. Every finding carries the frame numbers, times and order the attacker touched the wire.
+  </p>
+  <div class="hero-info">
+    <div class="info-item"><span class="info-label">Language</span><span class="info-value">Python 3.8+</span></div>
+    <div class="info-item"><span class="info-label">Dependency</span><span class="info-value">Scapy 2.7</span></div>
+    <div class="info-item"><span class="info-label">Tests</span><span class="info-value">301 (pytest)</span></div>
+    <div class="info-item"><span class="info-label">License</span><span class="info-value">MIT</span></div>
+    <div class="info-item"><span class="info-label">Repo</span><span class="info-value"><a href="https://github.com/cybermaksx/PCAP-Triage" target="_blank" rel="noopener">github.com/cybermaksx/PCAP-Triage</a></span></div>
+  </div>
+</header>
+
+<div class="body-wrap">
+
+  <main>
+
+    <!-- ── 01 OVERVIEW ── -->
+    <section class="section" id="overview">
+      <div class="s-num">01 / Overview</div>
+      <h2>What it does, and what it isn't</h2>
+      <p>
+        PCAP-Triage reads a capture once, builds a flat set of facts about it,
+        and asks a registry of detectors what they make of those facts. The result
+        is either a terminal report sized to the current window or a single JSON
+        document — never both, since mixing framed text into the stream would make
+        it unparseable.
+      </p>
+      <p>
+        It targets quick, dependency-light triage. One script, one Scapy install,
+        one argument. Zeek and Suricata do more and do it faster; this one is the
+        thing you run against a capture on someone else's laptop during an incident,
+        without deploying a monitoring stack first.
+      </p>
+
+      <div class="stat-row">
+        <div class="stat-cell"><div class="stat-k">Detectors</div><div class="stat-v">9</div></div>
+        <div class="stat-cell"><div class="stat-k">Protocols</div><div class="stat-v">IPv4/6 · Modbus</div></div>
+        <div class="stat-cell"><div class="stat-k">Output</div><div class="stat-v">TTY · JSON</div></div>
+        <div class="stat-cell"><div class="stat-k">Peak RAM<br><span style="font-size:9px">12 MB · 131k pkts</span></div><div class="stat-v">89 MB</div></div>
+      </div>
+
+      <div class="callout blue">
+        <strong>What it is not.</strong> There is no real-time capture, no web dashboard,
+        no ML anomaly detection. OT detection is deterministic and rule-based on purpose
+        — more on that in <a href="#design" style="color:inherit;text-decoration:underline;">§05</a>.
+      </div>
+    </section>
+
+    <!-- ── 02 ARCHITECTURE ── -->
+    <section class="section" id="architecture">
+      <div class="s-num">02 / Architecture</div>
+      <h2>Three stages, one pass</h2>
+      <p>
+        The code is organised so that adding a protocol parser touches two files —
+        the collector and the detector registry — and nothing else.
+      </p>
+
+      <pre><div class="ph"><span class="pl">pipeline</span><div class="pd"><span style="background:#ff5f56"></span><span style="background:#ffbd2e"></span><span style="background:#27c93f"></span></div></div><code><span class="cf">   pcap file ──► context ──► findings ──► output</span>
+              <span class="ca">(facts)</span>    <span class="cg">(conclusions)</span>
+
+  main.py       context.py        detectors.py         report.py
+  streams       collects a        reads the dict,      formats
+  packets,      dict of counters  returns findings     (TTY, JSON)
+  attaches      and per-source    in a common
+  frame #       timelines         schema</code></pre>
+
+      <p>
+        <code>main.py</code> walks the packets exactly once and hands each one to
+        <code>feed()</code> with its position in the file — that position becomes
+        the frame number every finding points at. Detectors read the dictionary
+        and never touch packets, which is what makes them testable without a
+        capture file: 301 tests, all unit-level except five marked <code>slow</code>
+        that parse a 131 428-packet SYN scan.
+      </p>
+    </section>
+
+    <!-- ── 03 GENERIC ── -->
+    <section class="section" id="generic">
+      <div class="s-num">03 / Generic detection</div>
+      <h2>Scans, ARP, DNS tunneling</h2>
+      <p>
+        Five scan techniques, each with its own signature. <strong>SYN</strong> and
+        <strong>UDP</strong> are thresholded by probe count; <strong>FIN</strong>
+        is any TCP packet carrying only the FIN flag outside an established
+        connection; <strong>NULL</strong> and <strong>XMAS</strong> fire on a
+        single packet by shape alone, because no working stack sends either.
+        <strong>ARP spoofing</strong> is one IPv4 claimed by more than one MAC,
+        dated from the moment the <em>second</em> MAC appears. <strong>DNS
+        tunneling</strong> looks for a domain with both unusually long labels and
+        an unusually large number of distinct names — the shape of data smuggled
+        out inside queries.
+      </p>
+
+      <pre><div class="ph"><span class="pl">udpscan.pcapng · findings</span><div class="pd"><span style="background:#ff5f56"></span><span style="background:#ffbd2e"></span><span style="background:#27c93f"></span></div></div><code>FINDINGS (1)
+────────────────────────────────────────────────────────────────────────────────
+    ▸ <span class="cr">UDP_SCAN  HIGH</span>  from 192.168.1.99
+      192.168.1.99 sent UDP to 93 unique ports
+      ports  7, 9, 17, 19, 49, 67-69, 80, 88, 111, 120, 123, 135-139  (+75 more)
+      start  <span class="ca">2026-08-19 01:16:48.464 UTC</span>  (frame 10)
+      end    <span class="ca">2026-08-19 01:18:19.089 UTC</span>  (frame 765)
+      span   90.625 s  ·  1 ports/s
+      order  32815 → 515 → 5060 → 2000 → 1025 → 445 … (+87)  [<span class="cy">randomised</span>]</code></pre>
+
+      <p>
+        Every finding carries start/end UTC and the Wireshark frame numbers of the
+        first and last packet — type <code>frame.number == N</code> in Wireshark and
+        you are on the exact packet. The <strong>order</strong> line records the
+        sequence in which the scanner first touched each port and tags the walk as
+        <code>sequential</code> (<code>nmap -r</code>, a hand-written script) or
+        <code>randomised</code> (nmap's default). Consecutive ports fold into ranges,
+        so a full-range SYN scan reports <code>1-65535</code> instead of a 447 000-
+        character line.
+      </p>
+    </section>
+
+    <!-- ── 04 MODBUS ── -->
+    <section class="section" id="modbus">
+      <div class="s-num">04 / Modbus/TCP</div>
+      <h2>Four OT-aware detectors</h2>
+      <p>
+        The MBAP header is decoded by a parser of its own rather than through
+        Scapy, so malformed and non-Modbus traffic on port 502 is counted instead
+        of silently mislabelled. A message counts as Modbus only if its MBAP is
+        self-consistent: protocol id 0, a length between 2 and 254 that matches
+        the bytes actually present. Everything else on port 502 lists as
+        malformed — scanners send garbage on purpose, and a device answering in
+        another protocol is itself a fact.
+      </p>
+
+      <h3>Function-code sweep</h3>
+      <p>
+        A master trying more than ten distinct function codes against one device
+        is mapping what it accepts — the Modbus counterpart of a port scan. No
+        configuration needed, so it also fires for a sweep from an allowed
+        address. Write codes inside the sweep are named in the finding: on a live
+        PLC a "probe" write is a write.
+      </p>
+
+      <pre><div class="ph"><span class="pl">modbus_test.pcap · sweep from internet-facing scan (2006)</span><div class="pd"><span style="background:#ff5f56"></span><span style="background:#ffbd2e"></span><span style="background:#27c93f"></span></div></div><code>    ▸ <span class="cr">MODBUS_FC_SWEEP  HIGH</span>  from 192.168.66.235
+      192.168.66.235 tried <span class="ca">128 different</span> Modbus function codes against
+      166.161.16.230, including write codes 5, 6, 15, 16, 22, 23
+      codes  0-127
+      start  2006-07-21 14:24:52.212 UTC  (frame 124)
+      end    2006-07-21 14:26:14.091 UTC  (frame 468)
+      span   81.878 s
+      order  FC 0 → FC 1 → FC 2 → FC 3 → FC 4 → FC 5 … (+122)  [<span class="cy">sequential</span>]</code></pre>
+
+      <h3>Dangerous diagnostic and write commands</h3>
+      <p>
+        Not every write — that would bury an analyst in a SCADA master's routine
+        setpoints. Only the commands no configured master sends on any site:
+      </p>
+
+      <table class="tbl">
+        <thead>
+          <tr><th>Reason</th><th>Severity</th><th>What it means</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>force_listen_only</td><td class="sev-h">HIGH</td><td><em>FC 8 subfunction 4: the device stops answering anyone until restarted</em></td></tr>
+          <tr><td>restart_communications</td><td class="sev-h">HIGH</td><td><em>FC 8 subfunction 1</em></td></tr>
+          <tr><td>mass_write</td><td class="sev-h">HIGH</td><td><em>more than 100 distinct addresses written by one master</em></td></tr>
+          <tr><td>broadcast_write</td><td class="sev-m">MEDIUM</td><td><em>write to unit 0, executed by every device behind a gateway</em></td></tr>
+          <tr><td>clear_counters</td><td class="sev-m">MEDIUM</td><td><em>FC 8 subfunction 10: diagnostic evidence wiped</em></td></tr>
+          <tr><td>malformed_write</td><td class="sev-m">MEDIUM</td><td><em>data that does not fit the function's layout</em></td></tr>
+          <tr><td>invalid_coil_value</td><td class="sev-m">MEDIUM</td><td><em>FC 5 with a value other than ON (0xFF00) or OFF (0x0000)</em></td></tr>
+          <tr><td>rejected_write</td><td class="sev-m">MEDIUM</td><td><em>device answered exception 1, 2 or 3 — someone is guessing</em></td></tr>
+        </tbody>
+      </table>
+
+      <p>
+        A master that never sends a single write can still take a device off the
+        network with Force Listen Only — which is why diagnostics are judged here
+        alongside writes. The 20 writes of the real 2012 SCADA master in the
+        sample capture — five registers, valid values, again and again — produce
+        nothing. That is the point.
+      </p>
+
+      <h3>Unauthorized master and writer</h3>
+      <p>
+        The set of machines allowed to give orders to field devices is short and
+        known on site, but it is not written in a capture. Pass it in:
+      </p>
+
+      <pre><div class="ph"><span class="pl">bash</span><div class="pd"><span style="background:#ff5f56"></span><span style="background:#ffbd2e"></span><span style="background:#27c93f"></span></div></div><code><span class="cf"># the whole control subnet may read; only the SCADA server may write</span>
+python main.py capture.pcap <span class="ca">--allow-master 10.1.1.0/24 --allow-writer 10.1.1.234</span></code></pre>
+
+      <p>
+        Without the flag the check stays silent rather than guess, and the
+        <code>MODBUS</code> block says masters were not checked — so an empty
+        <code>FINDINGS</code> block is never mistaken for "all masters are
+        fine". Reading and writing are different permissions: the historian and
+        the monitoring HMIs read all day and never write, and a write from one
+        of them is an incident however ordinary it looks.
+      </p>
+
+      <pre><div class="ph"><span class="pl">--allow-writer 10.1.1.234 · unauthorized write</span><div class="pd"><span style="background:#ff5f56"></span><span style="background:#ffbd2e"></span><span style="background:#27c93f"></span></div></div><code>    ▸ <span class="cr">MODBUS_UNAUTHORIZED_WRITE  HIGH</span>  from 10.0.0.9
+      10.0.0.9 is not an allowed writer but sent 3 write requests to 10.0.0.3
+      start  2004-08-26 12:13:52.259 UTC  (frame 60)
+      end    2004-08-26 12:14:39.997 UTC  (frame 66)
+      span   47.739 s
+      order  <span class="ca">FC 5 coil 2 OFF → FC 5 coil 1 OFF → FC 6 reg 5 = 11</span></code></pre>
+
+      <p>
+        Three valid writes, accepted by the device, invisible without knowing
+        who was supposed to make them. That is the one finding no other
+        detector produces.
+      </p>
+    </section>
+
+    <!-- ── 05 DESIGN ── -->
+    <section class="section" id="design">
+      <div class="s-num">05 / Design choices</div>
+      <h2>Rules, not scores</h2>
+      <p>
+        An alert from this tool has to name the source address, the function code
+        and the packet number, because the person reading it has to decide whether
+        to act on a <em>live process</em>. "Anomaly score 0.87" is not something
+        an operator can act on, and it is not something an analyst can argue with
+        afterwards.
+      </p>
+      <p>
+        There is a second reason specific to industrial networks. OT traffic is
+        unusually repetitive — the same masters polling the same registers on a
+        fixed cycle — which genuinely does make it good ground for baselining.
+        But a baseline learned from a capture that already contains the
+        intrusion teaches the model that the intrusion is normal. Getting that
+        right needs known-clean reference traffic, which is exactly what an
+        incident responder arriving at an unfamiliar site does not have.
+      </p>
+
+      <div class="callout yellow">
+        <strong>So:</strong> explicit rules, tested and explainable. If statistical
+        baselining is ever added, it belongs on top of them, never as a replacement
+        for them.
+      </div>
+
+      <h3>Other decisions worth naming</h3>
+      <ul>
+        <li><strong>Streaming reader.</strong> Packets are parsed one at a time and discarded. A 12 MB / 131 428-packet capture went from 696 MB peak to 89 MB.</li>
+        <li><strong>UTC everywhere.</strong> A report means the same moment on every machine it is passed to. Wireshark can be switched to match under <em>View → Time Display Format → UTC Date and Time of Day</em>.</li>
+        <li><strong>Deterministic JSON.</strong> Address and port lists are sorted; two runs of the same capture produce byte-identical output, so diffs are meaningful rather than reordering noise. A <code>schema_version</code> field lets a consumer detect breaking changes instead of failing silently on a renamed key.</li>
+        <li><strong>Colour is a TTY thing.</strong> Emitted only when stdout is a terminal, so piping the output into a file or into <code>grep</code> yields clean text.</li>
+        <li><strong>Banner and progress go to stderr</strong> — the JSON on stdout travels clean through a pipe or a redirect.</li>
+      </ul>
+    </section>
+
+    <!-- ── 06 LIMITATIONS ── -->
+    <section class="section" id="limitations">
+      <div class="s-num">06 / Known limitations</div>
+      <h2>What it does <em style="color:var(--text);font-style:normal;">not</em> do</h2>
+      <p>
+        These are the ones worth naming on a landing page; the
+        <a href="https://github.com/cybermaksx/PCAP-Triage#features" target="_blank" rel="noopener">README</a>
+        carries the full list.
+      </p>
+      <ul>
+        <li><strong>Modbus is recognised on port 502 only.</strong> Real installations do move it; the parser itself ignores ports, but nothing yet decides that a stream on another port is Modbus.</li>
+        <li><strong>No TCP stream reassembly.</strong> One Modbus message per segment is assumed; several packed into one, or one split across two, are counted as malformed.</li>
+        <li><strong>The sweep is judged over the whole capture.</strong> 11 codes over a month and 128 codes in 82 seconds both cross the threshold. There is no time window yet.</li>
+        <li><strong>Allowlists come from the analyst, not from the capture.</strong> An attacker on an allowed address — a compromised SCADA server — is not reported by the master/writer checks.</li>
+        <li><strong>ARP spoofing has no baseline.</strong> An address that changed hands via DHCP looks the same as an attack, and a spoof already underway before the capture started is invisible if the real host stays silent throughout.</li>
+        <li><strong>NULL and XMAS fire on one packet by design.</strong> A broken stack or a middlebox rewriting flags will produce a finding where there is no scan.</li>
+      </ul>
+    </section>
+
+    <!-- ── 07 ROADMAP ── -->
+    <section class="section" id="roadmap">
+      <div class="s-num">07 / Ideas, not commitments</div>
+      <h2>Directions, written down so they're not forgotten</h2>
+      <p>
+        Each line below is a project of its own, roughly the size of the whole
+        Modbus stage. They are not planned.
+      </p>
+
+      <table class="tbl">
+        <thead>
+          <tr><th>Idea</th><th>What it would add</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>Request/response pairing per TCP connection</td><td><em>whether a device actually accepted a write; broadcast writes without the unit-0 false positive</em></td></tr>
+          <tr><td>Per-site write policy file</td><td><em>allowed addresses and value ranges per writer, to catch an attacker on an allowed address</em></td></tr>
+          <tr><td>Modbus unit-id sweep detection</td><td><em>device discovery behind a gateway</em></td></tr>
+          <tr><td>DNP3, S7comm, EtherNet/IP parsers</td><td><em>the same parse → facts → detectors pipeline for other OT protocols</em></td></tr>
+          <tr><td>Vendor commands (Schneider UMAS, FC 90)</td><td><em>PLC stop, start and program download</em></td></tr>
+          <tr><td>Time windows for the detectors</td><td><em>telling a sweep in 82 seconds from the same codes used over a month</em></td></tr>
+          <tr><td>TLS JA3, beaconing / C2 interval analysis</td><td><em>generic threat hunting beyond reconnaissance</em></td></tr>
+        </tbody>
+      </table>
+
+      <p>
+        Real-time capture, a web dashboard and ML-based anomaly detection are
+        deliberately not on this list: they would turn a script you run against
+        a capture into a monitoring product, which is what this tool is not
+        trying to be.
+      </p>
+    </section>
+
+    <!-- ── 08 ON AI ── -->
+    <section class="section" id="on-ai">
+      <div class="s-num">08 / On AI</div>
+      <h2>How this project was built</h2>
+      <p>
+        I use an AI assistant while working on PCAP-Triage, and I want to be
+        direct about the shape of that.
+      </p>
+      <p>
+        The default is that I write the code and the assistant explains, reviews
+        and documents: architecture discussion, walking through a language
+        feature I have not met before, reviewing a change after I make it, and
+        the English comments in the source files. When it offers finished code,
+        I usually ask for the explanation instead. The point of this project is
+        that I come out of it able to write this kind of tool, not that the tool
+        exists.
+      </p>
+      <p>
+        Where I set that default aside, it is worth naming rather than blurring.
+        Three parts of this repository were written by the assistant at my
+        request: the formatting layer in <code>report.py</code>, the test suite
+        under <code>tests/</code>, and the OSI layer-separation fix in
+        <code>context.py</code> after I had spent an evening failing to land it
+        myself. The detectors — the part this project exists to teach me — are
+        mine.
+      </p>
+      <p>
+        That choice has a cost — progress is slower, and some of the commits
+        here are messier than they would otherwise be. It also produced the
+        discipline the project actually runs on: capture a baseline before a
+        refactor, diff the output after, and treat an untested branch as
+        unwritten.
+      </p>
+    </section>
+
+  </main>
+
+  <aside class="toc">
+    <div class="toc-label">// contents</div>
+    <ul>
+      <li><a href="#overview">01 · Overview</a></li>
+      <li><a href="#architecture">02 · Architecture</a></li>
+      <li><a href="#generic">03 · Generic detection</a></li>
+      <li><a href="#modbus">04 · Modbus/TCP</a></li>
+      <li><a href="#design">05 · Design choices</a></li>
+      <li><a href="#limitations">06 · Known limitations</a></li>
+      <li><a href="#roadmap">07 · Ideas</a></li>
+      <li><a href="#on-ai">08 · On AI</a></li>
+    </ul>
+  </aside>
+
+</div>
+
+<footer>
+  <div class="footer-inner">
+    <span class="footer-copy">&copy; 2026 Maks Huseynli</span>
+    <div class="footer-links">
+      <a href="../about.html">About</a>
+      <a href="../methodology.html">Methodology</a>
+      <a href="../contact.html">Contact</a>
+    </div>
+  </div>
+</footer>
+
+</body>
+</html>
